@@ -1,0 +1,217 @@
+@page "/signup"
+@inject NavigationManager Navigation
+
+<PageTitle>Register</PageTitle>
+
+<div class="auth-page">
+    <h1 class="brand-title">synapse.</h1>
+
+    <div class="auth-card">
+        <EditForm Model="this" OnValidSubmit="AttemptSubmit">
+            <div class="form-group">
+                <label class="form-label" for="signup-name">Name</label>
+                <InputText id="signup-name" class="@FieldClass(string.IsNullOrWhiteSpace(Name), true)" placeholder="John"
+                           @bind-Value="Name" @onfocusout="() => NameTouched = true" />
+                @if (NameTouched && string.IsNullOrWhiteSpace(Name))
+                {
+                    <p class="field-error">This field is required.</p>
+                }
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="signup-surname">Surname</label>
+                <InputText id="signup-surname" class="@FieldClass(string.IsNullOrWhiteSpace(Surname), true)" placeholder="Doe"
+                           @bind-Value="Surname" @onfocusout="() => SurnameTouched = true" />
+                @if (SurnameTouched && string.IsNullOrWhiteSpace(Surname))
+                {
+                    <p class="field-error">This field is required.</p>
+                }
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="signup-username">Username</label>
+                <InputText id="signup-username" class="@FieldClass(string.IsNullOrWhiteSpace(Username), true)" placeholder="johndoe"
+                           @bind-Value="Username" @onfocusout="() => UsernameTouched = true" />
+                @if (UsernameTouched && string.IsNullOrWhiteSpace(Username))
+                {
+                    <p class="field-error">This field is required.</p>
+                }
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="signup-email">Email Address</label>
+                <InputText id="signup-email" class="@FieldClass(string.IsNullOrWhiteSpace(Email), EmailFormatValid)" placeholder="you@example.com"
+                           @bind-Value="Email" @bind-Value:after="ValidateEmail" @onfocusout="() => EmailTouched = true" />
+                @if (EmailTouched && string.IsNullOrWhiteSpace(Email))
+                {
+                    <p class="field-error">This field is required.</p>
+                }
+                else if (EmailTouched && !EmailFormatValid)
+                {
+                    <p class="field-error">Email address must contain an "@@" character.</p>
+                }
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="signup-password">Password</label>
+                <PasswordInput Id="signup-password" Placeholder="Enter your password"
+                               CssClass="@FieldClass(string.IsNullOrEmpty(Password), PasswordRequirementsMet)"
+                               Value="@Password" ValueChanged="OnPasswordChanged" OnBlur="() => PasswordTouched = true" />
+                @if (PasswordTouched && string.IsNullOrEmpty(Password))
+                {
+                    <p class="field-error">This field is required.</p>
+                }
+                else if (PasswordTouched && !PasswordRequirementsMet)
+                {
+                    <ul class="requirement-list">
+                        @foreach (var req in PasswordRequirements)
+                        {
+                            <li class="@(req.Satisfied ? "requirement-met" : "requirement-unmet")">@req.Description</li>
+                        }
+                    </ul>
+                }
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="signup-confirm-password">Re-enter Password</label>
+                <PasswordInput Id="signup-confirm-password" Placeholder="Re-enter your password"
+                               CssClass="@FieldClass(string.IsNullOrEmpty(ConfirmPassword), PasswordsMatch)"
+                               Value="@ConfirmPassword" ValueChanged="OnConfirmPasswordChanged" OnBlur="() => ConfirmPasswordTouched = true" />
+                @if (ConfirmPasswordTouched && string.IsNullOrEmpty(ConfirmPassword))
+                {
+                    <p class="field-error">This field is required.</p>
+                }
+                else if (ConfirmPasswordTouched && !PasswordsMatch)
+                {
+                    <p class="field-error">Passwords do not match.</p>
+                }
+            </div>
+
+            <div class="checkbox-row">
+                <InputCheckbox id="signup-agree" @bind-Value="AgreeToTerms" disabled="@(!(TermsAccepted && PrivacyAccepted))" />
+                <div>
+                    <label class="checkbox-label" for="signup-agree">I agree to the terms</label>
+                    <ul class="terms-list">
+                        <li>
+                            <button type="button" class="link-inline" @onclick="() => TermsModalOpen = true">Terms of Service</button>
+                            @if (TermsAccepted)
+                            {
+                                <span class="check-mark">✓</span>
+                            }
+                        </li>
+                        <li>
+                            <button type="button" class="link-inline" @onclick="() => PrivacyModalOpen = true">Privacy Policy</button>
+                            @if (PrivacyAccepted)
+                            {
+                                <span class="check-mark">✓</span>
+                            }
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-primary btn-block @(CanSubmit ? "" : "btn-disabled-look")">Register</button>
+        </EditForm>
+    </div>
+
+    <BackLink />
+</div>
+
+<Modal IsOpen="TermsModalOpen" IsOpenChanged="@(open => TermsModalOpen = open)" OnAccept="@(() => TermsAccepted = true)">
+    <TermsOfServiceContent />
+</Modal>
+
+<Modal IsOpen="PrivacyModalOpen" IsOpenChanged="@(open => PrivacyModalOpen = open)" OnAccept="@(() => PrivacyAccepted = true)">
+    <PrivacyPolicyContent />
+</Modal>
+
+@code {
+    private string Name { get; set; } = "";
+    private string Surname { get; set; } = "";
+    private string Username { get; set; } = "";
+    private string Email { get; set; } = "";
+    private string Password { get; set; } = "";
+    private string ConfirmPassword { get; set; } = "";
+    private bool AgreeToTerms { get; set; }
+
+    private bool TermsModalOpen { get; set; }
+    private bool PrivacyModalOpen { get; set; }
+    private bool TermsAccepted { get; set; }
+    private bool PrivacyAccepted { get; set; }
+
+    private bool NameTouched { get; set; }
+    private bool SurnameTouched { get; set; }
+    private bool UsernameTouched { get; set; }
+    private bool EmailTouched { get; set; }
+    private bool PasswordTouched { get; set; }
+    private bool ConfirmPasswordTouched { get; set; }
+
+    private bool EmailFormatValid { get; set; } = true;
+    private bool PasswordsMatch { get; set; } = true;
+    private IReadOnlyList<(string Description, bool Satisfied)> PasswordRequirements { get; set; } =
+        SignupValidation.GetPasswordRequirements("");
+
+    private bool PasswordRequirementsMet => PasswordRequirements.All(r => r.Satisfied);
+
+    private bool CanSubmit =>
+        !string.IsNullOrWhiteSpace(Name) &&
+        !string.IsNullOrWhiteSpace(Surname) &&
+        !string.IsNullOrWhiteSpace(Username) &&
+        !string.IsNullOrWhiteSpace(Email) && EmailFormatValid &&
+        !string.IsNullOrEmpty(Password) && PasswordRequirementsMet &&
+        !string.IsNullOrEmpty(ConfirmPassword) && PasswordsMatch &&
+        AgreeToTerms;
+
+    private static string FieldClass(bool isEmpty, bool isValid) =>
+        "form-input " + (isEmpty ? "" : isValid ? "field-valid" : "field-invalid");
+
+    private void ValidateEmail()
+    {
+        EmailFormatValid = SignupValidation.IsValidEmailFormat(Email);
+    }
+
+    private void OnPasswordChanged(string value)
+    {
+        Password = value;
+        PasswordTouched = true;
+        PasswordRequirements = SignupValidation.GetPasswordRequirements(Password);
+        ValidatePasswordsMatch();
+    }
+
+    private void OnConfirmPasswordChanged(string value)
+    {
+        ConfirmPassword = value;
+        ConfirmPasswordTouched = true;
+        ValidatePasswordsMatch();
+    }
+
+    private void ValidatePasswordsMatch()
+    {
+        PasswordsMatch = ConfirmPassword.Length == 0 || Password == ConfirmPassword;
+    }
+
+    private void AttemptSubmit()
+    {
+        if (CanSubmit)
+        {
+            HandleSignup();
+            return;
+        }
+
+        NameTouched = true;
+        SurnameTouched = true;
+        UsernameTouched = true;
+        EmailTouched = true;
+        PasswordTouched = true;
+        ConfirmPasswordTouched = true;
+        ValidateEmail();
+        PasswordRequirements = SignupValidation.GetPasswordRequirements(Password);
+        ValidatePasswordsMatch();
+    }
+
+    private void HandleSignup()
+    {
+        // No backend account creation yet — treat a valid submitted form as successful for now.
+        Navigation.NavigateTo("/home");
+    }
+}

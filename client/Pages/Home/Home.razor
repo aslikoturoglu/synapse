@@ -1,0 +1,20 @@
+@page "/home"
+
+<PageTitle>synapse.</PageTitle>
+
+<PrimaryHeader />
+
+<div class="home-body">
+    <Drawer UserName="Aslı" UserEmail="asli.koturoglu@gmail.com" />
+
+    <div class="home-feed">
+        @foreach (var post in Posts)
+        {
+            <PostCard Post="post" />
+        }
+    </div>
+</div>
+
+@code {
+    private List<Post> Posts { get; set; } = MockPosts.GetAll();
+}

@@ -1,0 +1,48 @@
+@page "/profile"
+@page "/profile/{AuthorName}"
+@using Client.Pages.Home
+
+<PageTitle>@DisplayName</PageTitle>
+
+<PrimaryHeader />
+
+<div class="home-body">
+    <Drawer UserName="Aslı" UserEmail="asli.koturoglu@gmail.com" />
+
+    <div class="home-feed">
+        <div class="profile-header">
+            <span class="avatar-circle avatar-circle-lg" aria-hidden="true">@DisplayName.Substring(0, 1)</span>
+            <div>
+                <h2 class="profile-name">@DisplayName</h2>
+                @if (!string.IsNullOrWhiteSpace(DisplayRole))
+                {
+                    <p class="profile-role">@DisplayRole</p>
+                }
+            </div>
+        </div>
+
+        @if (Posts.Count == 0)
+        {
+            <p class="stub-text">No posts yet.</p>
+        }
+        else
+        {
+            @foreach (var post in Posts)
+            {
+                <PostCard Post="post" />
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private const string CurrentUserName = "Aslı Koturoğlu";
+
+    [Parameter] public string? AuthorName { get; set; }
+
+    private string DisplayName => string.IsNullOrWhiteSpace(AuthorName) ? CurrentUserName : AuthorName;
+
+    private List<Post> Posts => MockPosts.GetAll().Where(p => p.AuthorName == DisplayName).ToList();
+
+    private string DisplayRole => Posts.Count > 0 ? Posts[0].AuthorRole : "";
+}

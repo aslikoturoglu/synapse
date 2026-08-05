@@ -111,6 +111,25 @@ p, label, .text-body {
     border-color: var(--color-btn-disabled-bg);
 }
 
+.btn-danger {
+    display: inline-block;
+    font-family: inherit;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    padding: 0.6rem 1.4rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    background-color: #ffffff;
+    color: var(--color-error);
+    border: 1px solid var(--color-error);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-danger:hover {
+    background-color: var(--color-error);
+    color: #ffffff;
+}
+
 .welcome-bg, .auth-page {
     box-sizing: border-box;
     min-height: 100vh;
@@ -420,6 +439,20 @@ p, label, .text-body {
     justify-self: end;
 }
 
+.primary-header-profile .header-user-name {
+    grid-column: 1;
+    justify-self: start;
+    color: var(--color-text-title);
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.primary-header-profile .header-brand-right {
+    grid-column: 3;
+    justify-self: end;
+    font-size: 1.9rem;
+}
+
 .home-body {
     display: flex;
     align-items: stretch;
@@ -476,6 +509,201 @@ p, label, .text-body {
 .profile-role {
     margin: 0;
     color: var(--color-text-muted);
+}
+
+.profile-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.25rem;
+    width: 100%;
+    max-width: 60rem;
+    box-sizing: border-box;
+    padding: 0.4rem;
+    border-radius: 0.9rem;
+    background-color: var(--color-btn-secondary-bg);
+    box-shadow: 0 0.25rem 0.75rem rgba(24, 24, 27, 0.06);
+}
+
+.profile-nav-item {
+    box-sizing: border-box;
+    padding: 0.6rem 1.1rem;
+    border: none;
+    border-radius: 0.6rem;
+    background: none;
+    color: var(--color-text-muted);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.profile-nav-item:hover {
+    color: var(--color-text-title);
+}
+
+.profile-nav-item-active {
+    background-color: #ffffff;
+    color: var(--color-text-title);
+    font-weight: 700;
+    box-shadow: 0 0.15rem 0.5rem rgba(24, 24, 27, 0.08);
+}
+
+.profile-name {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.profile-name-edit {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.profile-name-edit .form-input {
+    width: 10rem;
+}
+
+.profile-edit-icon,
+.profile-info-edit-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: none;
+    background: none;
+    padding: 0;
+    color: var(--color-text-muted);
+    cursor: pointer;
+}
+
+.profile-edit-icon:hover,
+.profile-info-edit-icon:hover {
+    color: var(--color-text-title);
+}
+
+.field-action-row {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-shrink: 0;
+}
+
+.field-confirm-icon,
+.field-cancel-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1.65rem;
+    height: 1.65rem;
+    border: none;
+    border-radius: 999px;
+    background: none;
+    cursor: pointer;
+}
+
+.field-confirm-icon {
+    color: var(--color-success);
+}
+
+.field-confirm-icon:disabled {
+    color: var(--color-btn-disabled-text);
+    cursor: not-allowed;
+}
+
+.field-cancel-icon {
+    color: var(--color-error);
+}
+
+.field-confirm-icon:hover:not(:disabled),
+.field-cancel-icon:hover {
+    background-color: var(--color-btn-secondary-bg);
+}
+
+.profile-info {
+    width: 100%;
+    max-width: 28rem;
+}
+
+.profile-info-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--color-btn-secondary-border);
+}
+
+.profile-info-row:last-child {
+    border-bottom: none;
+}
+
+.profile-info-label {
+    flex-shrink: 0;
+    color: var(--color-text-title);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.profile-info-value {
+    flex: 1;
+    text-align: right;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+}
+
+.profile-info-input {
+    flex: 1;
+    text-align: right;
+}
+
+.profile-info-row .password-input-wrapper {
+    flex: 1;
+}
+
+.settings-table {
+    width: 100%;
+    max-width: 45rem;
+    margin-bottom: 1.5rem;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 0.25rem 0.75rem rgba(24, 24, 27, 0.06);
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.1rem 1.5rem;
+    background-color: #ffffff;
+}
+
+.settings-row:nth-child(even) {
+    background-color: var(--color-btn-secondary-bg);
+}
+
+.settings-row-label {
+    color: var(--color-text-title);
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.settings-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.settings-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--color-text-title);
+    font-size: 0.9rem;
+    cursor: pointer;
 }
 
 /* SearchBar component */

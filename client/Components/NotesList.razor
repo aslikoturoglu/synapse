@@ -1,7 +1,10 @@
 @using Client.Pages.Home
 
 <div class="notes-toolbar">
-    <h1 class="notes-title">@Title</h1>
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <h1 class="notes-title">@Title</h1>
+    }
     <div class="notes-toolbar-actions">
         <SearchBar Placeholder="Search" @bind-Value="SearchTerm" />
         <div class="sort-dropdown">

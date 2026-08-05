@@ -1,0 +1,17 @@
+@using Client.Pages.Home
+@inject NotesStore Store
+@inject UiStrings Strings
+
+@{ var favorites = Store.GetFavorites(); }
+
+@if (favorites.Count == 0)
+{
+    <p class="stub-text">@Strings.Get("noFavoritesYet")</p>
+}
+else
+{
+    @foreach (var post in favorites)
+    {
+        <PostCard Post="post" />
+    }
+}

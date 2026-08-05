@@ -52,5 +52,28 @@
   "follow": "Follow",
   "following": "Following",
   "post": "Post",
-  "comingSoon": "Coming soon."
+  "comingSoon": "Coming soon.",
+
+  "profile": "Profile",
+  "myPosts": "My Posts",
+  "myFavorites": "My Favorites",
+  "myNotes": "My Notes",
+  "noPostsYet": "No posts yet.",
+  "noFavoritesYet": "You haven't favorited any posts yet.",
+
+  "email": "E-mail",
+  "phone": "Phone",
+  "jobTitle": "Job Title",
+
+  "whoCanSeeYourPosts": "Who can see your posts?",
+  "whoCanSeeYourFavorites": "Who can see your favorites?",
+  "whoCanCommentOnYourPosts": "Who can comment on your posts?",
+  "everyone": "Everyone",
+  "noOne": "No one",
+  "changePasswordAutomaticallyIn": "Change my password automatically in",
+  "sixMonths": "6 Months",
+  "threeMonths": "3 Months",
+  "never": "Never",
+  "deleteAccount": "Delete Account",
+  "deleteAccountConfirm": "This will permanently delete your account and all your notes. This action cannot be undone."
 }

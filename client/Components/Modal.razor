@@ -12,7 +12,7 @@
 
             @if (ShowAcceptButton)
             {
-                <button type="button" class="btn-primary btn-block" @onclick="Accept">@(AcceptLabel ?? Strings.Get("accept"))</button>
+                <button type="button" class="@AcceptButtonClass btn-block" @onclick="Accept">@(AcceptLabel ?? Strings.Get("accept"))</button>
             }
         </div>
     </div>
@@ -25,6 +25,7 @@
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public bool ShowAcceptButton { get; set; } = true;
     [Parameter] public string? AcceptLabel { get; set; }
+    [Parameter] public string AcceptButtonClass { get; set; } = "btn-primary";
 
     private async Task Close()
     {

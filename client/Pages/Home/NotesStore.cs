@@ -5,7 +5,17 @@ namespace Client.Pages.Home;
 // singleton in Program.cs. Once a real backend exists, this is replaced by actual API calls.
 public class NotesStore
 {
+    public const string CurrentUserName = "Aslı Koturoğlu";
+
     public List<Post> Posts { get; } = MockPosts.GetAll();
 
     public List<string> Groups { get; } = [];
+
+    public UserProfile Profile { get; } = new();
+
+    public UserSettings Settings { get; } = new();
+
+    public List<Post> GetMyPosts() => Posts.Where(p => p.AuthorName == CurrentUserName).ToList();
+
+    public List<Post> GetFavorites() => Posts.Where(p => p.FavoritedByUsers.Contains(CurrentUserName)).ToList();
 }

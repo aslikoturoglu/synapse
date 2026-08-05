@@ -40,9 +40,12 @@
                 <p class="post-author-role">@Post.AuthorRole</p>
             </div>
         </a>
-        <button type="button" class="@(Post.IsFollowing ? "btn-secondary" : "btn-primary")" @onclick="ToggleFollow" @onclick:stopPropagation="true">
-            @(Post.IsFollowing ? Strings.Get("following") : Strings.Get("follow"))
-        </button>
+        @if (ShowFollowButton)
+        {
+            <button type="button" class="@(Post.IsFollowing ? "btn-secondary" : "btn-primary")" @onclick="ToggleFollow" @onclick:stopPropagation="true">
+                @(Post.IsFollowing ? Strings.Get("following") : Strings.Get("follow"))
+            </button>
+        }
 
         @if (Post.IsExpanded)
         {
@@ -99,10 +102,9 @@
 
 @code {
     [Parameter, EditorRequired] public Post Post { get; set; } = null!;
+    [Parameter] public bool ShowFollowButton { get; set; } = true;
 
-    // Mock only: there is no auth session yet, so interactions are attributed to a fixed
-    // placeholder user until real login wires up an actual current-user identity.
-    private const string CurrentUser = "You";
+    private string CurrentUser => NotesStore.CurrentUserName;
 
     private string NewCommentText { get; set; } = "";
 

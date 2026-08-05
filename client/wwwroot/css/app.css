@@ -1885,6 +1885,116 @@ button.post-action-toggle {
     color: var(--color-text-muted);
 }
 
+/* Finished note view (view/edit two-page spread) */
+
+.note-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    width: 100%;
+    max-width: 64rem;
+}
+
+.note-pages-row {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    width: 100%;
+    flex-wrap: wrap;
+}
+
+.note-pages-row .note-file-page-surface {
+    flex: 1;
+    min-width: 18rem;
+}
+
+.note-page-editable {
+    outline: none;
+    min-height: 8rem;
+    white-space: normal;
+    cursor: text;
+}
+
+.note-page-editable:focus {
+    border-radius: 0.3rem;
+    box-shadow: 0 0 0 2px var(--color-btn-secondary-border) inset;
+}
+
+.note-toolbar {
+    position: fixed;
+    top: 50%;
+    right: 1.5rem;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 1rem 0.6rem;
+    border-radius: 999px;
+    background-color: #ffffff;
+    box-shadow: 0 0.5rem 1.5rem rgba(24, 24, 27, 0.12);
+    transform: translateY(-50%);
+}
+
+.note-toolbar-icon {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    box-sizing: border-box;
+    border: none;
+    border-radius: 999px;
+    background: none;
+    color: var(--color-text-title);
+    cursor: pointer;
+}
+
+.note-toolbar-icon:hover {
+    background-color: var(--color-btn-secondary-bg);
+}
+
+.note-toolbar-icon-active {
+    background-color: var(--color-btn-primary-bg);
+    color: #ffffff;
+}
+
+.note-toolbar-text-icon {
+    font-family: inherit;
+    font-size: 0.95rem;
+}
+
+.note-toolbar-divider {
+    width: 1.75rem;
+    height: 1px;
+    background-color: var(--color-btn-secondary-border);
+}
+
+.note-toolbar-done {
+    margin-top: 0.25rem;
+    padding: 0.5rem 1.1rem;
+    font-size: 0.85rem;
+}
+
+.note-toolbar-icon[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    margin-right: 0.7rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 0.4rem;
+    background-color: #18181b;
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+    transform: translateY(-50%);
+}
+
 .wizard-spinner {
     width: 3.5rem;
     height: 3.5rem;

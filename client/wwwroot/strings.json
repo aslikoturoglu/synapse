@@ -104,5 +104,13 @@
   "finalizingHeading": "creating synapses for {0}...",
   "finalizingNotified": "you will be notified when it is done",
   "finalizingCheckMailPrefix": "check your",
-  "finalizingCheckMailSuffix": "mail account!"
+  "finalizingCheckMailSuffix": "mail account!",
+
+  "askToAi": "Ask to AI",
+  "changeByHand": "Change by hand",
+  "download": "Download",
+  "sendByEmail": "Send someone via email",
+  "shareOnProfile": "Share on your profile",
+  "lookAtTopics": "Look at topics",
+  "done": "Done"
 }

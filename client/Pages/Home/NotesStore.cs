@@ -22,4 +22,29 @@ public class NotesStore
     public List<Post> GetMyPosts() => Posts.Where(p => p.AuthorName == CurrentUserName).ToList();
 
     public List<Post> GetFavorites() => Posts.Where(p => p.FavoritedByUsers.Contains(CurrentUserName)).ToList();
+
+    // Called once the wizard reaches the finished-note view, so the note it just built
+    // actually shows up in My Posts / All Notes — not a moment earlier, not a moment later.
+    public void CreatePostFromDraftIfNeeded()
+    {
+        if (Draft.IsCreated)
+            return;
+
+        Posts.Insert(0, new Post
+        {
+            Title = Draft.Title,
+            Description = Draft.Description,
+            AuthorName = CurrentUserName,
+            AuthorRole = Profile.JobTitle,
+            CreatedDate = DateOnly.FromDateTime(DateTime.Now),
+            Files = [new NoteFile
+            {
+                FileName = $"{Draft.Title}.pdf",
+                FileUrl = "sample-pdfs/sps303-final-notes.pdf",
+                PageCount = Math.Max(Draft.Pages.Count, 1),
+            }],
+        });
+
+        Draft.IsCreated = true;
+    }
 }

@@ -1,0 +1,31 @@
+@using Client.Pages.CreateNote
+@inject IJSRuntime JS
+
+<div class="note-file-page-surface">
+    @if (!string.IsNullOrWhiteSpace(Page.Heading))
+    {
+        <p class="note-file-page-title">@Page.Heading</p>
+    }
+
+    @if (EditMode)
+    {
+        <div class="note-file-page-body note-page-editable" contenteditable="true" @ref="BodyElement">@((MarkupString)Page.Body)</div>
+    }
+    else
+    {
+        <p class="note-file-page-body">@((MarkupString)Page.Body)</p>
+    }
+
+    <p class="note-file-page-footer">@DocumentTitle | Page @Page.Number</p>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public NotePage Page { get; set; } = null!;
+    [Parameter] public bool EditMode { get; set; }
+    [Parameter] public string DocumentTitle { get; set; } = "";
+
+    private ElementReference BodyElement;
+
+    public ValueTask<string> GetEditedHtmlAsync() =>
+        JS.InvokeAsync<string>("noteEditor.getHtml", BodyElement);
+}

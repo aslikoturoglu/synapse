@@ -1,0 +1,35 @@
+@using Client.Pages.CreateNote
+
+<div class="wizard-file-grid">
+    @foreach (var fileName in Draft.FileNames)
+    {
+        <div class="wizard-file-item">
+            <button type="button" class="wizard-file-remove" @onclick="() => RemoveFile(fileName)" aria-label="Remove file">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+            <div class="wizard-file-thumb">
+                <span class="wizard-file-thumb-line" style="width: 80%"></span>
+                <span class="wizard-file-thumb-line" style="width: 60%"></span>
+                <span class="wizard-file-thumb-line" style="width: 70%"></span>
+            </div>
+            <span class="wizard-file-name">@fileName</span>
+        </div>
+    }
+
+    <div class="wizard-file-add-tile">
+        <InputFile OnChange="HandleFilesSelected" multiple class="wizard-dropzone-input" />
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public NoteDraft Draft { get; set; } = null!;
+
+    private void HandleFilesSelected(InputFileChangeEventArgs e)
+    {
+        foreach (var file in e.GetMultipleFiles(20))
+            Draft.FileNames.Add(file.Name);
+    }
+
+    private void RemoveFile(string fileName) => Draft.FileNames.Remove(fileName);
+}

@@ -1,6 +1,7 @@
 @page "/settings"
+@inject UiStrings Strings
 
-<PageTitle>Settings</PageTitle>
+<PageTitle>@Strings.Get("settings")</PageTitle>
 
 <PrimaryHeader />
 
@@ -8,7 +9,7 @@
     <Drawer UserName="Aslı" UserEmail="asli.koturoglu@gmail.com" />
 
     <div class="home-feed">
-        <h2 class="stub-heading">Settings</h2>
-        <p class="stub-text">Account and app settings will be here. Coming soon.</p>
+        <h2 class="stub-heading">@Strings.Get("settings")</h2>
+        <SettingsContent />
     </div>
 </div>

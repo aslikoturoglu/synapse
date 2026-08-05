@@ -1,14 +1,14 @@
 @page "/notes"
+@inject UiStrings Strings
 
-<PageTitle>All Notes</PageTitle>
+<PageTitle>@Strings.Get("allNotes")</PageTitle>
 
 <PrimaryHeader />
 
 <div class="home-body">
     <Drawer UserName="Aslı" UserEmail="asli.koturoglu@gmail.com" />
 
-    <div class="home-feed">
-        <h2 class="stub-heading">All Notes</h2>
-        <p class="stub-text">Your notes will be listed here. Coming soon.</p>
+    <div class="home-feed notes-feed">
+        <AllNotesContent />
     </div>
 </div>

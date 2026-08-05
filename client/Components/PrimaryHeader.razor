@@ -1,4 +1,18 @@
-<div class="primary-header">
-    <h1 class="brand-title">synapse.</h1>
-    <SearchBar Placeholder="Search" />
-</div>
+@if (!string.IsNullOrWhiteSpace(UserDisplayName))
+{
+    <div class="primary-header primary-header-profile">
+        <span class="header-user-name">@UserDisplayName</span>
+        <h1 class="brand-title header-brand-right">synapse.</h1>
+    </div>
+}
+else
+{
+    <div class="primary-header">
+        <h1 class="brand-title">synapse.</h1>
+        <SearchBar Placeholder="Search" />
+    </div>
+}
+
+@code {
+    [Parameter] public string? UserDisplayName { get; set; }
+}

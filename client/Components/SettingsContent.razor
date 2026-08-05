@@ -1,0 +1,94 @@
+@using Client.Pages.Home
+@inject NotesStore Store
+@inject NavigationManager Navigation
+@inject UiStrings Strings
+
+<div class="settings-table">
+    <div class="settings-row">
+        <span class="settings-row-label">@Strings.Get("whoCanSeeYourPosts")</span>
+        <div class="settings-options">
+            <label class="settings-option">
+                <input type="radio" name="post-visibility" checked="@(Store.Settings.PostVisibility == PostVisibility.Everyone)" @onchange="() => Store.Settings.PostVisibility = PostVisibility.Everyone" />
+                @Strings.Get("everyone")
+            </label>
+            <label class="settings-option">
+                <input type="radio" name="post-visibility" checked="@(Store.Settings.PostVisibility == PostVisibility.Connections)" @onchange="() => Store.Settings.PostVisibility = PostVisibility.Connections" />
+                @Strings.Get("connections")
+            </label>
+            <label class="settings-option">
+                <input type="radio" name="post-visibility" checked="@(Store.Settings.PostVisibility == PostVisibility.NoOne)" @onchange="() => Store.Settings.PostVisibility = PostVisibility.NoOne" />
+                @Strings.Get("noOne")
+            </label>
+        </div>
+    </div>
+
+    <div class="settings-row">
+        <span class="settings-row-label">@Strings.Get("whoCanSeeYourFavorites")</span>
+        <div class="settings-options">
+            <label class="settings-option">
+                <input type="radio" name="favorites-visibility" checked="@(Store.Settings.FavoritesVisibility == PostVisibility.Everyone)" @onchange="() => Store.Settings.FavoritesVisibility = PostVisibility.Everyone" />
+                @Strings.Get("everyone")
+            </label>
+            <label class="settings-option">
+                <input type="radio" name="favorites-visibility" checked="@(Store.Settings.FavoritesVisibility == PostVisibility.Connections)" @onchange="() => Store.Settings.FavoritesVisibility = PostVisibility.Connections" />
+                @Strings.Get("connections")
+            </label>
+            <label class="settings-option">
+                <input type="radio" name="favorites-visibility" checked="@(Store.Settings.FavoritesVisibility == PostVisibility.NoOne)" @onchange="() => Store.Settings.FavoritesVisibility = PostVisibility.NoOne" />
+                @Strings.Get("noOne")
+            </label>
+        </div>
+    </div>
+
+    <div class="settings-row">
+        <span class="settings-row-label">@Strings.Get("whoCanCommentOnYourPosts")</span>
+        <div class="settings-options">
+            <label class="settings-option">
+                <input type="radio" name="comment-permission" checked="@(Store.Settings.CommentPermission == PostVisibility.Everyone)" @onchange="() => Store.Settings.CommentPermission = PostVisibility.Everyone" />
+                @Strings.Get("everyone")
+            </label>
+            <label class="settings-option">
+                <input type="radio" name="comment-permission" checked="@(Store.Settings.CommentPermission == PostVisibility.Connections)" @onchange="() => Store.Settings.CommentPermission = PostVisibility.Connections" />
+                @Strings.Get("connections")
+            </label>
+            <label class="settings-option">
+                <input type="radio" name="comment-permission" checked="@(Store.Settings.CommentPermission == PostVisibility.NoOne)" @onchange="() => Store.Settings.CommentPermission = PostVisibility.NoOne" />
+                @Strings.Get("noOne")
+            </label>
+        </div>
+    </div>
+
+    <div class="settings-row">
+        <span class="settings-row-label">@Strings.Get("changePasswordAutomaticallyIn")</span>
+        <div class="settings-options">
+            <label class="settings-option">
+                <input type="radio" name="password-expiry" checked="@(Store.Settings.PasswordExpiry == PasswordExpiry.SixMonths)" @onchange="() => Store.Settings.PasswordExpiry = PasswordExpiry.SixMonths" />
+                @Strings.Get("sixMonths")
+            </label>
+            <label class="settings-option">
+                <input type="radio" name="password-expiry" checked="@(Store.Settings.PasswordExpiry == PasswordExpiry.ThreeMonths)" @onchange="() => Store.Settings.PasswordExpiry = PasswordExpiry.ThreeMonths" />
+                @Strings.Get("threeMonths")
+            </label>
+            <label class="settings-option">
+                <input type="radio" name="password-expiry" checked="@(Store.Settings.PasswordExpiry == PasswordExpiry.Never)" @onchange="() => Store.Settings.PasswordExpiry = PasswordExpiry.Never" />
+                @Strings.Get("never")
+            </label>
+        </div>
+    </div>
+</div>
+
+<button type="button" class="btn-danger" @onclick="() => DeleteModalOpen = true">@Strings.Get("deleteAccount")</button>
+
+<Modal IsOpen="DeleteModalOpen" IsOpenChanged="@(open => DeleteModalOpen = open)" OnAccept="ConfirmDelete" AcceptLabel="@Strings.Get("deleteAccount")" AcceptButtonClass="btn-danger">
+    <h3 class="modal-form-heading">@Strings.Get("deleteAccount")</h3>
+    <p class="stub-text">@Strings.Get("deleteAccountConfirm")</p>
+</Modal>
+
+@code {
+    private bool DeleteModalOpen { get; set; }
+
+    private void ConfirmDelete()
+    {
+        Navigation.NavigateTo("/");
+    }
+}

@@ -1,4 +1,5 @@
 @inject NavigationManager Navigation
+@inject UiStrings Strings
 
 <nav class="drawer">
     <p class="drawer-greeting">Hello, @UserName</p>
@@ -11,7 +12,7 @@
                     <polyline points="14 2 14 8 20 8" />
                 </svg>
             </span>
-            <span class="drawer-label">Create New Note</span>
+            <span class="drawer-label">@Strings.Get("createNewNote")</span>
         </NavLink>
 
         <NavLink class="drawer-item" href="/notes">
@@ -20,7 +21,7 @@
                     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                 </svg>
             </span>
-            <span class="drawer-label">All Notes</span>
+            <span class="drawer-label">@Strings.Get("allNotes")</span>
         </NavLink>
 
         <ul class="drawer-sublist">
@@ -41,7 +42,7 @@
                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                 </svg>
             </span>
-            <span class="drawer-label">Favorites</span>
+            <span class="drawer-label">@Strings.Get("favorites")</span>
         </NavLink>
 
         <NavLink class="drawer-item" href="/profile">
@@ -51,7 +52,7 @@
                     <circle cx="12" cy="7" r="4" />
                 </svg>
             </span>
-            <span class="drawer-label">Profile Page</span>
+            <span class="drawer-label">@Strings.Get("profilePage")</span>
         </NavLink>
 
         <NavLink class="drawer-item" href="/connections">
@@ -62,7 +63,7 @@
                     <path d="M15.5 7.5l3 3L22 7l-3-3" />
                 </svg>
             </span>
-            <span class="drawer-label">Connections</span>
+            <span class="drawer-label">@Strings.Get("connections")</span>
         </NavLink>
 
         <NavLink class="drawer-item" href="/home" Match="NavLinkMatch.All">
@@ -72,12 +73,12 @@
                     <polyline points="9 22 9 12 15 12 15 22" />
                 </svg>
             </span>
-            <span class="drawer-label">Home</span>
+            <span class="drawer-label">@Strings.Get("home")</span>
         </NavLink>
     </div>
 
     <div class="drawer-search">
-        <SearchBar Placeholder="Search in menu..." />
+        <SearchBar Placeholder="@Strings.Get("searchInMenu")" />
     </div>
 
     <div class="drawer-bottom">
@@ -93,7 +94,7 @@
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
                 </svg>
             </span>
-            <span class="drawer-label">Settings</span>
+            <span class="drawer-label">@Strings.Get("settings")</span>
         </NavLink>
 
         <button type="button" class="drawer-item drawer-logout" @onclick="HandleLogout">
@@ -104,7 +105,7 @@
                     <line x1="21" y1="12" x2="9" y2="12" />
                 </svg>
             </span>
-            <span class="drawer-label">Log Out</span>
+            <span class="drawer-label">@Strings.Get("logOut")</span>
         </button>
     </div>
 </nav>

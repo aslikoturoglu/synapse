@@ -1,22 +1,17 @@
 @page "/"
+@inject UiStrings Strings
 
 <PageTitle>synapse.</PageTitle>
 
 <div class="welcome-bg">
     <div class="welcome-content">
-        <p class="eyebrow">Welcome to</p>
-        <h1 class="hero-title">synapse.</h1>
-        <p class="tagline">Stop drowning in scattered data. Discover the invisible threads that connect it all.</p>
-        <p class="description">
-            Information in isolation is just noise; connected, it becomes intelligence. Our platform seamlessly
-            synthesizes multiple documents, reports, and articles, using advanced AI to map the hidden
-            intersections, shared themes, and overlooked bridges between them. By transforming chaotic piles of
-            data into a single, cohesive, and highly refined cognitive summary, we empower you to grasp the entire
-            horizon at a glance. Don't just store your documents—let them speak to one another.
-        </p>
+        <p class="eyebrow">@Strings.Get("welcomeEyebrow")</p>
+        <h1 class="hero-title">@Strings.Get("welcomeHeroTitle")</h1>
+        <p class="tagline">@Strings.Get("welcomeTagline")</p>
+        <p class="description">@Strings.Get("welcomeDescription")</p>
         <div class="button-row">
-            <a href="/login" class="btn-primary">Log In</a>
-            <a href="/signup" class="btn-secondary">Sign Up</a>
+            <a href="/login" class="btn-primary">@Strings.Get("logIn")</a>
+            <a href="/signup" class="btn-secondary">@Strings.Get("signUp")</a>
         </div>
     </div>
 </div>

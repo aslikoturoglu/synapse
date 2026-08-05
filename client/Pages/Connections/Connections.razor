@@ -1,6 +1,7 @@
 @page "/connections"
+@inject UiStrings Strings
 
-<PageTitle>Connections</PageTitle>
+<PageTitle>@Strings.Get("connections")</PageTitle>
 
 <PrimaryHeader />
 
@@ -8,7 +9,7 @@
     <Drawer UserName="Aslı" UserEmail="asli.koturoglu@gmail.com" />
 
     <div class="home-feed">
-        <h2 class="stub-heading">Connections</h2>
-        <p class="stub-text">People you follow and who follow you will be listed here. Coming soon.</p>
+        <h2 class="stub-heading">@Strings.Get("connections")</h2>
+        <p class="stub-text">People you follow and who follow you will be listed here. @Strings.Get("comingSoon")</p>
     </div>
 </div>

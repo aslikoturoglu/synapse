@@ -1,0 +1,89 @@
+@using Client.Pages.Home
+
+<div class="notes-toolbar">
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <h1 class="notes-title">@Title</h1>
+    }
+    <div class="notes-toolbar-actions">
+        <SearchBar Placeholder="Search" @bind-Value="SearchTerm" />
+        <div class="sort-dropdown">
+            <button type="button" class="sort-trigger" @onclick="() => SortMenuOpen = !SortMenuOpen" aria-label="Sort and filter">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
+            </button>
+            @if (SortMenuOpen)
+            {
+                <div class="sort-menu">
+                    <button type="button" class="sort-menu-item @(SelectedSort == SortMode.Standard ? "sort-menu-item-active" : "")" @onclick="@(() => SelectSort(SortMode.Standard))">Standart</button>
+                    <button type="button" class="sort-menu-item @(SelectedSort == SortMode.NewToOld ? "sort-menu-item-active" : "")" @onclick="@(() => SelectSort(SortMode.NewToOld))">New-to-Old</button>
+                    <button type="button" class="sort-menu-item @(SelectedSort == SortMode.OldToNew ? "sort-menu-item-active" : "")" @onclick="@(() => SelectSort(SortMode.OldToNew))">Old-to-New</button>
+                    <button type="button" class="sort-menu-item @(SelectedSort == SortMode.Likes ? "sort-menu-item-active" : "")" @onclick="@(() => SelectSort(SortMode.Likes))">Based on Likes</button>
+                    <button type="button" class="sort-menu-item @(SelectedSort == SortMode.Comments ? "sort-menu-item-active" : "")" @onclick="@(() => SelectSort(SortMode.Comments))">Based on Comments</button>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@{ var grouped = GroupedNotes; }
+
+@foreach (var dateGroup in grouped)
+{
+    <div class="notes-date-header">
+        <span>@dateGroup.Key.ToString("dd/MM/yyyy")</span>
+        <span class="notes-date-count">@dateGroup.Count() Notes</span>
+    </div>
+
+    @foreach (var note in dateGroup)
+    {
+        <NoteCard Post="note" OnDelete="OnDelete" OnAddToGroup="OnAddToGroup" />
+    }
+}
+
+@if (grouped.Count == 0)
+{
+    <p class="stub-text">No notes match your search.</p>
+}
+
+@code {
+    private enum SortMode { Standard, NewToOld, OldToNew, Likes, Comments }
+
+    [Parameter] public string Title { get; set; } = "Notes";
+    [Parameter] public List<Post> Posts { get; set; } = [];
+    [Parameter] public EventCallback<Post> OnDelete { get; set; }
+    [Parameter] public EventCallback<Post> OnAddToGroup { get; set; }
+
+    private string SearchTerm { get; set; } = "";
+    private SortMode SelectedSort { get; set; } = SortMode.NewToOld;
+    private bool SortMenuOpen { get; set; }
+
+    private List<IGrouping<DateOnly, Post>> GroupedNotes
+    {
+        get
+        {
+            IEnumerable<Post> filtered = Posts.Where(p =>
+                string.IsNullOrWhiteSpace(SearchTerm) ||
+                p.Title.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                p.Description.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase));
+
+            filtered = SelectedSort switch
+            {
+                SortMode.NewToOld => filtered.OrderByDescending(p => p.CreatedDate),
+                SortMode.OldToNew => filtered.OrderBy(p => p.CreatedDate),
+                SortMode.Likes => filtered.OrderByDescending(p => p.LikedByUsers.Count),
+                SortMode.Comments => filtered.OrderByDescending(p => p.Comments.Count),
+                _ => filtered,
+            };
+
+            return [.. filtered
+                .GroupBy(p => p.CreatedDate)
+                .OrderByDescending(g => g.Key)];
+        }
+    }
+
+    private void SelectSort(SortMode mode)
+    {
+        SelectedSort = mode;
+        SortMenuOpen = false;
+    }
+}

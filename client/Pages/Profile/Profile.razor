@@ -1,48 +1,280 @@
 @page "/profile"
 @page "/profile/{AuthorName}"
+@using System.Text.RegularExpressions
 @using Client.Pages.Home
+@using Client.Pages.AllNotes
+@using Client.Pages.Signup
+@inject NotesStore Store
+@inject NavigationManager Navigation
+@inject UiStrings Strings
 
-<PageTitle>@DisplayName</PageTitle>
+<PageTitle>@(IsOwnProfile ? Store.Profile.FullName : DisplayName)</PageTitle>
 
-<PrimaryHeader />
+@if (IsOwnProfile)
+{
+    <PrimaryHeader UserDisplayName="@Store.Profile.FullName" />
+}
+else
+{
+    <PrimaryHeader />
+}
 
 <div class="home-body">
-    <Drawer UserName="Aslı" UserEmail="asli.koturoglu@gmail.com" />
+    <Drawer UserName="@Store.Profile.Name" UserEmail="@Store.Profile.Email" />
 
-    <div class="home-feed">
-        <div class="profile-header">
-            <span class="avatar-circle avatar-circle-lg" aria-hidden="true">@DisplayName.Substring(0, 1)</span>
-            <div>
-                <h2 class="profile-name">@DisplayName</h2>
-                @if (!string.IsNullOrWhiteSpace(DisplayRole))
-                {
-                    <p class="profile-role">@DisplayRole</p>
-                }
-            </div>
-        </div>
-
-        @if (Posts.Count == 0)
+    <div class="home-feed @(ActiveTab == ProfileTab.MyNotes ? "notes-feed" : "")">
+        @if (IsOwnProfile)
         {
-            <p class="stub-text">No posts yet.</p>
+            <nav class="profile-nav">
+                <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.Profile ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.Profile">@Strings.Get("profile")</button>
+                <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.MyPosts ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.MyPosts">@Strings.Get("myPosts")</button>
+                <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.MyFavorites ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.MyFavorites">@Strings.Get("myFavorites")</button>
+                <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.MyNotes ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.MyNotes">@Strings.Get("myNotes")</button>
+                <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.Settings ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.Settings">@Strings.Get("settings")</button>
+                <button type="button" class="profile-nav-item" @onclick="HandleLogout">@Strings.Get("logOut")</button>
+            </nav>
+
+            @if (ActiveTab == ProfileTab.Profile)
+            {
+                <div class="profile-header">
+                    <span class="avatar-circle avatar-circle-lg" aria-hidden="true">@Store.Profile.Name.Substring(0, 1)</span>
+
+                    @if (EditingName)
+                    {
+                        <div class="profile-name-edit">
+                            <input class="form-input" placeholder="@Strings.Get("name")" @bind="NameDraft" @bind:event="oninput" />
+                            <input class="form-input" placeholder="@Strings.Get("surname")" @bind="SurnameDraft" @bind:event="oninput" />
+                            <div class="field-action-row">
+                                <button type="button" class="field-confirm-icon" disabled="@(!IsNameValid)" @onclick="SaveName" aria-label="Save name">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                </button>
+                                <button type="button" class="field-cancel-icon" @onclick="CancelEdit" aria-label="Cancel">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <h2 class="profile-name">
+                            @Store.Profile.FullName
+                            <button type="button" class="profile-edit-icon" @onclick="StartEditName" aria-label="Edit name">
+                                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
+                            </button>
+                        </h2>
+                    }
+                </div>
+
+                <div class="profile-info">
+                    <div class="profile-info-row">
+                        <span class="profile-info-label">@Strings.Get("email")</span>
+                        <span class="profile-info-value">@Store.Profile.Email</span>
+                    </div>
+
+                    <div class="profile-info-row">
+                        <button type="button" class="profile-info-edit-icon" @onclick="@(() => StartEditField("phone", Store.Profile.Phone))" aria-label="Edit phone">@PencilIcon</button>
+                        <span class="profile-info-label">@Strings.Get("phone")</span>
+                        @if (EditingField == "phone")
+                        {
+                            <input class="form-input profile-info-input" @bind="FieldDraft" @bind:event="oninput" />
+                            @FieldActions("phone")
+                        }
+                        else
+                        {
+                            <span class="profile-info-value">@Store.Profile.Phone</span>
+                        }
+                    </div>
+
+                    <div class="profile-info-row">
+                        <button type="button" class="profile-info-edit-icon" @onclick="@(() => StartEditField("jobTitle", Store.Profile.JobTitle))" aria-label="Edit job title">@PencilIcon</button>
+                        <span class="profile-info-label">@Strings.Get("jobTitle")</span>
+                        @if (EditingField == "jobTitle")
+                        {
+                            <input class="form-input profile-info-input" @bind="FieldDraft" @bind:event="oninput" />
+                            @FieldActions("jobTitle")
+                        }
+                        else
+                        {
+                            <span class="profile-info-value">@Store.Profile.JobTitle</span>
+                        }
+                    </div>
+
+                    <div class="profile-info-row">
+                        <button type="button" class="profile-info-edit-icon" @onclick="@(() => StartEditField("username", Store.Profile.Username))" aria-label="Edit username">@PencilIcon</button>
+                        <span class="profile-info-label">@Strings.Get("username")</span>
+                        @if (EditingField == "username")
+                        {
+                            <input class="form-input profile-info-input" @bind="FieldDraft" @bind:event="oninput" />
+                            @FieldActions("username")
+                        }
+                        else
+                        {
+                            <span class="profile-info-value">@Store.Profile.Username</span>
+                        }
+                    </div>
+
+                    <div class="profile-info-row">
+                        <button type="button" class="profile-info-edit-icon" @onclick="@(() => StartEditField("password", Store.Profile.Password))" aria-label="Edit password">@PencilIcon</button>
+                        <span class="profile-info-label">@Strings.Get("password")</span>
+                        @if (EditingField == "password")
+                        {
+                            <PasswordInput Id="profile-password" CssClass="form-input profile-info-input" Value="@FieldDraft" ValueChanged="@(v => FieldDraft = v)" />
+                            @FieldActions("password")
+                        }
+                        else
+                        {
+                            <span class="profile-info-value">•••••••</span>
+                        }
+                    </div>
+                </div>
+            }
+            else if (ActiveTab == ProfileTab.MyPosts)
+            {
+                @if (Store.GetMyPosts().Count == 0)
+                {
+                    <p class="stub-text">@Strings.Get("noPostsYet")</p>
+                }
+                else
+                {
+                    @foreach (var post in Store.GetMyPosts())
+                    {
+                        <PostCard Post="post" ShowFollowButton="false" />
+                    }
+                }
+            }
+            else if (ActiveTab == ProfileTab.MyFavorites)
+            {
+                <FavoritesContent />
+            }
+            else if (ActiveTab == ProfileTab.MyNotes)
+            {
+                <AllNotesContent ShowTitle="false" />
+            }
+            else if (ActiveTab == ProfileTab.Settings)
+            {
+                <SettingsContent />
+            }
         }
         else
         {
-            @foreach (var post in Posts)
+            <div class="profile-header">
+                <span class="avatar-circle avatar-circle-lg" aria-hidden="true">@DisplayName.Substring(0, 1)</span>
+                <div>
+                    <h2 class="profile-name">@DisplayName</h2>
+                    @if (!string.IsNullOrWhiteSpace(DisplayRole))
+                    {
+                        <p class="profile-role">@DisplayRole</p>
+                    }
+                </div>
+            </div>
+
+            @if (OtherPosts.Count == 0)
             {
-                <PostCard Post="post" />
+                <p class="stub-text">@Strings.Get("noPostsYet")</p>
+            }
+            else
+            {
+                @foreach (var post in OtherPosts)
+                {
+                    <PostCard Post="post" />
+                }
             }
         }
     </div>
 </div>
 
 @code {
-    private const string CurrentUserName = "Aslı Koturoğlu";
+    private enum ProfileTab { Profile, MyPosts, MyFavorites, MyNotes, Settings }
 
     [Parameter] public string? AuthorName { get; set; }
 
-    private string DisplayName => string.IsNullOrWhiteSpace(AuthorName) ? CurrentUserName : AuthorName;
+    private bool IsOwnProfile => string.IsNullOrWhiteSpace(AuthorName) || AuthorName == NotesStore.CurrentUserName;
 
-    private List<Post> Posts => MockPosts.GetAll().Where(p => p.AuthorName == DisplayName).ToList();
+    private string DisplayName => IsOwnProfile ? Store.Profile.FullName : AuthorName!;
 
-    private string DisplayRole => Posts.Count > 0 ? Posts[0].AuthorRole : "";
+    private List<Post> OtherPosts => Store.Posts.Where(p => p.AuthorName == DisplayName).ToList();
+
+    private string DisplayRole => OtherPosts.Count > 0 ? OtherPosts[0].AuthorRole : "";
+
+    private ProfileTab ActiveTab { get; set; } = ProfileTab.Profile;
+
+    private bool EditingName { get; set; }
+    private string NameDraft { get; set; } = "";
+    private string SurnameDraft { get; set; } = "";
+    private bool IsNameValid => !string.IsNullOrWhiteSpace(NameDraft) && !string.IsNullOrWhiteSpace(SurnameDraft);
+
+    private string? EditingField { get; set; }
+    private string FieldDraft { get; set; } = "";
+
+    private static readonly RenderFragment PencilIcon = @<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>;
+
+    private RenderFragment FieldActions(string field) => @<div class="field-action-row">
+        <button type="button" class="field-confirm-icon" disabled="@(!IsFieldValid(field, FieldDraft))" @onclick="@(() => CommitField(field))" aria-label="Save">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        </button>
+        <button type="button" class="field-cancel-icon" @onclick="CancelEdit" aria-label="Cancel">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+        </button>
+    </div>;
+
+    private void StartEditName()
+    {
+        NameDraft = Store.Profile.Name;
+        SurnameDraft = Store.Profile.Surname;
+        EditingName = true;
+        EditingField = null;
+    }
+
+    private void SaveName()
+    {
+        if (!IsNameValid)
+            return;
+
+        Store.Profile.Name = NameDraft.Trim();
+        Store.Profile.Surname = SurnameDraft.Trim();
+        EditingName = false;
+    }
+
+    private void StartEditField(string field, string currentValue)
+    {
+        EditingField = field;
+        FieldDraft = currentValue;
+        EditingName = false;
+    }
+
+    private void CommitField(string field)
+    {
+        if (EditingField != field || !IsFieldValid(field, FieldDraft))
+            return;
+
+        switch (field)
+        {
+            case "phone": Store.Profile.Phone = FieldDraft.Trim(); break;
+            case "jobTitle": Store.Profile.JobTitle = FieldDraft.Trim(); break;
+            case "username": Store.Profile.Username = FieldDraft.Trim(); break;
+            case "password": Store.Profile.Password = FieldDraft; break;
+        }
+
+        EditingField = null;
+    }
+
+    private void CancelEdit()
+    {
+        EditingName = false;
+        EditingField = null;
+    }
+
+    private static bool IsFieldValid(string field, string value) => field switch
+    {
+        "phone" => Regex.IsMatch(value.Trim(), @"^[0-9+()\-\s]{7,}$"),
+        "jobTitle" => !string.IsNullOrWhiteSpace(value),
+        "username" => Regex.IsMatch(value.Trim(), @"^[A-Za-z0-9_.]{3,}$"),
+        "password" => SignupValidation.GetPasswordRequirements(value).All(r => r.Satisfied),
+        _ => false,
+    };
+
+    private void HandleLogout()
+    {
+        Navigation.NavigateTo("/");
+    }
 }

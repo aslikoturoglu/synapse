@@ -1,7 +1,8 @@
 @page "/signup"
 @inject NavigationManager Navigation
+@inject UiStrings Strings
 
-<PageTitle>Register</PageTitle>
+<PageTitle>@Strings.Get("register")</PageTitle>
 
 <div class="auth-page">
     <h1 class="brand-title">synapse.</h1>
@@ -9,57 +10,57 @@
     <div class="auth-card">
         <EditForm Model="this" OnValidSubmit="AttemptSubmit">
             <div class="form-group">
-                <label class="form-label" for="signup-name">Name</label>
-                <InputText id="signup-name" class="@FieldClass(string.IsNullOrWhiteSpace(Name), true)" placeholder="John"
+                <label class="form-label" for="signup-name">@Strings.Get("name")</label>
+                <InputText id="signup-name" class="@FieldClass(string.IsNullOrWhiteSpace(Name), true)" placeholder="@Strings.Get("namePlaceholder")"
                            @bind-Value="Name" @onfocusout="() => NameTouched = true" />
                 @if (NameTouched && string.IsNullOrWhiteSpace(Name))
                 {
-                    <p class="field-error">This field is required.</p>
+                    <p class="field-error">@Strings.Get("fieldRequired")</p>
                 }
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="signup-surname">Surname</label>
-                <InputText id="signup-surname" class="@FieldClass(string.IsNullOrWhiteSpace(Surname), true)" placeholder="Doe"
+                <label class="form-label" for="signup-surname">@Strings.Get("surname")</label>
+                <InputText id="signup-surname" class="@FieldClass(string.IsNullOrWhiteSpace(Surname), true)" placeholder="@Strings.Get("surnamePlaceholder")"
                            @bind-Value="Surname" @onfocusout="() => SurnameTouched = true" />
                 @if (SurnameTouched && string.IsNullOrWhiteSpace(Surname))
                 {
-                    <p class="field-error">This field is required.</p>
+                    <p class="field-error">@Strings.Get("fieldRequired")</p>
                 }
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="signup-username">Username</label>
-                <InputText id="signup-username" class="@FieldClass(string.IsNullOrWhiteSpace(Username), true)" placeholder="johndoe"
+                <label class="form-label" for="signup-username">@Strings.Get("username")</label>
+                <InputText id="signup-username" class="@FieldClass(string.IsNullOrWhiteSpace(Username), true)" placeholder="@Strings.Get("usernamePlaceholder")"
                            @bind-Value="Username" @onfocusout="() => UsernameTouched = true" />
                 @if (UsernameTouched && string.IsNullOrWhiteSpace(Username))
                 {
-                    <p class="field-error">This field is required.</p>
+                    <p class="field-error">@Strings.Get("fieldRequired")</p>
                 }
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="signup-email">Email Address</label>
-                <InputText id="signup-email" class="@FieldClass(string.IsNullOrWhiteSpace(Email), EmailFormatValid)" placeholder="you@example.com"
+                <label class="form-label" for="signup-email">@Strings.Get("emailAddress")</label>
+                <InputText id="signup-email" class="@FieldClass(string.IsNullOrWhiteSpace(Email), EmailFormatValid)" placeholder="@Strings.Get("emailPlaceholder")"
                            @bind-Value="Email" @bind-Value:after="ValidateEmail" @onfocusout="() => EmailTouched = true" />
                 @if (EmailTouched && string.IsNullOrWhiteSpace(Email))
                 {
-                    <p class="field-error">This field is required.</p>
+                    <p class="field-error">@Strings.Get("fieldRequired")</p>
                 }
                 else if (EmailTouched && !EmailFormatValid)
                 {
-                    <p class="field-error">Email address must contain an "@@" character.</p>
+                    <p class="field-error">@Strings.Get("emailMustContainAt")</p>
                 }
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="signup-password">Password</label>
-                <PasswordInput Id="signup-password" Placeholder="Enter your password"
+                <label class="form-label" for="signup-password">@Strings.Get("password")</label>
+                <PasswordInput Id="signup-password" Placeholder="@Strings.Get("passwordPlaceholder")"
                                CssClass="@FieldClass(string.IsNullOrEmpty(Password), PasswordRequirementsMet)"
                                Value="@Password" ValueChanged="OnPasswordChanged" OnBlur="() => PasswordTouched = true" />
                 @if (PasswordTouched && string.IsNullOrEmpty(Password))
                 {
-                    <p class="field-error">This field is required.</p>
+                    <p class="field-error">@Strings.Get("fieldRequired")</p>
                 }
                 else if (PasswordTouched && !PasswordRequirementsMet)
                 {
@@ -73,34 +74,34 @@
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="signup-confirm-password">Re-enter Password</label>
-                <PasswordInput Id="signup-confirm-password" Placeholder="Re-enter your password"
+                <label class="form-label" for="signup-confirm-password">@Strings.Get("reEnterPassword")</label>
+                <PasswordInput Id="signup-confirm-password" Placeholder="@Strings.Get("reEnterPasswordPlaceholder")"
                                CssClass="@FieldClass(string.IsNullOrEmpty(ConfirmPassword), PasswordsMatch)"
                                Value="@ConfirmPassword" ValueChanged="OnConfirmPasswordChanged" OnBlur="() => ConfirmPasswordTouched = true" />
                 @if (ConfirmPasswordTouched && string.IsNullOrEmpty(ConfirmPassword))
                 {
-                    <p class="field-error">This field is required.</p>
+                    <p class="field-error">@Strings.Get("fieldRequired")</p>
                 }
                 else if (ConfirmPasswordTouched && !PasswordsMatch)
                 {
-                    <p class="field-error">Passwords do not match.</p>
+                    <p class="field-error">@Strings.Get("passwordsDoNotMatch")</p>
                 }
             </div>
 
             <div class="checkbox-row">
                 <InputCheckbox id="signup-agree" @bind-Value="AgreeToTerms" disabled="@(!(TermsAccepted && PrivacyAccepted))" />
                 <div>
-                    <label class="checkbox-label" for="signup-agree">I agree to the terms</label>
+                    <label class="checkbox-label" for="signup-agree">@Strings.Get("agreeToTerms")</label>
                     <ul class="terms-list">
                         <li>
-                            <button type="button" class="link-inline" @onclick="() => TermsModalOpen = true">Terms of Service</button>
+                            <button type="button" class="link-inline" @onclick="() => TermsModalOpen = true">@Strings.Get("termsOfService")</button>
                             @if (TermsAccepted)
                             {
                                 <span class="check-mark">✓</span>
                             }
                         </li>
                         <li>
-                            <button type="button" class="link-inline" @onclick="() => PrivacyModalOpen = true">Privacy Policy</button>
+                            <button type="button" class="link-inline" @onclick="() => PrivacyModalOpen = true">@Strings.Get("privacyPolicy")</button>
                             @if (PrivacyAccepted)
                             {
                                 <span class="check-mark">✓</span>
@@ -110,7 +111,7 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn-primary btn-block @(CanSubmit ? "" : "btn-disabled-look")">Register</button>
+            <button type="submit" class="btn-primary btn-block @(CanSubmit ? "" : "btn-disabled-look")">@Strings.Get("register")</button>
         </EditForm>
     </div>
 

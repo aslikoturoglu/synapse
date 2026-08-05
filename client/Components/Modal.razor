@@ -1,3 +1,5 @@
+@inject UiStrings Strings
+
 @if (IsOpen)
 {
     <div class="modal-overlay">
@@ -8,7 +10,10 @@
                 @ChildContent
             </div>
 
-            <button type="button" class="btn-primary btn-block" @onclick="Accept">Accept</button>
+            @if (ShowAcceptButton)
+            {
+                <button type="button" class="btn-primary btn-block" @onclick="Accept">@(AcceptLabel ?? Strings.Get("accept"))</button>
+            }
         </div>
     </div>
 }
@@ -18,6 +23,8 @@
     [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
     [Parameter] public EventCallback OnAccept { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public bool ShowAcceptButton { get; set; } = true;
+    [Parameter] public string? AcceptLabel { get; set; }
 
     private async Task Close()
     {

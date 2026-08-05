@@ -1,0 +1,63 @@
+@page "/notes/group/{GroupName}"
+@using Client.Pages.Home
+@inject NotesStore Store
+@inject UiStrings Strings
+
+<PageTitle>@GroupName</PageTitle>
+
+<PrimaryHeader />
+
+<div class="home-body">
+    <Drawer UserName="Aslı" UserEmail="asli.koturoglu@gmail.com" />
+
+    <div class="home-feed notes-feed">
+        <a class="notes-back-link" href="/notes">
+            <span aria-hidden="true">←</span> Back to All Notes
+        </a>
+
+        @if (GroupPosts.Count == 0)
+        {
+            <h1 class="notes-title">@GroupName</h1>
+            <p class="stub-text">This group doesn't have any notes yet. Add notes to it from All Notes.</p>
+        }
+        else
+        {
+            <NotesList Title="@GroupName" Posts="GroupPosts" OnDelete="HandleDelete" OnAddToGroup="OpenAddToGroup" />
+        }
+    </div>
+</div>
+
+<Modal IsOpen="AddToGroupModalOpen" IsOpenChanged="@(open => AddToGroupModalOpen = open)" ShowAcceptButton="false">
+    <h3 class="modal-form-heading">@Strings.Get("addToGroup")</h3>
+    <div class="group-picker-list">
+        @foreach (var group in Store.Groups)
+        {
+            <button type="button" class="group-picker-item" @onclick="() => AssignGroup(group)">@group</button>
+        }
+    </div>
+</Modal>
+
+@code {
+    [Parameter] public string GroupName { get; set; } = "";
+
+    private List<Post> GroupPosts => Store.Posts.Where(p => p.GroupName == GroupName).ToList();
+
+    private bool AddToGroupModalOpen { get; set; }
+    private Post? PostForGroupAssignment { get; set; }
+
+    private void HandleDelete(Post post) => Store.Posts.Remove(post);
+
+    private void OpenAddToGroup(Post post)
+    {
+        PostForGroupAssignment = post;
+        AddToGroupModalOpen = true;
+    }
+
+    private void AssignGroup(string groupName)
+    {
+        if (PostForGroupAssignment is not null)
+            PostForGroupAssignment.GroupName = groupName;
+
+        AddToGroupModalOpen = false;
+    }
+}

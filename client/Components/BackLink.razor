@@ -1,4 +1,10 @@
-<a href="/" class="back-link">
+@inject UiStrings Strings
+
+<a href="@Href" class="back-link">
     <span aria-hidden="true">←</span>
-    <span>Back</span>
+    <span>@Strings.Get("back")</span>
 </a>
+
+@code {
+    [Parameter] public string Href { get; set; } = "/";
+}

@@ -1,6 +1,7 @@
 @page "/profile"
 @page "/profile/{AuthorName}"
 @using Client.Pages.Home
+@inject NotesStore Store
 
 <PageTitle>@DisplayName</PageTitle>
 
@@ -42,7 +43,7 @@
 
     private string DisplayName => string.IsNullOrWhiteSpace(AuthorName) ? CurrentUserName : AuthorName;
 
-    private List<Post> Posts => MockPosts.GetAll().Where(p => p.AuthorName == DisplayName).ToList();
+    private List<Post> Posts => Store.Posts.Where(p => p.AuthorName == DisplayName).ToList();
 
     private string DisplayRole => Posts.Count > 0 ? Posts[0].AuthorRole : "";
 }

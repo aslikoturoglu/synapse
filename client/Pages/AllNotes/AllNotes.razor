@@ -1,14 +1,100 @@
 @page "/notes"
+@using Client.Pages.Home
+@inject NotesStore Store
+@inject UiStrings Strings
 
-<PageTitle>All Notes</PageTitle>
+<PageTitle>@Strings.Get("allNotes")</PageTitle>
 
 <PrimaryHeader />
 
 <div class="home-body">
     <Drawer UserName="Aslı" UserEmail="asli.koturoglu@gmail.com" />
 
-    <div class="home-feed">
-        <h2 class="stub-heading">All Notes</h2>
-        <p class="stub-text">Your notes will be listed here. Coming soon.</p>
+    <div class="home-feed notes-feed">
+        <div class="notes-actions-row">
+            <a class="notes-action-card" href="/notes/new">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="12" y1="11" x2="12" y2="17" /><line x1="9" y1="14" x2="15" y2="14" /></svg>
+                <span>+ Create New</span>
+            </a>
+
+            <a class="notes-action-card" href="/favorites">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                <span>@Strings.Get("favorites")</span>
+            </a>
+
+            <button type="button" class="notes-action-card" @onclick="() => CreateGroupModalOpen = true">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /><line x1="12" y1="11" x2="12" y2="17" /><line x1="9" y1="14" x2="15" y2="14" /></svg>
+                <span>@Strings.Get("createGroup")</span>
+            </button>
+
+            @foreach (var group in Store.Groups)
+            {
+                <a class="notes-action-card notes-action-card-group" href="@($"/notes/group/{Uri.EscapeDataString(group)}")">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
+                    <span>@group</span>
+                </a>
+            }
+        </div>
+
+        <NotesList Title="@Strings.Get("allNotes")" Posts="MyPosts" OnDelete="HandleDelete" OnAddToGroup="OpenAddToGroup" />
     </div>
 </div>
+
+<Modal IsOpen="CreateGroupModalOpen" IsOpenChanged="@(open => CreateGroupModalOpen = open)" OnAccept="ConfirmCreateGroup" AcceptLabel="@Strings.Get("create")">
+    <h3 class="modal-form-heading">@Strings.Get("createGroup")</h3>
+    <input class="form-input" placeholder="Group name" @bind="NewGroupName" @bind:event="oninput" />
+</Modal>
+
+<Modal IsOpen="AddToGroupModalOpen" IsOpenChanged="@(open => AddToGroupModalOpen = open)" ShowAcceptButton="false">
+    <h3 class="modal-form-heading">@Strings.Get("addToGroup")</h3>
+    @if (Store.Groups.Count == 0)
+    {
+        <p class="stub-text">You don't have any groups yet. Create one first.</p>
+    }
+    else
+    {
+        <div class="group-picker-list">
+            @foreach (var group in Store.Groups)
+            {
+                <button type="button" class="group-picker-item" @onclick="() => AssignGroup(group)">@group</button>
+            }
+        </div>
+    }
+</Modal>
+
+@code {
+    private const string CurrentUserName = "Aslı Koturoğlu";
+
+    private List<Post> MyPosts => Store.Posts.Where(p => p.AuthorName == CurrentUserName).ToList();
+
+    private bool CreateGroupModalOpen { get; set; }
+    private string NewGroupName { get; set; } = "";
+
+    private bool AddToGroupModalOpen { get; set; }
+    private Post? PostForGroupAssignment { get; set; }
+
+    private void HandleDelete(Post post) => Store.Posts.Remove(post);
+
+    private void OpenAddToGroup(Post post)
+    {
+        PostForGroupAssignment = post;
+        AddToGroupModalOpen = true;
+    }
+
+    private void AssignGroup(string groupName)
+    {
+        if (PostForGroupAssignment is not null)
+            PostForGroupAssignment.GroupName = groupName;
+
+        AddToGroupModalOpen = false;
+    }
+
+    private void ConfirmCreateGroup()
+    {
+        var name = NewGroupName.Trim();
+        if (name.Length > 0 && !Store.Groups.Contains(name))
+            Store.Groups.Add(name);
+
+        NewGroupName = "";
+    }
+}

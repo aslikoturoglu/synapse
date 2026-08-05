@@ -1,15 +1,136 @@
 @page "/notes/new"
+@using Client.Pages.Home
+@using Client.Pages.CreateNote.Upload
+@using Client.Pages.CreateNote.Describe
+@using Client.Pages.CreateNote.Processing
+@using Client.Pages.CreateNote.BrainMap
+@using Client.Pages.CreateNote.Finalizing
+@using Client.Pages.CreateNote.Note
+@inject NotesStore Store
 @inject UiStrings Strings
 
-<PageTitle>@Strings.Get("createNewNote")</PageTitle>
+<PageTitle>@Store.Draft.Title</PageTitle>
 
-<PrimaryHeader />
+<div class="primary-header primary-header-profile">
+    <div class="header-user-name wizard-title">
+        @if (EditingTitle)
+        {
+            <input class="form-input wizard-title-input" @bind="TitleDraft" @bind:event="oninput" />
+            <div class="field-action-row">
+                <button type="button" class="field-confirm-icon" disabled="@string.IsNullOrWhiteSpace(TitleDraft)" @onclick="SaveTitle" aria-label="Save title">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                </button>
+                <button type="button" class="field-cancel-icon" @onclick="() => EditingTitle = false" aria-label="Cancel">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                </button>
+            </div>
+        }
+        else
+        {
+            @Store.Draft.Title
+            <button type="button" class="profile-edit-icon" @onclick="StartEditTitle" aria-label="Edit note title">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
+            </button>
+        }
+    </div>
+    <h1 class="brand-title header-brand-right">synapse.</h1>
+</div>
 
 <div class="home-body">
     <Drawer UserName="Aslı" UserEmail="asli.koturoglu@gmail.com" />
 
     <div class="home-feed">
-        <h2 class="stub-heading">@Strings.Get("createNewNote")</h2>
-        <p class="stub-text">Note creation (upload a document, let AI summarize it) will live here. @Strings.Get("comingSoon")</p>
+        @if (Store.Draft.HasProgress && CurrentStep != Store.Draft.Step)
+        {
+            <button type="button" class="wizard-resume-banner" @onclick="() => ResumeModalOpen = true">
+                @Strings.Get("resumeDraft") — @StageLabel(Store.Draft.Step)
+            </button>
+        }
+
+        @if (CurrentStep == NoteDraftStep.Upload)
+        {
+            <UploadStep Draft="Store.Draft" OnContinue="() => GoTo(NoteDraftStep.Describe)" />
+        }
+        else if (CurrentStep == NoteDraftStep.Describe)
+        {
+            <DescribeStep Draft="Store.Draft" OnContinue="() => GoTo(NoteDraftStep.Processing)" />
+        }
+        else if (CurrentStep == NoteDraftStep.Processing)
+        {
+            <ProcessingStep OnComplete="() => GoTo(NoteDraftStep.BrainMap)" />
+        }
+        else if (CurrentStep == NoteDraftStep.BrainMap)
+        {
+            <BrainMapStep Draft="Store.Draft" OnContinue="() => GoTo(NoteDraftStep.Finalizing)" />
+        }
+        else if (CurrentStep == NoteDraftStep.Finalizing)
+        {
+            <FinalizingStep OnComplete="() => GoTo(NoteDraftStep.Note)" />
+        }
+        else
+        {
+            <NoteStep />
+        }
     </div>
 </div>
+
+<Modal IsOpen="ResumeModalOpen" IsOpenChanged="@(open => ResumeModalOpen = open)" OnAccept="ResumeDraft" AcceptLabel="@Strings.Get("continueDraft")">
+    <h3 class="modal-form-heading">@Strings.Get("resumeDraft")</h3>
+    <p class="stub-text">@Strings.Get("draftCurrentStep") @StageLabel(Store.Draft.Step)</p>
+    @if (Store.Draft.FileNames.Count > 0)
+    {
+        <p class="stub-text">@Strings.Get("draftUploadedFiles")</p>
+        <ul class="wizard-draft-file-list">
+            @foreach (var fileName in Store.Draft.FileNames)
+            {
+                <li>@fileName</li>
+            }
+        </ul>
+    }
+</Modal>
+
+@code {
+    private NoteDraftStep CurrentStep { get; set; } = NoteDraftStep.Upload;
+
+    private bool EditingTitle { get; set; }
+    private string TitleDraft { get; set; } = "";
+
+    private bool ResumeModalOpen { get; set; }
+
+    private void StartEditTitle()
+    {
+        TitleDraft = Store.Draft.Title;
+        EditingTitle = true;
+    }
+
+    private void SaveTitle()
+    {
+        if (string.IsNullOrWhiteSpace(TitleDraft))
+            return;
+
+        Store.Draft.Title = TitleDraft.Trim();
+        EditingTitle = false;
+    }
+
+    private void GoTo(NoteDraftStep step)
+    {
+        CurrentStep = step;
+        Store.Draft.Step = step;
+    }
+
+    private void ResumeDraft()
+    {
+        CurrentStep = Store.Draft.Step;
+    }
+
+    private string StageLabel(NoteDraftStep step) => step switch
+    {
+        NoteDraftStep.Upload => Strings.Get("stepUpload"),
+        NoteDraftStep.Describe => Strings.Get("stepDescribe"),
+        NoteDraftStep.Processing => Strings.Get("stepProcessing"),
+        NoteDraftStep.BrainMap => Strings.Get("stepBrainMap"),
+        NoteDraftStep.Finalizing => Strings.Get("stepFinalizing"),
+        NoteDraftStep.Note => Strings.Get("stepNote"),
+        _ => "",
+    };
+}

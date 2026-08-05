@@ -75,5 +75,34 @@
   "threeMonths": "3 Months",
   "never": "Never",
   "deleteAccount": "Delete Account",
-  "deleteAccountConfirm": "This will permanently delete your account and all your notes. This action cannot be undone."
+  "deleteAccountConfirm": "This will permanently delete your account and all your notes. This action cannot be undone.",
+
+  "uploadFilesPrompt": "upload files!",
+  "writeDescriptionPrompt": "write a description!",
+  "describePlaceholder": "Tell us what you need — a full topic explanation or a quick summary — and mention any keywords you'd like covered.",
+  "continue": "Continue",
+  "creatingSynapses": "creating synapses",
+  "brainMap": "brain map",
+
+  "resumeDraft": "Resume Draft",
+  "continueDraft": "Continue Draft",
+  "draftCurrentStep": "Current step:",
+  "draftUploadedFiles": "Uploaded files:",
+  "stepUpload": "Uploading files",
+  "stepDescribe": "Writing description",
+  "stepProcessing": "Creating synapses",
+  "stepBrainMap": "Brain map",
+  "stepFinalizing": "Creating synapses",
+  "stepNote": "Note ready",
+
+  "edit": "edit",
+  "addMoreTopics": "add more topics",
+  "addKeywordPlaceholder": "+ add",
+  "editFiles": "Edit Files",
+  "note": "Note",
+
+  "finalizingHeading": "creating synapses for {0}...",
+  "finalizingNotified": "you will be notified when it is done",
+  "finalizingCheckMailPrefix": "check your",
+  "finalizingCheckMailSuffix": "mail account!"
 }

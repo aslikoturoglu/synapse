@@ -1,0 +1,14 @@
+@inject UiStrings Strings
+
+<h2 class="wizard-heading">@Strings.Get("creatingSynapses")</h2>
+<div class="wizard-spinner" aria-hidden="true"></div>
+
+@code {
+    [Parameter] public EventCallback OnComplete { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.Delay(2000);
+        await OnComplete.InvokeAsync();
+    }
+}

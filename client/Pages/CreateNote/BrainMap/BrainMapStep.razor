@@ -1,0 +1,148 @@
+@using Client.Pages.CreateNote
+@using Client.Pages.CreateNote.Upload
+@inject UiStrings Strings
+
+<div class="brain-map-diagram">
+    <svg class="brain-map-lines" width="@DiagramWidth" height="@DiagramHeight">
+        @foreach (var node in PositionedKeywords)
+        {
+            var (startX, startY) = EdgeOfCenterText(node.AngleDegrees);
+            var (arrowX, arrowY) = PointAt(node.AngleDegrees, ArrowRadiusX, ArrowRadiusY);
+            <line x1="@startX" y1="@startY" x2="@arrowX" y2="@arrowY" stroke="#18181b" stroke-width="1.5" marker-end="url(#brain-map-arrow)" />
+        }
+        <defs>
+            <marker id="brain-map-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#18181b" />
+            </marker>
+        </defs>
+    </svg>
+
+    <span class="brain-map-center" style="left: @(CenterX)px; top: @(CenterY)px;">@Strings.Get("brainMap")</span>
+
+    @foreach (var node in PositionedKeywords)
+    {
+        <div class="brain-map-node" style="left: @(node.X)px; top: @(node.Y)px;" @key="node.Keyword">
+            @if (EditMode)
+            {
+                <span class="brain-map-label-row">
+                    @if (node.IsLeftSide)
+                    {
+                        <button type="button" class="brain-map-remove" @onclick="() => RemoveKeyword(node.Keyword)" aria-label="Remove keyword">×</button>
+                    }
+                    <span class="brain-map-label">@node.Keyword.Text</span>
+                    @if (!node.IsLeftSide)
+                    {
+                        <button type="button" class="brain-map-remove" @onclick="() => RemoveKeyword(node.Keyword)" aria-label="Remove keyword">×</button>
+                    }
+                </span>
+            }
+            else
+            {
+                @if (node.Keyword.Count is not null)
+                {
+                    <span class="brain-map-count">@node.Keyword.Count times</span>
+                }
+                <span class="brain-map-label">@node.Keyword.Text</span>
+            }
+        </div>
+    }
+</div>
+
+<div class="brain-map-footer">
+    @if (!EditMode)
+    {
+        <button type="button" class="brain-map-add-link" @onclick="() => EditMode = true">+ <strong>@Strings.Get("edit")</strong></button>
+    }
+    else
+    {
+        <div class="brain-map-add-panel">
+            <button type="button" class="modal-close" @onclick="() => EditMode = false" aria-label="Close">&times;</button>
+            <h3 class="modal-form-heading">@Strings.Get("addMoreTopics")</h3>
+
+            <input class="brain-map-suggestion brain-map-add-input" placeholder="@Strings.Get("addKeywordPlaceholder")"
+                   @bind="CustomKeyword" @bind:event="oninput" @onkeydown="HandleCustomKeydown" />
+        </div>
+    }
+
+    <div class="wizard-actions-row">
+        <button type="button" class="btn-primary" @onclick="() => EditFilesModalOpen = true">@Strings.Get("editFiles")</button>
+        <button type="button" class="btn-primary" @onclick="() => OnContinue.InvokeAsync()">@Strings.Get("continue")</button>
+    </div>
+</div>
+
+<Modal IsOpen="EditFilesModalOpen" IsOpenChanged="@(open => EditFilesModalOpen = open)" ShowAcceptButton="false">
+    <h3 class="modal-form-heading">@Strings.Get("editFiles")</h3>
+    <FileGrid Draft="Draft" />
+</Modal>
+
+@code {
+    private const int DiagramWidth = 900;
+    private const int DiagramHeight = 420;
+    private const int CenterX = DiagramWidth / 2;
+    private const int CenterY = DiagramHeight / 2;
+    private const int ArrowRadiusX = 200;
+    private const int ArrowRadiusY = 138;
+    private const int LabelRadiusX = 250;
+    private const int LabelRadiusY = 172;
+
+    [Parameter, EditorRequired] public NoteDraft Draft { get; set; } = null!;
+    [Parameter] public EventCallback OnContinue { get; set; }
+
+    private bool EditMode { get; set; }
+    private bool EditFilesModalOpen { get; set; }
+    private string CustomKeyword { get; set; } = "";
+
+    protected override void OnInitialized()
+    {
+        Draft.EnsureKeywordsSeeded();
+    }
+
+    private IEnumerable<(BrainMapKeyword Keyword, double AngleDegrees, int X, int Y, bool IsLeftSide)> PositionedKeywords
+    {
+        get
+        {
+            var count = Draft.Keywords.Count;
+            for (var i = 0; i < count; i++)
+            {
+                var angle = -90 + i * (360.0 / count);
+                var (x, y) = PointAt(angle, LabelRadiusX, LabelRadiusY);
+                yield return (Draft.Keywords[i], angle, x, y, x < CenterX);
+            }
+        }
+    }
+
+    private static (int X, int Y) PointAt(double angleDegrees, int radiusX, int radiusY)
+    {
+        var angleRadians = angleDegrees * Math.PI / 180;
+        return (CenterX + (int)(radiusX * Math.Cos(angleRadians)), CenterY + (int)(radiusY * Math.Sin(angleRadians)));
+    }
+
+    // Finds where a ray from the center at the given angle exits the "brain map" label's
+    // bounding ellipse, so arrows start just outside the text instead of drawing through it.
+    private static (int X, int Y) EdgeOfCenterText(double angleDegrees)
+    {
+        const double halfWidth = 135;
+        const double halfHeight = 40;
+
+        var angleRadians = angleDegrees * Math.PI / 180;
+        var cos = Math.Cos(angleRadians);
+        var sin = Math.Sin(angleRadians);
+        var radius = 1.0 / Math.Sqrt((cos * cos) / (halfWidth * halfWidth) + (sin * sin) / (halfHeight * halfHeight));
+
+        return (CenterX + (int)(radius * cos), CenterY + (int)(radius * sin));
+    }
+
+    private void RemoveKeyword(BrainMapKeyword keyword) => Draft.Keywords.Remove(keyword);
+
+    private void AddKeyword(string text) =>
+        Draft.Keywords.Add(new BrainMapKeyword { Text = text, Count = null });
+
+    private void HandleCustomKeydown(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter" || string.IsNullOrWhiteSpace(CustomKeyword))
+            return;
+
+        AddKeyword(CustomKeyword.Trim());
+        CustomKeyword = "";
+    }
+}

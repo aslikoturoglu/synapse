@@ -1,3 +1,5 @@
+using Client.Pages.CreateNote;
+
 namespace Client.Pages.Home;
 
 // Mock only: keeps Post/Group state alive for the duration of the browser session so that
@@ -14,6 +16,8 @@ public class NotesStore
     public UserProfile Profile { get; } = new();
 
     public UserSettings Settings { get; } = new();
+
+    public NoteDraft Draft { get; } = new();
 
     public List<Post> GetMyPosts() => Posts.Where(p => p.AuthorName == CurrentUserName).ToList();
 

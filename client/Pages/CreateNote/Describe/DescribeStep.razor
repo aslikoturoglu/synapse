@@ -1,0 +1,15 @@
+@using Client.Pages.CreateNote
+@inject UiStrings Strings
+
+<h2 class="wizard-heading">@Strings.Get("writeDescriptionPrompt")</h2>
+
+<div class="wizard-describe-box">
+    <textarea class="wizard-describe-input" placeholder="@Strings.Get("describePlaceholder")" @bind="Draft.Description" @bind:event="oninput"></textarea>
+</div>
+
+<button type="button" class="wizard-continue-btn" disabled="@string.IsNullOrWhiteSpace(Draft.Description)" @onclick="() => OnContinue.InvokeAsync()">@Strings.Get("continue")</button>
+
+@code {
+    [Parameter, EditorRequired] public NoteDraft Draft { get; set; } = null!;
+    [Parameter] public EventCallback OnContinue { get; set; }
+}

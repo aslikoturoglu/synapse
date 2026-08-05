@@ -1,0 +1,33 @@
+@using Client.Pages.CreateNote
+@inject UiStrings Strings
+
+<h2 class="wizard-heading">@Strings.Get("uploadFilesPrompt")</h2>
+
+@if (Draft.FileNames.Count == 0)
+{
+    <div class="wizard-dropzone">
+        <InputFile OnChange="HandleFilesSelected" multiple class="wizard-dropzone-input" />
+        <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" class="wizard-dropzone-icon">
+            <path d="M17 8a5 5 0 0 0-9.58-1.98A4.5 4.5 0 0 0 6.5 15H8" />
+            <polyline points="9 15 12 18 15 15" />
+            <line x1="12" y1="10" x2="12" y2="18" />
+        </svg>
+    </div>
+}
+else
+{
+    <FileGrid Draft="Draft" />
+
+    <button type="button" class="wizard-continue-btn" @onclick="() => OnContinue.InvokeAsync()">@Strings.Get("continue")</button>
+}
+
+@code {
+    [Parameter, EditorRequired] public NoteDraft Draft { get; set; } = null!;
+    [Parameter] public EventCallback OnContinue { get; set; }
+
+    private void HandleFilesSelected(InputFileChangeEventArgs e)
+    {
+        foreach (var file in e.GetMultipleFiles(20))
+            Draft.FileNames.Add(file.Name);
+    }
+}

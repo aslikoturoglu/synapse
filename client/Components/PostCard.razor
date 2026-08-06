@@ -11,21 +11,26 @@
     </h2>
 
     <div class="post-pages">
-        @foreach (var (fileUrl, pageNumber) in FlattenedPages.Take(3))
+        @foreach (var (_, pageNumber) in FlattenedPages.Take(3))
         {
-            <a class="post-page-thumb" href="@fileUrl" target="_blank" rel="noopener" @onclick:stopPropagation="true">
+            <button type="button" class="post-page-thumb" @onclick="ToggleFilePreview" @onclick:stopPropagation="true">
                 <span class="post-page-thumb-line" style="width: 70%"></span>
                 <span class="post-page-thumb-line" style="width: 90%"></span>
                 <span class="post-page-thumb-line" style="width: 60%"></span>
                 <span class="post-page-thumb-line" style="width: 80%"></span>
                 <span class="post-page-thumb-number">@pageNumber</span>
-            </a>
+            </button>
         }
         @if (Post.TotalPageCount > 3)
         {
-            <a class="post-page-more" href="@Post.Files[0].FileUrl" target="_blank" rel="noopener" @onclick:stopPropagation="true">…</a>
+            <button type="button" class="post-page-more" @onclick="ToggleFilePreview" @onclick:stopPropagation="true">…</button>
         }
     </div>
+
+    @if (Post.ShowFiles)
+    {
+        <NoteFilePreview Post="Post" />
+    }
 
     @if (!string.IsNullOrWhiteSpace(Post.Description))
     {
@@ -116,6 +121,8 @@
     private bool IsRepostedByMe => Post.RepostedByUsers.Contains(CurrentUser);
 
     private void Toggle() => Post.IsExpanded = !Post.IsExpanded;
+
+    private void ToggleFilePreview() => Post.ShowFiles = !Post.ShowFiles;
 
     private void ToggleFollow() => Post.IsFollowing = !Post.IsFollowing;
 

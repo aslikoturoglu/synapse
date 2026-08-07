@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Client;
 using Client.Localization;
 using Client.Pages.Home;
+using Client.Services;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -14,9 +15,12 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseU
 
 builder.Services.AddSingleton<NotesStore>();
 builder.Services.AddSingleton<UiStrings>();
+builder.Services.AddScoped<AuthApiClient>();
+builder.Services.AddSingleton<AuthState>();
 
 var host = builder.Build();
 
 await host.Services.GetRequiredService<UiStrings>().LoadAsync();
+await host.Services.GetRequiredService<AuthState>().InitializeAsync();
 
 await host.RunAsync();

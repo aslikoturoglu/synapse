@@ -4,7 +4,9 @@
 @using Client.Pages.Home
 @using Client.Pages.AllNotes
 @using Client.Pages.Signup
+@using Client.Services
 @inject NotesStore Store
+@inject AuthState AuthState
 @inject NavigationManager Navigation
 @inject UiStrings Strings
 
@@ -273,8 +275,9 @@ else
         _ => false,
     };
 
-    private void HandleLogout()
+    private async Task HandleLogout()
     {
+        await AuthState.ClearSessionAsync();
         Navigation.NavigateTo("/");
     }
 }

@@ -1,6 +1,11 @@
 @page "/signup"
+@using Client.Pages.Home
+@using Client.Services
 @inject NavigationManager Navigation
 @inject UiStrings Strings
+@inject AuthApiClient AuthApi
+@inject AuthState AuthState
+@inject NotesStore Store
 
 <PageTitle>@Strings.Get("register")</PageTitle>
 
@@ -111,7 +116,12 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn-primary btn-block @(CanSubmit ? "" : "btn-disabled-look")">@Strings.Get("register")</button>
+            @if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                <p class="field-error">@ErrorMessage</p>
+            }
+
+            <button type="submit" class="btn-primary btn-block @(CanSubmit && !IsSubmitting ? "" : "btn-disabled-look")" disabled="@IsSubmitting">@Strings.Get("register")</button>
         </EditForm>
     </div>
 
@@ -152,6 +162,9 @@
     private IReadOnlyList<(string Description, bool Satisfied)> PasswordRequirements { get; set; } =
         SignupValidation.GetPasswordRequirements("");
 
+    private string? ErrorMessage { get; set; }
+    private bool IsSubmitting { get; set; }
+
     private bool PasswordRequirementsMet => PasswordRequirements.All(r => r.Satisfied);
 
     private bool CanSubmit =>
@@ -191,11 +204,11 @@
         PasswordsMatch = ConfirmPassword.Length == 0 || Password == ConfirmPassword;
     }
 
-    private void AttemptSubmit()
+    private async Task AttemptSubmit()
     {
         if (CanSubmit)
         {
-            HandleSignup();
+            await HandleSignup();
             return;
         }
 
@@ -210,9 +223,41 @@
         ValidatePasswordsMatch();
     }
 
-    private void HandleSignup()
+    private async Task HandleSignup()
     {
-        // No backend account creation yet — treat a valid submitted form as successful for now.
+        ErrorMessage = null;
+        IsSubmitting = true;
+
+        var result = await AuthApi.SignupAsync(new SignupRequest
+        {
+            Name = Name.Trim(),
+            Surname = Surname.Trim(),
+            Username = Username.Trim(),
+            Email = Email.Trim(),
+            Password = Password,
+        });
+
+        IsSubmitting = false;
+
+        if (!result.Succeeded || result.Response is null)
+        {
+            ErrorMessage = result.Error ?? "Something went wrong. Please try again.";
+            return;
+        }
+
+        await AuthState.SetSessionAsync(result.Response);
+        ApplyProfile(result.Response.User);
+
         Navigation.NavigateTo("/home");
+    }
+
+    private void ApplyProfile(UserDto user)
+    {
+        Store.Profile.Name = user.Name;
+        Store.Profile.Surname = user.Surname;
+        Store.Profile.Username = user.Username;
+        Store.Profile.Email = user.Email;
+        Store.Profile.Phone = user.Phone;
+        Store.Profile.JobTitle = user.JobTitle;
     }
 }

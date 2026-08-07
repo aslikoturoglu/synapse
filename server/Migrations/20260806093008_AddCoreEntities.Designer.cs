@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Server.Data;
 
@@ -10,9 +11,11 @@ using Server.Data;
 namespace Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260806093008_AddCoreEntities")]
+    partial class AddCoreEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -83,7 +86,7 @@ namespace Server.Migrations
                     b.HasIndex("OwnerId", "Name")
                         .IsUnique();
 
-                    b.ToTable("Groups", (string)null);
+                    b.ToTable("Groups");
                 });
 
             modelBuilder.Entity("Server.Models.NoteFile", b =>
@@ -110,7 +113,7 @@ namespace Server.Migrations
 
                     b.HasIndex("PostId");
 
-                    b.ToTable("NoteFiles", (string)null);
+                    b.ToTable("NoteFiles");
                 });
 
             modelBuilder.Entity("Server.Models.Post", b =>
@@ -152,7 +155,7 @@ namespace Server.Migrations
 
                     b.HasIndex("GroupId");
 
-                    b.ToTable("Posts", (string)null);
+                    b.ToTable("Posts");
                 });
 
             modelBuilder.Entity("Server.Models.PostComment", b =>
@@ -180,7 +183,7 @@ namespace Server.Migrations
 
                     b.HasIndex("PostId");
 
-                    b.ToTable("Comments", (string)null);
+                    b.ToTable("Comments");
                 });
 
             modelBuilder.Entity("Server.Models.User", b =>
@@ -230,7 +233,7 @@ namespace Server.Migrations
                     b.HasIndex("Username")
                         .IsUnique();
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("Server.Models.UserSettings", b =>
@@ -252,7 +255,7 @@ namespace Server.Migrations
 
                     b.HasKey("UserId");
 
-                    b.ToTable("UserSettings", (string)null);
+                    b.ToTable("UserSettings");
                 });
 
             modelBuilder.Entity("PostUser", b =>

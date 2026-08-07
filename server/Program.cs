@@ -1,6 +1,10 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using MySql.EntityFrameworkCore.Extensions;
 using Server.Data;
+using Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +17,30 @@ builder.Services.AddOpenApi();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySQL(builder.Configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.")));
+
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<PostService>();
+builder.Services.AddScoped<GroupService>();
+
+var jwtSection = builder.Configuration.GetSection("Jwt");
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("Jwt:Key is not configured.");
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSection["Issuer"],
+            ValidAudience = jwtSection["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        };
+    });
+builder.Services.AddAuthorization();
 
 const string ClientCorsPolicy = "ClientCorsPolicy";
 builder.Services.AddCors(options =>
@@ -31,9 +59,12 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+// No UseHttpsRedirection: this is a JSON API for a separate-origin SPA whose ApiBaseUrl
+// is plain HTTP (wwwroot/appsettings.json) — redirecting to HTTPS here just breaks that
+// contract (and the dev cert isn't trusted anyway) without buying any real security in local dev.
 
 app.UseCors(ClientCorsPolicy);
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

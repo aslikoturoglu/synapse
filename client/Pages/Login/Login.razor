@@ -1,6 +1,11 @@
 @page "/login"
+@using Client.Pages.Home
+@using Client.Services
 @inject NavigationManager Navigation
 @inject UiStrings Strings
+@inject AuthApiClient AuthApi
+@inject AuthState AuthState
+@inject NotesStore Store
 
 <PageTitle>@Strings.Get("logIn")</PageTitle>
 
@@ -19,7 +24,12 @@
                 <InputText id="login-password" type="password" class="form-input" placeholder="@Strings.Get("passwordPlaceholder")" @bind-Value="Password" />
             </div>
 
-            <button type="submit" class="btn-primary btn-block">@Strings.Get("logIn")</button>
+            @if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                <p class="field-error">@ErrorMessage</p>
+            }
+
+            <button type="submit" class="btn-primary btn-block @(IsSubmitting ? "btn-disabled-look" : "")" disabled="@IsSubmitting">@Strings.Get("logIn")</button>
         </EditForm>
     </div>
 
@@ -44,10 +54,42 @@
     private string Password { get; set; } = "";
     private string ResetEmail { get; set; } = "";
 
-    private void HandleLogin()
+    private string? ErrorMessage { get; set; }
+    private bool IsSubmitting { get; set; }
+
+    private async Task HandleLogin()
     {
-        // No backend auth yet — treat a submitted login form as successful for now.
+        ErrorMessage = null;
+        IsSubmitting = true;
+
+        var result = await AuthApi.LoginAsync(new LoginRequest
+        {
+            UsernameOrEmail = UsernameOrEmail.Trim(),
+            Password = Password,
+        });
+
+        IsSubmitting = false;
+
+        if (!result.Succeeded || result.Response is null)
+        {
+            ErrorMessage = result.Error ?? "Something went wrong. Please try again.";
+            return;
+        }
+
+        await AuthState.SetSessionAsync(result.Response);
+        ApplyProfile(result.Response.User);
+
         Navigation.NavigateTo("/home");
+    }
+
+    private void ApplyProfile(UserDto user)
+    {
+        Store.Profile.Name = user.Name;
+        Store.Profile.Surname = user.Surname;
+        Store.Profile.Username = user.Username;
+        Store.Profile.Email = user.Email;
+        Store.Profile.Phone = user.Phone;
+        Store.Profile.JobTitle = user.JobTitle;
     }
 
     private void HandleResetPassword()

@@ -246,18 +246,9 @@
         }
 
         await AuthState.SetSessionAsync(result.Response);
-        ApplyProfile(result.Response.User);
+        Store.ApplyAuthUser(result.Response.User);
+        await Store.LoadFeedAsync();
 
         Navigation.NavigateTo("/home");
-    }
-
-    private void ApplyProfile(UserDto user)
-    {
-        Store.Profile.Name = user.Name;
-        Store.Profile.Surname = user.Surname;
-        Store.Profile.Username = user.Username;
-        Store.Profile.Email = user.Email;
-        Store.Profile.Phone = user.Phone;
-        Store.Profile.JobTitle = user.JobTitle;
     }
 }

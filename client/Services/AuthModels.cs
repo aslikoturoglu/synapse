@@ -24,6 +24,7 @@ public class UserDto
     public string Email { get; set; } = "";
     public string Phone { get; set; } = "";
     public string JobTitle { get; set; } = "";
+    public string Role { get; set; } = "User";
 }
 
 public class AuthResponseDto

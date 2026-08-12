@@ -1,8 +1,4 @@
--- Generated reference copy of the current MySQL schema (synapse_db).
--- Source of truth is server/Migrations/ — do not hand-edit this file.
--- Regenerate with: dotnet ef migrations script --idempotent -o server/schema.sql
-
-CREATE TABLE IF NOT EXISTS `__EFMigrationsHistory` (
+﻿CREATE TABLE IF NOT EXISTS `__EFMigrationsHistory` (
     `MigrationId` varchar(150) NOT NULL,
     `ProductVersion` varchar(32) NOT NULL,
     PRIMARY KEY (`MigrationId`)
@@ -194,4 +190,16 @@ BEGIN
     VALUES ('20260806093008_AddCoreEntities', '10.0.9');
 END;
 
+IF NOT EXISTS(SELECT * FROM `__EFMigrationsHistory` WHERE `MigrationId` = '20260807085709_AddUserRole')
+BEGIN
+    ALTER TABLE `Users` ADD `Role` int NOT NULL DEFAULT 0;
+END;
+
+IF NOT EXISTS(SELECT * FROM `__EFMigrationsHistory` WHERE `MigrationId` = '20260807085709_AddUserRole')
+BEGIN
+    INSERT INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`)
+    VALUES ('20260807085709_AddUserRole', '10.0.9');
+END;
+
 COMMIT;
+

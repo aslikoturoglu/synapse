@@ -61,6 +61,18 @@
   "noPostsYet": "No posts yet.",
   "noFavoritesYet": "You haven't favorited any posts yet.",
 
+  "postsTab": "Posts",
+  "favoritesTab": "Favorites",
+  "commentsTab": "Comments",
+  "likesTab": "Likes",
+  "noLikesYet": "This user hasn't liked any posts yet.",
+  "noCommentsYet": "This user hasn't commented on any posts yet.",
+  "deletePostConfirm": "This will permanently delete this post and its comments. This action cannot be undone.",
+  "deactivateAccount": "Deactivate the Account",
+  "reactivateAccount": "Reactivate the Account",
+  "deactivateAccountConfirm": "This will toggle whether this user's account is deactivated.",
+  "deactivated": "Deactivated",
+
   "email": "E-mail",
   "phone": "Phone",
   "jobTitle": "Job Title",
@@ -111,6 +123,7 @@
   "download": "Download",
   "sendByEmail": "Send someone via email",
   "shareOnProfile": "Share on your profile",
+  "sharedOnProfile": "Shared on your profile",
   "lookAtTopics": "Look at topics",
   "done": "Done"
 }

@@ -32,7 +32,7 @@
     </div>
 </div>
 
-<NoteToolbar EditMode="EditMode" OnToggleEdit="() => EditMode = true" OnDone="SaveAndExitEditMode" OnShowToc="() => TocOpen = true" />
+<NoteToolbar EditMode="EditMode" Posted="Draft.IsCreated" OnToggleEdit="() => EditMode = true" OnDone="SaveAndExitEditMode" OnShowToc="() => TocOpen = true" OnShare="SharePost" />
 
 <NoteTableOfContents IsOpen="TocOpen" IsOpenChanged="@(open => TocOpen = open)" Pages="Draft.Pages" OnSelectPage="GoToPage" />
 
@@ -50,9 +50,9 @@
     {
         if (Draft.Pages.Count == 0)
             Draft.Pages.AddRange(NoteGenerator.Generate(Draft));
-
-        Store.CreatePostFromDraftIfNeeded();
     }
+
+    private Task SharePost() => Store.CreatePostFromDraftIfNeededAsync();
 
     private NotePage LeftPage => Draft.Pages[CurrentLeftPage - 1];
     private NotePage? RightPage => CurrentLeftPage < Draft.Pages.Count ? Draft.Pages[CurrentLeftPage] : null;

@@ -45,7 +45,7 @@
     private bool AddToGroupModalOpen { get; set; }
     private Post? PostForGroupAssignment { get; set; }
 
-    private void HandleDelete(Post post) => Store.Posts.Remove(post);
+    private async Task HandleDelete(Post post) => await Store.DeletePostAsync(post);
 
     private void OpenAddToGroup(Post post)
     {

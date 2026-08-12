@@ -6,12 +6,12 @@
 <PrimaryHeader />
 
 <div class="home-body">
-    <Drawer UserName="Aslı" UserEmail="asli.koturoglu@gmail.com" />
+    <Drawer UserName="@Store.Profile.Name" UserEmail="@Store.Profile.Email" />
 
     <div class="home-feed">
         @foreach (var post in Store.Posts)
         {
-            <PostCard Post="post" />
+            <PostCard Post="post" OnDeleted="StateHasChanged" />
         }
     </div>
 </div>

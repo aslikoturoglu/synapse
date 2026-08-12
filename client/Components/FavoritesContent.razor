@@ -12,6 +12,6 @@ else
 {
     @foreach (var post in favorites)
     {
-        <PostCard Post="post" />
+        <PostCard Post="post" OnDeleted="StateHasChanged" />
     }
 }

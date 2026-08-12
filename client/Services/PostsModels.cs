@@ -1,4 +1,4 @@
-namespace Server.Dtos;
+namespace Client.Services;
 
 public class NoteFileDto
 {
@@ -7,16 +7,25 @@ public class NoteFileDto
     public int PageCount { get; set; } = 1;
 }
 
+public class PostCommentDto
+{
+    public int Id { get; set; }
+    public int AuthorId { get; set; }
+    public string AuthorName { get; set; } = "";
+    public string Text { get; set; } = "";
+    public DateTime CreatedAt { get; set; }
+}
+
 public class PostDto
 {
-    public required int Id { get; set; }
-    public required string Title { get; set; }
+    public int Id { get; set; }
+    public string Title { get; set; } = "";
     public string Description { get; set; } = "";
     public string MiniDescription { get; set; } = "";
-    public required DateOnly CreatedDate { get; set; }
+    public DateOnly CreatedDate { get; set; }
 
-    public required int AuthorId { get; set; }
-    public required string AuthorName { get; set; }
+    public int AuthorId { get; set; }
+    public string AuthorName { get; set; } = "";
     public string AuthorRole { get; set; } = "";
 
     public int? GroupId { get; set; }
@@ -39,26 +48,12 @@ public class PostDto
     public List<PostCommentDto> Comments { get; set; } = [];
 }
 
-public class PostCommentDto
-{
-    public required int Id { get; set; }
-    public required int AuthorId { get; set; }
-    public required string AuthorName { get; set; }
-    public required string Text { get; set; }
-    public DateTime CreatedAt { get; set; }
-}
-
 public class CreatePostRequest
 {
     public required string Title { get; set; }
     public string Description { get; set; } = "";
     public string MiniDescription { get; set; } = "";
     public required List<NoteFileDto> Files { get; set; }
-}
-
-public class UpdatePostGroupRequest
-{
-    public int? GroupId { get; set; }
 }
 
 public class AddCommentRequest

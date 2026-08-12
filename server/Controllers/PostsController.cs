@@ -11,7 +11,7 @@ namespace Server.Controllers;
 public class PostsController(PostService postService) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<List<PostDto>>> GetFeed() => Ok(await postService.GetFeedAsync());
+    public async Task<ActionResult<List<PostDto>>> GetFeed() => Ok(await postService.GetFeedAsync(User.GetUserId()));
 
     [HttpGet("mine")]
     public async Task<ActionResult<List<PostDto>>> GetMine() => Ok(await postService.GetMineAsync(User.GetUserId()));
@@ -51,5 +51,43 @@ public class PostsController(PostService postService) : ControllerBase
             PostOpResult.GroupNotFound => BadRequest(new { error = "Group not found." }),
             _ => BadRequest(),
         };
+    }
+
+    [HttpPost("{id:int}/like")]
+    public Task<ActionResult> ToggleLike(int id) => ToggleReactionAsync(postService.ToggleLikeAsync, id);
+
+    [HttpPost("{id:int}/favorite")]
+    public Task<ActionResult> ToggleFavorite(int id) => ToggleReactionAsync(postService.ToggleFavoriteAsync, id);
+
+    [HttpPost("{id:int}/repost")]
+    public Task<ActionResult> ToggleRepost(int id) => ToggleReactionAsync(postService.ToggleRepostAsync, id);
+
+    [HttpPost("{id:int}/comments")]
+    public async Task<ActionResult<PostCommentDto>> AddComment(int id, AddCommentRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Text))
+            return BadRequest(new { error = "Comment text is required." });
+
+        var comment = await postService.AddCommentAsync(User.GetUserId(), id, request.Text);
+        return comment is null ? NotFound() : Ok(comment);
+    }
+
+    [HttpDelete("comments/{commentId:int}")]
+    public async Task<IActionResult> DeleteComment(int commentId)
+    {
+        var result = await postService.DeleteCommentAsync(User.GetUserId(), User.IsInRole("Admin"), commentId);
+        return result switch
+        {
+            PostOpResult.Success => NoContent(),
+            PostOpResult.NotFound => NotFound(),
+            PostOpResult.Forbidden => Forbid(),
+            _ => BadRequest(),
+        };
+    }
+
+    private async Task<ActionResult> ToggleReactionAsync(Func<int, int, Task<(PostOpResult Status, bool Active, int Count)>> toggle, int postId)
+    {
+        var (status, active, count) = await toggle(User.GetUserId(), postId);
+        return status == PostOpResult.NotFound ? NotFound() : Ok(new ReactionResponse { Active = active, Count = count });
     }
 }

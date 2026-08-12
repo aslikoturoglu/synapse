@@ -3,6 +3,7 @@
     --color-bg-secondary-start: #ffffff;
     --color-bg-secondary-end: #c2daf9;
     --color-bg-post-user: #e0edffb6;
+    --color-bg-post-admin: #e4e4e7;
 
     --color-text-title: #18181b;
     --color-text-subtitle: #52525b;
@@ -551,6 +552,24 @@ p, label, .text-body {
     box-shadow: 0 0.15rem 0.5rem rgba(24, 24, 27, 0.08);
 }
 
+.profile-nav-item-danger {
+    color: var(--color-error);
+}
+
+.profile-nav-item-danger:hover {
+    color: #b91c1c;
+}
+
+.profile-deactivated-badge {
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    background-color: var(--color-error);
+    color: #ffffff;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
 .profile-name {
     display: flex;
     align-items: center;
@@ -891,6 +910,10 @@ p, label, .text-body {
     cursor: pointer;
 }
 
+.post-card-admin {
+    background-color: var(--color-bg-post-admin);
+}
+
 .post-title {
     margin: 0 0 1.25rem 0;
     color: var(--color-text-title);
@@ -1071,6 +1094,26 @@ button.post-action-toggle {
     font-weight: 700;
 }
 
+.post-delete-icon {
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    color: var(--color-error);
+    cursor: pointer;
+}
+
+.post-delete-icon:hover {
+    color: #b91c1c;
+}
+
+.post-comment-delete-icon {
+    margin-left: auto;
+    flex-shrink: 0;
+    align-self: center;
+}
+
 .post-comments {
     margin-top: 1.25rem;
     padding-top: 1.25rem;
@@ -1090,9 +1133,20 @@ button.post-action-toggle {
     background-color: var(--color-bg-app);
 }
 
+.post-comment-body {
+    flex: 1;
+    min-width: 0;
+}
+
 .post-comment p {
     margin: 0;
     font-size: 0.875rem;
+}
+
+.post-comment .post-comment-context {
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
 }
 
 .post-comment-form {

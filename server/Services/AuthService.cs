@@ -66,6 +66,7 @@ public class AuthService(AppDbContext db, IConfiguration config)
             Email = user.Email,
             Phone = user.Phone,
             JobTitle = user.JobTitle,
+            Role = user.Role.ToString(),
         },
     };
 
@@ -80,6 +81,7 @@ public class AuthService(AppDbContext db, IConfiguration config)
         [
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.Username),
+            new Claim(ClaimTypes.Role, user.Role.ToString()),
         ];
 
         var token = new JwtSecurityToken(

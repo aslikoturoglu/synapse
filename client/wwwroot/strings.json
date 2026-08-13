@@ -61,6 +61,18 @@
   "noPostsYet": "No posts yet.",
   "noFavoritesYet": "You haven't favorited any posts yet.",
 
+  "postsTab": "Posts",
+  "favoritesTab": "Favorites",
+  "commentsTab": "Comments",
+  "likesTab": "Likes",
+  "noLikesYet": "This user hasn't liked any posts yet.",
+  "noCommentsYet": "This user hasn't commented on any posts yet.",
+  "deletePostConfirm": "This will permanently delete this post and its comments. This action cannot be undone.",
+  "deactivateAccount": "Deactivate the Account",
+  "reactivateAccount": "Reactivate the Account",
+  "deactivateAccountConfirm": "This will toggle whether this user's account is deactivated.",
+  "deactivated": "Deactivated",
+
   "email": "E-mail",
   "phone": "Phone",
   "jobTitle": "Job Title",
@@ -104,5 +116,41 @@
   "finalizingHeading": "creating synapses for {0}...",
   "finalizingNotified": "you will be notified when it is done",
   "finalizingCheckMailPrefix": "check your",
-  "finalizingCheckMailSuffix": "mail account!"
+  "finalizingCheckMailSuffix": "mail account!",
+
+  "askToAi": "Ask to AI",
+  "changeByHand": "Change by hand",
+  "download": "Download",
+  "sendByEmail": "Send someone via email",
+  "shareOnProfile": "Share on your profile",
+  "sharedOnProfile": "Shared on your profile",
+  "lookAtTopics": "Look at topics",
+  "done": "Done",
+
+  "backToNotes": "Back to Notes",
+  "previousPage": "Previous Page",
+  "brainMapButton": "Brain Map",
+  "process": "Process",
+  "tapToSeeAllPages": "Tap to see all the pages",
+  "noGeneratedNoteYet": "This note hasn't been generated yet.",
+  "noKeywordsYet": "No keywords yet.",
+  "noHighlightsYet": "No highlights yet — select some text in the note and ask the AI about it.",
+
+  "brainMapAddedTag": "Added",
+  "brainMapDeletedTag": "Deleted",
+
+  "keywordsTotalLabel": "Keywords",
+  "keywordsGeneratedLabel": "Keywords generated with synapse.",
+  "keywordsDeletedLabel": "Keyword deleted",
+  "keywordsAddedLabel": "Keywords added",
+
+  "totalLabel": "Total",
+  "highlightsLabel": "Highlight",
+  "highlightLabel": "Highlight",
+  "aiChatsLabel": "AI Chat",
+  "changesOfDocumentLabel": "Change of Document",
+  "noneLabel": "None",
+
+  "askAiPlaceholder": "Ask a question about this...",
+  "addToDocument": "Add to Document"
 }

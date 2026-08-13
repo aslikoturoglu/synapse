@@ -1,0 +1,199 @@
+@using Client.Pages.Home
+@inject UiStrings Strings
+
+<div class="brain-map-diagram">
+    <svg class="brain-map-lines" width="@DiagramWidth" height="@DiagramHeight">
+        @foreach (var node in PositionedKeywords)
+        {
+            var (startX, startY) = EdgeOfCenterText(node.AngleDegrees);
+            var (arrowX, arrowY) = PointAt(node.AngleDegrees, ArrowRadiusX, ArrowRadiusY);
+            <line x1="@startX" y1="@startY" x2="@arrowX" y2="@arrowY" stroke="@LineColor(node.Keyword)" stroke-width="1.5" marker-end="@MarkerFor(node.Keyword)" />
+        }
+        <defs>
+            <marker id="brain-map-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#18181b" />
+            </marker>
+            <marker id="brain-map-arrow-deleted" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#dc2626" />
+            </marker>
+            <marker id="brain-map-arrow-added" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#16a34a" />
+            </marker>
+        </defs>
+    </svg>
+
+    <span class="brain-map-center" style="left: @(CenterX)px; top: @(CenterY)px;">@Strings.Get("brainMap")</span>
+
+    @foreach (var node in PositionedKeywords)
+    {
+        <div class="brain-map-node @NodeCssClass(node.Keyword)" style="left: @(node.X)px; top: @(node.Y)px;" @key="node.Keyword">
+            @if (ShowHistory && node.Keyword.Status == KeywordStatus.AiDeleted)
+            {
+                <span class="brain-map-tag brain-map-tag-deleted">@Strings.Get("brainMapDeletedTag")</span>
+                <span class="brain-map-label brain-map-label-deleted">@node.Keyword.Text</span>
+            }
+            else if (ShowHistory && node.Keyword.Status == KeywordStatus.UserAdded)
+            {
+                <span class="brain-map-tag brain-map-tag-added">@Strings.Get("brainMapAddedTag")</span>
+                <span class="brain-map-label-row">
+                    <span class="brain-map-label brain-map-label-added">@node.Keyword.Text</span>
+                    @if (CanEdit)
+                    {
+                        <button type="button" class="brain-map-remove" @onclick="() => Remove(node.Keyword)" aria-label="Remove keyword">×</button>
+                    }
+                </span>
+            }
+            else if (CanEdit)
+            {
+                <span class="brain-map-label-row">
+                    @if (node.IsLeftSide)
+                    {
+                        <button type="button" class="brain-map-remove" @onclick="() => Remove(node.Keyword)" aria-label="Remove keyword">×</button>
+                    }
+                    <span class="brain-map-label">@node.Keyword.Text</span>
+                    @if (!node.IsLeftSide)
+                    {
+                        <button type="button" class="brain-map-remove" @onclick="() => Remove(node.Keyword)" aria-label="Remove keyword">×</button>
+                    }
+                </span>
+            }
+            else
+            {
+                @if (node.Keyword.Count is not null)
+                {
+                    <span class="brain-map-count">@node.Keyword.Count times</span>
+                }
+                <span class="brain-map-label">@node.Keyword.Text</span>
+            }
+        </div>
+    }
+</div>
+
+<div class="brain-map-footer">
+    @if (!AlwaysEditable)
+    {
+        @if (!EditMode)
+        {
+            <button type="button" class="brain-map-add-link" @onclick="() => EditMode = true">+ <strong>@Strings.Get("edit")</strong></button>
+        }
+        else
+        {
+            @AddPanel
+        }
+    }
+    else
+    {
+        @AddPanel
+    }
+
+    @if (ChildContent is not null)
+    {
+        @ChildContent
+    }
+</div>
+
+@code {
+    private const int DiagramWidth = 900;
+    private const int DiagramHeight = 420;
+    private const int CenterX = DiagramWidth / 2;
+    private const int CenterY = DiagramHeight / 2;
+    private const int ArrowRadiusX = 200;
+    private const int ArrowRadiusY = 138;
+    private const int LabelRadiusX = 250;
+    private const int LabelRadiusY = 172;
+
+    [Parameter, EditorRequired] public List<BrainMapKeyword> Keywords { get; set; } = [];
+    [Parameter] public bool ShowHistory { get; set; }
+    [Parameter] public bool AlwaysEditable { get; set; }
+    [Parameter] public EventCallback<BrainMapKeyword> OnRemove { get; set; }
+    [Parameter] public EventCallback<string> OnAdd { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool EditMode { get; set; }
+    private string CustomKeyword { get; set; } = "";
+
+    private bool CanEdit => EditMode || AlwaysEditable;
+
+    private IEnumerable<BrainMapKeyword> VisibleKeywords =>
+        ShowHistory ? Keywords : Keywords.Where(k => k.Status != KeywordStatus.AiDeleted);
+
+    private IEnumerable<(BrainMapKeyword Keyword, double AngleDegrees, int X, int Y, bool IsLeftSide)> PositionedKeywords
+    {
+        get
+        {
+            var visible = VisibleKeywords.ToList();
+            var count = visible.Count;
+            for (var i = 0; i < count; i++)
+            {
+                var angle = -90 + i * (360.0 / count);
+                var (x, y) = PointAt(angle, LabelRadiusX, LabelRadiusY);
+                yield return (visible[i], angle, x, y, x < CenterX);
+            }
+        }
+    }
+
+    private static (int X, int Y) PointAt(double angleDegrees, int radiusX, int radiusY)
+    {
+        var angleRadians = angleDegrees * Math.PI / 180;
+        return (CenterX + (int)(radiusX * Math.Cos(angleRadians)), CenterY + (int)(radiusY * Math.Sin(angleRadians)));
+    }
+
+    // Finds where a ray from the center at the given angle exits the "brain map" label's
+    // bounding ellipse, so arrows start just outside the text instead of drawing through it.
+    private static (int X, int Y) EdgeOfCenterText(double angleDegrees)
+    {
+        const double halfWidth = 135;
+        const double halfHeight = 40;
+
+        var angleRadians = angleDegrees * Math.PI / 180;
+        var cos = Math.Cos(angleRadians);
+        var sin = Math.Sin(angleRadians);
+        var radius = 1.0 / Math.Sqrt((cos * cos) / (halfWidth * halfWidth) + (sin * sin) / (halfHeight * halfHeight));
+
+        return (CenterX + (int)(radius * cos), CenterY + (int)(radius * sin));
+    }
+
+    private string NodeCssClass(BrainMapKeyword keyword) =>
+        !ShowHistory ? "" : keyword.Status switch
+        {
+            KeywordStatus.AiDeleted => "brain-map-node-deleted",
+            KeywordStatus.UserAdded => "brain-map-node-added",
+            _ => "",
+        };
+
+    private string LineColor(BrainMapKeyword keyword) => ShowHistory ? keyword.Status switch
+    {
+        KeywordStatus.AiDeleted => "#dc2626",
+        KeywordStatus.UserAdded => "#16a34a",
+        _ => "#18181b",
+    } : "#18181b";
+
+    private string MarkerFor(BrainMapKeyword keyword) => ShowHistory ? keyword.Status switch
+    {
+        KeywordStatus.AiDeleted => "url(#brain-map-arrow-deleted)",
+        KeywordStatus.UserAdded => "url(#brain-map-arrow-added)",
+        _ => "url(#brain-map-arrow)",
+    } : "url(#brain-map-arrow)";
+
+    private RenderFragment AddPanel => @<div class="brain-map-add-panel">
+        @if (!AlwaysEditable)
+        {
+            <button type="button" class="modal-close" @onclick="() => EditMode = false" aria-label="Close">&times;</button>
+        }
+        <h3 class="modal-form-heading">@Strings.Get("addMoreTopics")</h3>
+
+        <input class="brain-map-suggestion brain-map-add-input" placeholder="@Strings.Get("addKeywordPlaceholder")"
+               @bind="CustomKeyword" @bind:event="oninput" @onkeydown="HandleCustomKeydown" />
+    </div>;
+
+    private async Task Remove(BrainMapKeyword keyword) => await OnRemove.InvokeAsync(keyword);
+
+    private async Task HandleCustomKeydown(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter" || string.IsNullOrWhiteSpace(CustomKeyword))
+            return;
+
+        await OnAdd.InvokeAsync(CustomKeyword.Trim());
+        CustomKeyword = "";
+    }
+}

@@ -1,0 +1,75 @@
+@using Client.Pages.CreateNote
+@using Client.Pages.Home
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="note-file-page-surface">
+    @if (!string.IsNullOrWhiteSpace(Page.Heading))
+    {
+        <p class="note-file-page-title">@Page.Heading</p>
+    }
+
+    @if (EditMode)
+    {
+        <div class="note-file-page-body note-page-editable" contenteditable="true" @ref="BodyElement">@((MarkupString)Page.Body)</div>
+    }
+    else
+    {
+        <p class="note-file-page-body" @key="Page.Body" @ref="BodyElement">@((MarkupString)Page.Body)</p>
+    }
+
+    <p class="note-file-page-footer">@DocumentTitle | Page @Page.Number</p>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public NotePage Page { get; set; } = null!;
+    [Parameter] public bool EditMode { get; set; }
+    [Parameter] public string DocumentTitle { get; set; } = "";
+
+    // When set, selecting text inside this page (without pressing any button) fires
+    // OnTextSelected — used by Ask AI mode's single page, where there's no toolbar to click.
+    [Parameter] public bool EnableSelectionListener { get; set; }
+    [Parameter] public EventCallback OnTextSelected { get; set; }
+
+    private ElementReference BodyElement;
+    private DotNetObjectReference<NotePageView>? _selfRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && EnableSelectionListener && !EditMode)
+        {
+            _selfRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("noteEditor.onSelectionMade", BodyElement, _selfRef);
+        }
+    }
+
+    [JSInvokable]
+    public Task NotifyTextSelected() => OnTextSelected.InvokeAsync();
+
+    public ValueTask<string> GetEditedHtmlAsync() =>
+        JS.InvokeAsync<string>("noteEditor.getHtml", BodyElement);
+
+    public ValueTask<string> GetSelectionTextAsync() =>
+        JS.InvokeAsync<string>("noteEditor.getSelectionText", BodyElement);
+
+    public async Task ApplyHighlightAsync(Guid highlightId)
+    {
+        Page.Body = await JS.InvokeAsync<string>("noteEditor.wrapSelectionAsHighlight", BodyElement, highlightId.ToString());
+    }
+
+    public ValueTask ScrollToHighlightAsync(Guid highlightId) =>
+        JS.InvokeVoidAsync("noteEditor.scrollToHighlight", BodyElement, highlightId.ToString());
+
+    // "Add to Document": either inserts the given html right after the highlighted span
+    // (replace: false) or swaps the highlighted span out for it entirely (replace: true).
+    public async Task ApplyDocumentEditAsync(Guid highlightId, string html, bool replace)
+    {
+        Page.Body = await JS.InvokeAsync<string>("noteEditor.applyDocumentEdit", BodyElement, highlightId.ToString(), html, replace);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _selfRef?.Dispose();
+        return ValueTask.CompletedTask;
+    }
+}

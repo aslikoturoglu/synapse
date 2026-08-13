@@ -70,7 +70,7 @@
             {
                 SortMode.NewToOld => filtered.OrderByDescending(p => p.CreatedDate),
                 SortMode.OldToNew => filtered.OrderBy(p => p.CreatedDate),
-                SortMode.Likes => filtered.OrderByDescending(p => p.LikedByUsers.Count),
+                SortMode.Likes => filtered.OrderByDescending(p => p.LikeCount),
                 SortMode.Comments => filtered.OrderByDescending(p => p.Comments.Count),
                 _ => filtered,
             };

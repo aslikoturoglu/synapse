@@ -1,3 +1,17 @@
-@inject UiStrings Strings
+@using Client.Pages.Home
+@using Client.Pages.CreateNote
+@inject NotesStore Store
 
-<h2 class="stub-heading">@Strings.Get("note")</h2>
+<NotePagesViewer Pages="Draft.Pages" Title="@Draft.Title" Posted="Draft.IsCreated" OnShare="SharePost" />
+
+@code {
+    [Parameter, EditorRequired] public NoteDraft Draft { get; set; } = null!;
+
+    protected override void OnInitialized()
+    {
+        if (Draft.Pages.Count == 0)
+            Draft.Pages.AddRange(NoteGenerator.Generate(Draft));
+    }
+
+    private Task SharePost() => Store.CreatePostFromDraftIfNeededAsync();
+}

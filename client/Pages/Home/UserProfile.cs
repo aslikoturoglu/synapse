@@ -6,7 +6,10 @@ public class UserProfile
 {
     public string Name { get; set; } = "Aslı";
     public string Surname { get; set; } = "Koturoğlu";
-    public string Email { get; init; } = "asli.koturoglu@gmail.com";
+    // Settable (not init) so login/signup can hydrate this session's profile with the real
+    // authenticated user's email — Profile.razor still never renders an edit control for it,
+    // so the "email isn't user-editable" rule stays enforced at the UI layer.
+    public string Email { get; set; } = "asli.koturoglu@gmail.com";
     public string Phone { get; set; } = "+90 (552) 205 53 50";
     public string JobTitle { get; set; } = "Student";
     public string Username { get; set; } = "asli.koturoglu";

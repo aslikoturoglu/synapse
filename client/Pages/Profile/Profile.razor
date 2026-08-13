@@ -4,7 +4,9 @@
 @using Client.Pages.Home
 @using Client.Pages.AllNotes
 @using Client.Pages.Signup
+@using Client.Services
 @inject NotesStore Store
+@inject AuthState AuthState
 @inject NavigationManager Navigation
 @inject UiStrings Strings
 
@@ -138,7 +140,7 @@ else
                 {
                     @foreach (var post in Store.GetMyPosts())
                     {
-                        <PostCard Post="post" ShowFollowButton="false" />
+                        <PostCard Post="post" ShowFollowButton="false" OnDeleted="StateHasChanged" />
                     }
                 }
             }
@@ -160,7 +162,13 @@ else
             <div class="profile-header">
                 <span class="avatar-circle avatar-circle-lg" aria-hidden="true">@DisplayName.Substring(0, 1)</span>
                 <div>
-                    <h2 class="profile-name">@DisplayName</h2>
+                    <h2 class="profile-name">
+                        @DisplayName
+                        @if (AuthState.IsAdmin && IsDeactivated)
+                        {
+                            <span class="profile-deactivated-badge">@Strings.Get("deactivated")</span>
+                        }
+                    </h2>
                     @if (!string.IsNullOrWhiteSpace(DisplayRole))
                     {
                         <p class="profile-role">@DisplayRole</p>
@@ -168,35 +176,135 @@ else
                 </div>
             </div>
 
-            @if (OtherPosts.Count == 0)
+            @if (AuthState.IsAdmin)
             {
-                <p class="stub-text">@Strings.Get("noPostsYet")</p>
+                <nav class="profile-nav">
+                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Posts ? "profile-nav-item-active" : "")" @onclick="() => OtherTab = OtherProfileTab.Posts">@Strings.Get("postsTab")</button>
+                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Favorites ? "profile-nav-item-active" : "")" @onclick="() => OtherTab = OtherProfileTab.Favorites">@Strings.Get("favoritesTab")</button>
+                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Comments ? "profile-nav-item-active" : "")" @onclick="() => OtherTab = OtherProfileTab.Comments">@Strings.Get("commentsTab")</button>
+                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Likes ? "profile-nav-item-active" : "")" @onclick="() => OtherTab = OtherProfileTab.Likes">@Strings.Get("likesTab")</button>
+                    <button type="button" class="profile-nav-item profile-nav-item-danger" @onclick="() => DeactivateModalOpen = true">@(IsDeactivated ? Strings.Get("reactivateAccount") : Strings.Get("deactivateAccount"))</button>
+                </nav>
+
+                @if (OtherTab == OtherProfileTab.Posts)
+                {
+                    @if (OtherPosts.Count == 0)
+                    {
+                        <p class="stub-text">@Strings.Get("noPostsYet")</p>
+                    }
+                    else
+                    {
+                        @foreach (var post in OtherPosts)
+                        {
+                            <PostCard Post="post" OnDeleted="StateHasChanged" />
+                        }
+                    }
+                }
+                else if (OtherTab == OtherProfileTab.Favorites)
+                {
+                    @if (OtherFavorites.Count == 0)
+                    {
+                        <p class="stub-text">@Strings.Get("noFavoritesYet")</p>
+                    }
+                    else
+                    {
+                        @foreach (var post in OtherFavorites)
+                        {
+                            <PostCard Post="post" OnDeleted="StateHasChanged" />
+                        }
+                    }
+                }
+                else if (OtherTab == OtherProfileTab.Likes)
+                {
+                    @if (OtherLikes.Count == 0)
+                    {
+                        <p class="stub-text">@Strings.Get("noLikesYet")</p>
+                    }
+                    else
+                    {
+                        @foreach (var post in OtherLikes)
+                        {
+                            <PostCard Post="post" OnDeleted="StateHasChanged" />
+                        }
+                    }
+                }
+                else if (OtherTab == OtherProfileTab.Comments)
+                {
+                    @if (OtherComments.Count == 0)
+                    {
+                        <p class="stub-text">@Strings.Get("noCommentsYet")</p>
+                    }
+                    else
+                    {
+                        @foreach (var (post, comment) in OtherComments)
+                        {
+                            <div class="post-comment">
+                                <span class="avatar-circle" aria-hidden="true">@comment.AuthorName.Substring(0, 1)</span>
+                                <div class="post-comment-body">
+                                    <p class="post-comment-context">@post.Title</p>
+                                    <p>@comment.Text</p>
+                                </div>
+                                <button type="button" class="post-action-icon post-delete-icon post-comment-delete-icon" title="@Strings.Get("delete")" @onclick="() => DeleteComment(post, comment)">
+                                    @TrashIcon
+                                </button>
+                            </div>
+                        }
+                    }
+                }
             }
             else
             {
-                @foreach (var post in OtherPosts)
+                @if (OtherPosts.Count == 0)
                 {
-                    <PostCard Post="post" />
+                    <p class="stub-text">@Strings.Get("noPostsYet")</p>
+                }
+                else
+                {
+                    @foreach (var post in OtherPosts)
+                    {
+                        <PostCard Post="post" />
+                    }
                 }
             }
         }
     </div>
 </div>
 
+@if (AuthState.IsAdmin && !IsOwnProfile)
+{
+    <Modal IsOpen="DeactivateModalOpen" IsOpenChanged="@(open => DeactivateModalOpen = open)" OnAccept="ToggleDeactivate" AcceptLabel="@(IsDeactivated ? Strings.Get("reactivateAccount") : Strings.Get("deactivateAccount"))" AcceptButtonClass="btn-danger">
+        <h3 class="modal-form-heading">@(IsDeactivated ? Strings.Get("reactivateAccount") : Strings.Get("deactivateAccount"))</h3>
+        <p class="stub-text">@Strings.Get("deactivateAccountConfirm")</p>
+    </Modal>
+}
+
 @code {
     private enum ProfileTab { Profile, MyPosts, MyFavorites, MyNotes, Settings }
+    private enum OtherProfileTab { Posts, Favorites, Comments, Likes }
 
     [Parameter] public string? AuthorName { get; set; }
 
-    private bool IsOwnProfile => string.IsNullOrWhiteSpace(AuthorName) || AuthorName == NotesStore.CurrentUserName;
+    // Compares against the real logged-in identity (hydrated from auth into Store.Profile),
+    // not NotesStore.CurrentUserName — that's a mock-data constant that only ever means
+    // "Aslı Koturoğlu" and would misidentify every other logged-in account's own profile.
+    private bool IsOwnProfile => string.IsNullOrWhiteSpace(AuthorName) || AuthorName == Store.Profile.FullName;
 
     private string DisplayName => IsOwnProfile ? Store.Profile.FullName : AuthorName!;
 
-    private List<Post> OtherPosts => Store.Posts.Where(p => p.AuthorName == DisplayName).ToList();
+    private List<Post> OtherPosts => Store.GetPostsByAuthor(DisplayName);
+    private List<Post> OtherFavorites => Store.GetFavoritesByAuthor(DisplayName);
+    private List<Post> OtherLikes => Store.GetLikesByAuthor(DisplayName);
+    private List<(Post Post, PostComment Comment)> OtherComments => Store.GetCommentsByAuthor(DisplayName);
 
     private string DisplayRole => OtherPosts.Count > 0 ? OtherPosts[0].AuthorRole : "";
 
     private ProfileTab ActiveTab { get; set; } = ProfileTab.Profile;
+    private OtherProfileTab OtherTab { get; set; } = OtherProfileTab.Posts;
+
+    private bool DeactivateModalOpen { get; set; }
+    private bool IsDeactivated => Store.DeactivatedUsers.Contains(DisplayName);
+
+    private static readonly RenderFragment TrashIcon = @<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>;
 
     private bool EditingName { get; set; }
     private string NameDraft { get; set; } = "";
@@ -273,8 +381,13 @@ else
         _ => false,
     };
 
-    private void HandleLogout()
+    private async Task HandleLogout()
     {
+        await AuthState.ClearSessionAsync();
         Navigation.NavigateTo("/");
     }
+
+    private void ToggleDeactivate() => Store.ToggleUserDeactivated(DisplayName);
+
+    private async Task DeleteComment(Post post, PostComment comment) => await Store.DeleteCommentAsync(post, comment);
 }

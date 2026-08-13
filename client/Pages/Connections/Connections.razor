@@ -1,4 +1,6 @@
 @page "/connections"
+@using Client.Pages.Home
+@inject NotesStore Store
 @inject UiStrings Strings
 
 <PageTitle>@Strings.Get("connections")</PageTitle>
@@ -6,7 +8,7 @@
 <PrimaryHeader />
 
 <div class="home-body">
-    <Drawer UserName="Aslı" UserEmail="asli.koturoglu@gmail.com" />
+    <Drawer UserName="@Store.Profile.Name" UserEmail="@Store.Profile.Email" />
 
     <div class="home-feed">
         <h2 class="stub-heading">@Strings.Get("connections")</h2>

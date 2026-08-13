@@ -1,50 +1,11 @@
 @using Client.Pages.Home
 @using Client.Pages.CreateNote
-@using Client.Pages.CreateNote.Note.PageView
-@using Client.Pages.CreateNote.Note.Toolbar
-@using Client.Pages.CreateNote.Note.TableOfContents
 @inject NotesStore Store
 
-<div class="note-view">
-    <div class="note-pages-row">
-        <NotePageView @ref="LeftPageView" Page="LeftPage" EditMode="EditMode" DocumentTitle="@Draft.Title" />
-        @if (RightPage is not null)
-        {
-            <NotePageView @ref="RightPageView" Page="RightPage" EditMode="EditMode" DocumentTitle="@Draft.Title" />
-        }
-    </div>
-
-    <div class="note-file-pagination">
-        @foreach (var item in PaginationItems)
-        {
-            @if (item is null)
-            {
-                <span class="note-page-ellipsis">…</span>
-            }
-            else
-            {
-                var pageNumber = item.Value;
-                <button type="button" class="note-page-btn @(pageNumber == CurrentLeftPage ? "note-page-btn-active" : "")" @onclick="() => GoToPage(pageNumber)">
-                    @pageNumber
-                </button>
-            }
-        }
-    </div>
-</div>
-
-<NoteToolbar EditMode="EditMode" OnToggleEdit="() => EditMode = true" OnDone="SaveAndExitEditMode" OnShowToc="() => TocOpen = true" />
-
-<NoteTableOfContents IsOpen="TocOpen" IsOpenChanged="@(open => TocOpen = open)" Pages="Draft.Pages" OnSelectPage="GoToPage" />
+<NotePagesViewer Pages="Draft.Pages" Title="@Draft.Title" />
 
 @code {
     [Parameter, EditorRequired] public NoteDraft Draft { get; set; } = null!;
-
-    private bool EditMode { get; set; }
-    private bool TocOpen { get; set; }
-    private int CurrentLeftPage { get; set; } = 1;
-
-    private NotePageView? LeftPageView;
-    private NotePageView? RightPageView;
 
     protected override void OnInitialized()
     {
@@ -52,48 +13,5 @@
             Draft.Pages.AddRange(NoteGenerator.Generate(Draft));
 
         Store.CreatePostFromDraftIfNeeded();
-    }
-
-    private NotePage LeftPage => Draft.Pages[CurrentLeftPage - 1];
-    private NotePage? RightPage => CurrentLeftPage < Draft.Pages.Count ? Draft.Pages[CurrentLeftPage] : null;
-
-    private void GoToPage(int number) =>
-        CurrentLeftPage = number % 2 == 0 ? number - 1 : number;
-
-    private async Task SaveAndExitEditMode()
-    {
-        if (LeftPageView is not null)
-            LeftPage.Body = await LeftPageView.GetEditedHtmlAsync();
-
-        if (RightPage is not null && RightPageView is not null)
-            RightPage.Body = await RightPageView.GetEditedHtmlAsync();
-
-        EditMode = false;
-    }
-
-    private List<int?> PaginationItems
-    {
-        get
-        {
-            var total = Draft.Pages.Count;
-            if (total <= 7)
-                return [.. Enumerable.Range(1, total).Select(i => (int?)i)];
-
-            HashSet<int> shown = [1, 2, 3, total - 1, total, CurrentLeftPage];
-            var sortedPages = shown.Where(p => p >= 1 && p <= total).OrderBy(p => p).ToList();
-
-            var items = new List<int?>();
-            int? previous = null;
-            foreach (var p in sortedPages)
-            {
-                if (previous is not null && p - previous > 1)
-                    items.Add(null);
-
-                items.Add(p);
-                previous = p;
-            }
-
-            return items;
-        }
     }
 }

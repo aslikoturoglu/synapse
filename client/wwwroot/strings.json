@@ -112,5 +112,32 @@
   "sendByEmail": "Send someone via email",
   "shareOnProfile": "Share on your profile",
   "lookAtTopics": "Look at topics",
-  "done": "Done"
+  "done": "Done",
+
+  "backToNotes": "Back to Notes",
+  "previousPage": "Previous Page",
+  "brainMapButton": "Brain Map",
+  "process": "Process",
+  "tapToSeeAllPages": "Tap to see all the pages",
+  "noGeneratedNoteYet": "This note hasn't been generated yet.",
+  "noKeywordsYet": "No keywords yet.",
+  "noHighlightsYet": "No highlights yet — select some text in the note and ask the AI about it.",
+
+  "brainMapAddedTag": "Added",
+  "brainMapDeletedTag": "Deleted",
+
+  "keywordsTotalLabel": "Keywords",
+  "keywordsGeneratedLabel": "Keywords generated with synapse.",
+  "keywordsDeletedLabel": "Keyword deleted",
+  "keywordsAddedLabel": "Keywords added",
+
+  "totalLabel": "Total",
+  "highlightsLabel": "Highlight",
+  "highlightLabel": "Highlight",
+  "aiChatsLabel": "AI Chat",
+  "changesOfDocumentLabel": "Change of Document",
+  "noneLabel": "None",
+
+  "askAiPlaceholder": "Ask a question about this...",
+  "addToDocument": "Add to Document"
 }

@@ -1,0 +1,58 @@
+@page "/notes/{PostId:guid}/brain-map"
+@using Client.Pages.Home
+@inject NotesStore Store
+@inject UiStrings Strings
+
+<PageTitle>@(Post?.Title ?? Strings.Get("allNotes"))</PageTitle>
+
+@if (Post is null)
+{
+    <p class="stub-text">@Strings.Get("noPostsYet")</p>
+}
+else
+{
+    <NoteDetailLayout Post="Post">
+        @if (Post.Keywords.Count == 0)
+        {
+            <p class="stub-text">@Strings.Get("noKeywordsYet")</p>
+        }
+        else
+        {
+            <BrainMapDiagram Keywords="Post.Keywords" ShowHistory="true" AlwaysEditable="true" OnAdd="AddKeyword" OnRemove="RemoveKeyword">
+                <div class="brain-map-history-summary">
+                    <span><strong>@Post.Keywords.Count</strong> @Strings.Get("keywordsTotalLabel")</span>
+                    <span><strong>@GeneratedCount</strong> @Strings.Get("keywordsGeneratedLabel")</span>
+                    <span><strong>@DeletedCount</strong> @Strings.Get("keywordsDeletedLabel")</span>
+                    <span><strong>@AddedCount</strong> @Strings.Get("keywordsAddedLabel")</span>
+                </div>
+            </BrainMapDiagram>
+        }
+    </NoteDetailLayout>
+}
+
+@code {
+    [Parameter] public Guid PostId { get; set; }
+
+    private Post? Post;
+
+    protected override void OnParametersSet()
+    {
+        Post = Store.FindById(PostId);
+    }
+
+    private int GeneratedCount => Post?.Keywords.Count(k => k.Status != KeywordStatus.UserAdded) ?? 0;
+    private int DeletedCount => Post?.Keywords.Count(k => k.Status == KeywordStatus.AiDeleted) ?? 0;
+    private int AddedCount => Post?.Keywords.Count(k => k.Status == KeywordStatus.UserAdded) ?? 0;
+
+    private void RemoveKeyword(BrainMapKeyword keyword)
+    {
+        if (Post is not null)
+            BrainMapKeywordActions.Remove(Post.Keywords, keyword);
+    }
+
+    private void AddKeyword(string text)
+    {
+        if (Post is not null)
+            BrainMapKeywordActions.Add(Post.Keywords, text);
+    }
+}

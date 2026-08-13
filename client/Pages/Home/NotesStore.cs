@@ -23,6 +23,8 @@ public class NotesStore
 
     public List<Post> GetFavorites() => Posts.Where(p => p.FavoritedByUsers.Contains(CurrentUserName)).ToList();
 
+    public Post? FindById(Guid id) => Posts.FirstOrDefault(p => p.Id == id);
+
     // Called once the wizard reaches the finished-note view, so the note it just built
     // actually shows up in My Posts / All Notes — not a moment earlier, not a moment later.
     public void CreatePostFromDraftIfNeeded()
@@ -43,6 +45,8 @@ public class NotesStore
                 FileUrl = "sample-pdfs/sps303-final-notes.pdf",
                 PageCount = Math.Max(Draft.Pages.Count, 1),
             }],
+            Keywords = [.. Draft.Keywords],
+            Pages = [.. Draft.Pages],
         });
 
         Draft.IsCreated = true;

@@ -1,0 +1,69 @@
+@page "/notes/{PostId:guid}"
+@using Client.Pages.Home
+@using Client.Pages.CreateNote.Note.PageView
+@inject NotesStore Store
+@inject NavigationManager Navigation
+@inject UiStrings Strings
+
+<PageTitle>@(Post?.Title ?? Strings.Get("allNotes"))</PageTitle>
+
+@if (Post is null)
+{
+    <p class="stub-text">@Strings.Get("noPostsYet")</p>
+}
+else if (ShowAllPages)
+{
+    <NoteDetailLayout Post="Post" ShowBackActions="false">
+        <button type="button" class="back-link" @onclick="() => ShowAllPages = false">
+            <span aria-hidden="true">←</span>
+            <span>@Strings.Get("back")</span>
+        </button>
+        <NotePagesViewer Pages="Post.Pages" Title="@Post.Title" Highlights="Post.Highlights" OnDocumentChanged="() => Post.DocumentChangeCount++" />
+    </NoteDetailLayout>
+}
+else
+{
+    <NoteDetailLayout Post="Post" ShowBackActions="false">
+        @if (Post.Pages.Count == 0)
+        {
+            <p class="stub-text">@Strings.Get("noGeneratedNoteYet")</p>
+        }
+        else
+        {
+            <div class="note-reader-cover" @onclick="() => ShowAllPages = true">
+                <span class="note-reader-cover-tooltip">@Strings.Get("tapToSeeAllPages")</span>
+                <div class="note-reader-cover-card">
+                    <div class="note-reader-cover-pages">
+                        @foreach (var page in Post.Pages.Take(2))
+                        {
+                            <div class="note-reader-cover-page">
+                                <NotePageView Page="page" EditMode="false" DocumentTitle="@Post.Title" />
+                            </div>
+                        }
+                        @if (Post.Pages.Count > 2)
+                        {
+                            <span class="note-reader-cover-more" aria-hidden="true">…</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="note-reader-actions-row">
+            <button type="button" class="btn-primary note-reader-nav-btn" @onclick='() => Navigation.NavigateTo($"/notes/{Post.Id}/brain-map")'>@Strings.Get("brainMapButton")</button>
+            <button type="button" class="btn-primary note-reader-nav-btn" @onclick='() => Navigation.NavigateTo($"/notes/{Post.Id}/process")'>@Strings.Get("process")</button>
+        </div>
+    </NoteDetailLayout>
+}
+
+@code {
+    [Parameter] public Guid PostId { get; set; }
+
+    private Post? Post;
+    private bool ShowAllPages;
+
+    protected override void OnParametersSet()
+    {
+        Post = Store.FindById(PostId);
+    }
+}

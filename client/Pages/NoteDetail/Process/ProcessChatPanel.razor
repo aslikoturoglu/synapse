@@ -1,0 +1,64 @@
+@using Client.Pages.Home
+@inject UiStrings Strings
+
+<div class="process-chat-panel">
+    @if (Post.Highlights.Count == 0)
+    {
+        <p class="stub-text">@Strings.Get("noHighlightsYet")</p>
+    }
+    else
+    {
+        @foreach (var highlight in Post.Highlights)
+        {
+            <div class="process-chat-item @(highlight.Id == SelectedHighlightId ? "process-chat-item-active" : "")" @key="highlight.Id">
+                <button type="button" class="process-chat-item-header" @onclick="() => ToggleExpand(highlight.Id)">
+                    <span>@highlight.SelectedText</span>
+                    <span class="process-chat-item-caret" aria-hidden="true">@(ExpandedHighlightId == highlight.Id ? "▲" : "▼")</span>
+                </button>
+
+                @if (ExpandedHighlightId == highlight.Id)
+                {
+                    <div class="process-chat-item-body">
+                        @foreach (var message in highlight.Messages)
+                        {
+                            <div class="process-chat-message">
+                                <p class="process-chat-question">@message.Question</p>
+                                <p class="process-chat-answer">@message.Answer</p>
+                            </div>
+                        }
+
+                        <input class="form-input process-chat-followup-input" placeholder="@Strings.Get("askAiPlaceholder")"
+                               @bind="FollowUpText" @bind:event="oninput" @onkeydown="@(e => HandleFollowUpKeydown(e, highlight))" />
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Post Post { get; set; } = null!;
+    [Parameter] public Guid? SelectedHighlightId { get; set; }
+
+    private Guid? ExpandedHighlightId;
+    private string FollowUpText = "";
+
+    protected override void OnParametersSet()
+    {
+        if (SelectedHighlightId is { } id)
+            ExpandedHighlightId = id;
+    }
+
+    private void ToggleExpand(Guid highlightId) =>
+        ExpandedHighlightId = ExpandedHighlightId == highlightId ? null : highlightId;
+
+    private void HandleFollowUpKeydown(KeyboardEventArgs e, NoteHighlight highlight)
+    {
+        if (e.Key != "Enter" || string.IsNullOrWhiteSpace(FollowUpText))
+            return;
+
+        var question = FollowUpText.Trim();
+        highlight.Messages.Add(new AiChatMessage { Question = question, Answer = NoteAiMockResponder.Answer(question, highlight.SelectedText, Post.Title) });
+        FollowUpText = "";
+    }
+}

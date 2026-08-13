@@ -1,0 +1,35 @@
+@using Client.Pages.Home
+@inject NavigationManager Navigation
+@inject UiStrings Strings
+
+<div class="note-file-preview" @onclick:stopPropagation="true">
+    @if (Post.Pages.Count == 0)
+    {
+        <p class="stub-text">@Strings.Get("noGeneratedNoteYet")</p>
+    }
+    else
+    {
+        <div class="note-file-list">
+            <button type="button" class="note-file-item note-file-item-active" @onclick="OpenReader">
+                @($"{Post.Title}.pdf")
+            </button>
+        </div>
+
+        <div class="note-file-page">
+            <div class="note-file-page-surface note-file-page-surface-clickable" @onclick="OpenReader">
+                @if (!string.IsNullOrWhiteSpace(Post.Pages[0].Heading))
+                {
+                    <p class="note-file-page-title">@Post.Pages[0].Heading</p>
+                }
+                <p class="note-file-page-body">@((MarkupString)Post.Pages[0].Body)</p>
+                <p class="note-file-page-footer">@Post.Title | Page 1</p>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Post Post { get; set; } = null!;
+
+    private void OpenReader() => Navigation.NavigateTo($"/notes/{Post.Id}");
+}

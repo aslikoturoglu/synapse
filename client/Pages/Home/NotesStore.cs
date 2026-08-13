@@ -75,6 +75,8 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi)
             DeactivatedUsers.Add(authorName);
     }
 
+    public Post? FindById(int id) => Posts.FirstOrDefault(p => p.Id == id);
+
     // Called once the wizard reaches the finished-note view, so the note it just built
     // actually shows up in My Posts / All Notes — not a moment earlier, not a moment later.
     public async Task CreatePostFromDraftIfNeededAsync()
@@ -99,7 +101,12 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi)
 
         var dto = await postsApi.CreateAsync(request);
         if (dto is not null)
-            Posts.Insert(0, ToPost(dto));
+        {
+            var post = ToPost(dto);
+            post.Keywords.AddRange(Draft.Keywords);
+            post.Pages.AddRange(Draft.Pages);
+            Posts.Insert(0, post);
+        }
 
         Draft.IsCreated = true;
     }

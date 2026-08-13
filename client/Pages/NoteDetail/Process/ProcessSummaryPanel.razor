@@ -1,0 +1,55 @@
+@using Client.Pages.Home
+@inject UiStrings Strings
+
+<div class="process-summary-panel">
+    <div class="process-summary-totals">
+        <span class="process-summary-total-label">@Strings.Get("totalLabel")</span>
+        <div class="process-summary-total-row">@Post.TotalHighlightCount @Strings.Get("highlightsLabel")</div>
+        <div class="process-summary-total-row">@Post.TotalAiChatCount @Strings.Get("aiChatsLabel")</div>
+        <div class="process-summary-total-row">@Post.DocumentChangeCount @Strings.Get("changesOfDocumentLabel")</div>
+    </div>
+
+    <div class="process-page-list">
+        @foreach (var page in Post.Pages)
+        {
+            var highlights = HighlightsByPage.TryGetValue(page.Number, out var list) ? list : [];
+            <div class="process-page-row">
+                <button type="button" class="process-page-row-header @(ExpandedPage == page.Number ? "process-page-row-header-open" : "")" @onclick="() => ToggleExpand(page.Number)">
+                    <span class="process-page-row-title">Page @(page.Number)</span>
+                    <span class="process-page-count">@(highlights.Count == 0 ? Strings.Get("noneLabel") : $"{highlights.Count} {Strings.Get("highlightLabel")}")</span>
+                </button>
+
+                @if (ExpandedPage == page.Number && highlights.Count > 0)
+                {
+                    <ul class="process-page-highlight-list">
+                        @foreach (var highlight in highlights)
+                        {
+                            <li>
+                                <button type="button" class="process-page-highlight-item @(highlight.Id == SelectedHighlightId ? "process-page-highlight-item-active" : "")" @onclick="() => Select(highlight.Id)">
+                                    @Truncate(highlight.SelectedText)
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Post Post { get; set; } = null!;
+    [Parameter] public Guid? SelectedHighlightId { get; set; }
+    [Parameter] public EventCallback<Guid> OnSelect { get; set; }
+
+    private int? ExpandedPage;
+
+    private Dictionary<int, List<NoteHighlight>> HighlightsByPage =>
+        Post.Highlights.GroupBy(h => h.PageNumber).ToDictionary(g => g.Key, g => g.ToList());
+
+    private void ToggleExpand(int pageNumber) => ExpandedPage = ExpandedPage == pageNumber ? null : pageNumber;
+
+    private async Task Select(Guid highlightId) => await OnSelect.InvokeAsync(highlightId);
+
+    private static string Truncate(string text) => text.Length <= 28 ? text : text[..28] + "…";
+}

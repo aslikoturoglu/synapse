@@ -1,0 +1,89 @@
+@page "/notes/{PostId:int}/process"
+@using Client.Pages.Home
+@using Client.Pages.NoteDetail.Process
+@using Client.Pages.CreateNote.Note.PageView
+@inject NotesStore Store
+@inject UiStrings Strings
+
+<PageTitle>@(Post?.Title ?? Strings.Get("allNotes"))</PageTitle>
+
+@if (Post is null)
+{
+    <p class="stub-text">@Strings.Get("noPostsYet")</p>
+}
+else
+{
+    <NoteDetailLayout Post="Post">
+        @if (Post.Pages.Count == 0)
+        {
+            <p class="stub-text">@Strings.Get("noGeneratedNoteYet")</p>
+        }
+        else
+        {
+            <div class="process-columns">
+                <ProcessSummaryPanel Post="Post" SelectedHighlightId="SelectedHighlightId" OnSelect="SelectHighlight" />
+                <ProcessChatPanel Post="Post" SelectedHighlightId="SelectedHighlightId" />
+
+                <div class="process-document-column">
+                    <NotePageView @ref="PageView" Page="CurrentPage" EditMode="false" DocumentTitle="@Post.Title" />
+
+                    <div class="note-file-pagination">
+                        @foreach (var item in PaginationItems)
+                        {
+                            @if (item is null)
+                            {
+                                <span class="note-page-ellipsis">…</span>
+                            }
+                            else
+                            {
+                                var pageNumber = item.Value;
+                                <button type="button" class="note-page-btn @(pageNumber == CurrentPageNumber ? "note-page-btn-active" : "")" @onclick="() => CurrentPageNumber = pageNumber">
+                                    @pageNumber
+                                </button>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </NoteDetailLayout>
+}
+
+@code {
+    [Parameter] public int PostId { get; set; }
+
+    private Post? Post;
+    private int CurrentPageNumber = 1;
+    private Guid? SelectedHighlightId;
+    private Guid? PendingScrollHighlightId;
+
+    private NotePageView? PageView;
+
+    protected override void OnParametersSet()
+    {
+        Post = Store.FindById(PostId);
+    }
+
+    private NotePage CurrentPage => Post!.Pages[CurrentPageNumber - 1];
+
+    private List<int?> PaginationItems => PageNumberPagination.GetItems(Post!.Pages.Count, CurrentPageNumber);
+
+    private void SelectHighlight(Guid highlightId)
+    {
+        SelectedHighlightId = highlightId;
+        var highlight = Post!.Highlights.FirstOrDefault(h => h.Id == highlightId);
+        if (highlight is not null)
+            CurrentPageNumber = highlight.PageNumber;
+
+        PendingScrollHighlightId = highlightId;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (PendingScrollHighlightId is { } id && PageView is not null)
+        {
+            PendingScrollHighlightId = null;
+            await PageView.ScrollToHighlightAsync(id);
+        }
+    }
+}

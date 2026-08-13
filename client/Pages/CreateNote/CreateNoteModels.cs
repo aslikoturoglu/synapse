@@ -1,23 +1,8 @@
+using Client.Pages.Home;
+
 namespace Client.Pages.CreateNote;
 
 public enum NoteDraftStep { Upload, Describe, Processing, BrainMap, Finalizing, Note }
-
-public class BrainMapKeyword
-{
-    public required string Text { get; set; }
-
-    // null means the keyword was added by hand (no real frequency to report).
-    public int? Count { get; set; }
-}
-
-// One page of the finished note. Heading is set only on pages that start a new
-// section, so the table of contents can list just those.
-public class NotePage
-{
-    public required int Number { get; init; }
-    public string? Heading { get; init; }
-    public string Body { get; set; } = "";
-}
 
 // Mock only: no backend note creation yet, so the in-progress wizard state lives here
 // for the session (held by the NotesStore singleton), the same way Posts/Groups do.

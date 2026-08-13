@@ -46,10 +46,22 @@ public class Post
     public bool FavoritedByMe { get; set; }
     public bool RepostedByMe { get; set; }
 
+    // The AI-generated note itself: brain-map keywords (with their AI/user/deleted history),
+    // the finished pages, and what the user did while reading them (highlights + AI chats,
+    // manual edits). Client-only — the server has no notion of any of this yet — so it's
+    // empty for posts that never went through the note-creation wizard in this session.
+    public List<BrainMapKeyword> Keywords { get; init; } = [];
+    public List<NotePage> Pages { get; init; } = [];
+    public List<NoteHighlight> Highlights { get; init; } = [];
+    public int DocumentChangeCount { get; set; }
+
     public bool IsExpanded { get; set; }
     public bool IsFollowing { get; set; }
     public bool ShowFiles { get; set; }
+    public bool ShowGeneratedPreview { get; set; }
 
     public int FileCount => Files.Count;
     public int TotalPageCount => Files.Sum(f => f.PageCount);
+    public int TotalHighlightCount => Highlights.Count;
+    public int TotalAiChatCount => Highlights.Sum(h => h.Messages.Count);
 }

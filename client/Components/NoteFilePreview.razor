@@ -68,31 +68,7 @@
         return 1;
     }
 
-    private IEnumerable<int?> PaginationItems
-    {
-        get
-        {
-            var total = Post.TotalPageCount;
-            if (total <= 7)
-                return Enumerable.Range(1, total).Select(i => (int?)i).ToList();
-
-            HashSet<int> shown = [1, 2, 3, total - 1, total, CurrentPageNumber];
-            var sortedPages = shown.Where(p => p >= 1 && p <= total).OrderBy(p => p).ToList();
-
-            var items = new List<int?>();
-            int? previous = null;
-            foreach (var p in sortedPages)
-            {
-                if (previous is not null && p - previous > 1)
-                    items.Add(null);
-
-                items.Add(p);
-                previous = p;
-            }
-
-            return items;
-        }
-    }
+    private List<int?> PaginationItems => PageNumberPagination.GetItems(Post.TotalPageCount, CurrentPageNumber);
 
     private string GetPageContent(int pageNumber) => pageNumber switch
     {

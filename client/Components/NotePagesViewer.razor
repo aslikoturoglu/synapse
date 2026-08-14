@@ -2,6 +2,8 @@
 @using Client.Pages.CreateNote.Note.PageView
 @using Client.Pages.CreateNote.Note.Toolbar
 @using Client.Pages.CreateNote.Note.TableOfContents
+@using Client.Services
+@inject PostsApiClient PostsApi
 @inject UiStrings Strings
 
 @if (!AskAiMode)
@@ -28,7 +30,8 @@ else
         <div class="note-ai-bubble-panel">
             @foreach (var highlight in VisibleBubbles)
             {
-                var lastMessage = highlight.Messages[^1];
+                var hasMessages = highlight.Messages.Count > 0;
+                var lastMessage = hasMessages ? highlight.Messages[^1] : null;
                 <div class="note-ai-bubble" @key="highlight.Id">
                     <div class="note-ai-bubble-header-row">
                         <button type="button" class="note-ai-bubble-dismiss" @onclick="() => Dismiss(highlight.Id)" aria-label="Dismiss">×</button>
@@ -40,18 +43,31 @@ else
 
                     @if (!IsCollapsed(highlight.Id))
                     {
-                        <p class="note-ai-bubble-question">@lastMessage.Question</p>
-                        <div class="note-ai-bubble-answer-card">
-                            <span class="note-ai-bubble-star" aria-hidden="true">★</span>
-                            <p>@lastMessage.Answer</p>
-                        </div>
-                        <input class="form-input note-ai-bubble-input" placeholder="@Strings.Get("askAiPlaceholder")"
-                               value="@GetDraft(highlight.Id)" @oninput="e => SetDraft(highlight.Id, e.Value?.ToString() ?? string.Empty)"
-                               @onkeydown="e => HandleBubbleKeydown(e, highlight)" />
-                        <div class="note-ai-bubble-actions">
-                            <span class="note-ai-bubble-chat-tag">@Strings.Get("aiChatsLabel")</span>
-                            <button type="button" class="btn-primary note-ai-bubble-add-btn" @onclick="() => AddToDocument(highlight)">@Strings.Get("addToDocument")</button>
-                        </div>
+                        @if (hasMessages)
+                        {
+                            var isLoading = string.IsNullOrEmpty(lastMessage!.Answer);
+                            <p class="note-ai-bubble-question">@lastMessage.Question</p>
+                            <div class="note-ai-bubble-answer-card">
+                                <span class="note-ai-bubble-star" aria-hidden="true">★</span>
+                                <p>@(isLoading ? Strings.Get("askAiThinking") : lastMessage.Answer)</p>
+                            </div>
+                            <textarea class="form-input note-ai-bubble-input" placeholder="@Strings.Get("askAiPlaceholder")" disabled="@isLoading" rows="1"
+                                      value="@GetDraft(highlight.Id)" @oninput="e => SetDraft(highlight.Id, e.Value?.ToString() ?? string.Empty)"
+                                      @onkeydown="e => HandleBubbleKeydown(e, highlight)"></textarea>
+                            <div class="note-ai-bubble-actions">
+                                <span class="note-ai-bubble-chat-tag">@Strings.Get("aiChatsLabel") <span aria-hidden="true">↗</span></span>
+                                <button type="button" class="btn-primary note-ai-bubble-add-btn" disabled="@isLoading" @onclick="() => AddToDocument(highlight)">@Strings.Get("addToDocument")</button>
+                            </div>
+                        }
+                        else
+                        {
+                            // No question asked yet — the user's own first question (not an
+                            // auto-picked one) is what actually creates and persists this
+                            // highlight, in HandleBubbleKeydown below.
+                            <textarea class="form-input note-ai-bubble-input" placeholder="@Strings.Get("askAiPlaceholder")" rows="1"
+                                      value="@GetDraft(highlight.Id)" @oninput="e => SetDraft(highlight.Id, e.Value?.ToString() ?? string.Empty)"
+                                      @onkeydown="e => HandleBubbleKeydown(e, highlight)"></textarea>
+                        }
                     }
                 </div>
             }
@@ -64,16 +80,63 @@ else
         </div>
     </div>
 
-    <button type="button" class="btn-primary note-ai-done-btn" @onclick="() => AskAiMode = false">@Strings.Get("done")</button>
+    @if (GeneralChatOpen)
+    {
+        <div class="note-ai-general-chat">
+            <div class="note-ai-general-chat-header">
+                <span>@Strings.Get("askToAi")</span>
+                <button type="button" class="note-ai-general-chat-close" @onclick="() => GeneralChatOpen = false" aria-label="Close">×</button>
+            </div>
+            <div class="note-ai-general-chat-messages">
+                @if (GeneralChatMessages.Count == 0)
+                {
+                    <p class="note-ai-general-chat-empty">@Strings.Get("askAiGeneralEmpty")</p>
+                }
+                @foreach (var message in GeneralChatMessages)
+                {
+                    <div class="note-ai-bubble-message">
+                        <p class="note-ai-bubble-question">@message.Question</p>
+                        <div class="note-ai-bubble-answer-card">
+                            <span class="note-ai-bubble-star" aria-hidden="true">★</span>
+                            <p>@(string.IsNullOrEmpty(message.Answer) ? Strings.Get("askAiThinking") : message.Answer)</p>
+                        </div>
+                    </div>
+                }
+            </div>
+            <textarea class="note-ai-general-chat-input" placeholder="@Strings.Get("askAiPlaceholder")" rows="1"
+                      value="@GeneralChatDraft" @oninput="e => GeneralChatDraft = e.Value?.ToString() ?? string.Empty"
+                      @onkeydown="HandleGeneralChatKeydown"></textarea>
+        </div>
+    }
+
+    <div class="note-ai-bottom-actions">
+        <button type="button" class="note-ai-general-chat-toggle @(GeneralChatOpen ? "note-ai-general-chat-toggle-active" : "")"
+                @onclick="() => GeneralChatOpen = !GeneralChatOpen" aria-label="@Strings.Get("askToAi")">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>
+        </button>
+        <button type="button" class="btn-primary" @onclick="() => AskAiMode = false">@Strings.Get("done")</button>
+    </div>
 }
 
 @code {
     [Parameter, EditorRequired] public List<NotePage> Pages { get; set; } = [];
     [Parameter, EditorRequired] public string Title { get; set; } = "";
     [Parameter] public List<NoteHighlight> Highlights { get; set; } = [];
+
+    // Needed only for the general (non-highlight) chatbox, which calls the Ask AI endpoint
+    // directly rather than bubbling through a callback — it doesn't mutate any Post state a
+    // parent needs to persist, so there's nothing for the caller to do with the result.
+    [Parameter] public int? PostId { get; set; }
     [Parameter] public EventCallback OnDocumentChanged { get; set; }
     [Parameter] public bool Posted { get; set; }
     [Parameter] public EventCallback OnShare { get; set; }
+
+    // Fired whenever a page's Body actually changes (manual edit, a new highlight wrapping
+    // its text, or Add to Document) so the caller can persist it — Page.Body is already
+    // mutated in place by the time these fire, this just tells the caller which page to save.
+    [Parameter] public EventCallback<NotePage> OnPageBodyChanged { get; set; }
+    [Parameter] public EventCallback<NoteHighlight> OnHighlightCreated { get; set; }
+    [Parameter] public EventCallback<(Guid HighlightId, AiChatMessage Message)> OnHighlightMessageAdded { get; set; }
 
     private bool EditMode { get; set; }
     private bool TocOpen { get; set; }
@@ -88,15 +151,12 @@ else
     private readonly HashSet<Guid> _dismissedBubbles = [];
     private readonly Dictionary<Guid, string> _bubbleDrafts = [];
 
-    // A handful of generic openers so freshly-created bubbles don't all read identically —
-    // picked deterministically from the selected text so the same phrase always gets the same one.
-    private static readonly string[] DefaultQuestions =
-    [
-        "What does this mean?",
-        "Can you explain this further?",
-        "Why does this matter?",
-        "When did this originate?",
-    ];
+    // General, not-tied-to-any-highlight AI chat — separate from the per-word bubbles, so it
+    // isn't a NoteHighlight and doesn't show up in Process (nothing was selected to anchor it to).
+    private bool GeneralChatOpen { get; set; }
+    private readonly List<AiChatMessage> GeneralChatMessages = [];
+    private string GeneralChatDraft { get; set; } = "";
+    private string? _generalChatThreadId;
 
     // Simple keyword check for "Add to Document": if the user's message reads like an edit
     // instruction, the mock answer replaces the highlighted text instead of just being
@@ -119,50 +179,28 @@ else
     private async Task SaveAndExitEditMode()
     {
         if (LeftPageView is not null)
+        {
             LeftPage.Body = await LeftPageView.GetEditedHtmlAsync();
+            await OnPageBodyChanged.InvokeAsync(LeftPage);
+        }
 
         if (RightPage is not null && RightPageView is not null)
+        {
             RightPage.Body = await RightPageView.GetEditedHtmlAsync();
+            await OnPageBodyChanged.InvokeAsync(RightPage);
+        }
 
         EditMode = false;
         await OnDocumentChanged.InvokeAsync();
     }
 
-    // Whichever of the two open pages actually has a selection wins. The selection is wrapped
-    // into a highlight mark immediately (before anything else happens) — the text a user has
-    // selected is only reliably available right at the moment of the click.
-    private async Task HandleAskAiClick()
-    {
-        NotePageView? view = null;
-        var pageNumber = 0;
-        string? text = null;
+    // The book icon only switches into Ask AI mode — it never creates a highlight by itself.
+    // Highlighting is always the user's own action: they select a word/phrase inside Ask AI
+    // mode, and that real selection (via NotePageView's mouseup listener) is what opens a bubble.
+    private void HandleAskAiClick() => AskAiMode = true;
 
-        if (LeftPageView is not null)
-        {
-            var leftText = await LeftPageView.GetSelectionTextAsync();
-            if (!string.IsNullOrWhiteSpace(leftText))
-            {
-                (view, pageNumber, text) = (LeftPageView, LeftPage.Number, leftText);
-            }
-        }
-
-        if (text is null && RightPage is not null && RightPageView is not null)
-        {
-            var rightText = await RightPageView.GetSelectionTextAsync();
-            if (!string.IsNullOrWhiteSpace(rightText))
-                (view, pageNumber, text) = (RightPageView, RightPage.Number, rightText);
-        }
-
-        if (view is null || text is null)
-            return;
-
-        await CreateBubbleAsync(view, pageNumber, text);
-        CurrentLeftPage = pageNumber;
-        AskAiMode = true;
-    }
-
-    // Once already in Ask AI mode there's no toolbar to click — selecting more text on the
-    // single page is enough on its own to open another bubble (NotePageView's mouseup listener).
+    // Selecting text on the single page is what actually creates a bubble — the only path in,
+    // by design (see HandleAskAiClick above).
     private async Task HandleAutoAsk()
     {
         if (SinglePageView is null)
@@ -175,28 +213,44 @@ else
         await CreateBubbleAsync(SinglePageView, CurrentLeftPage, text);
     }
 
+    // Only wraps the selection and opens an empty bubble — no question is asked yet. The user
+    // types their own first question (never an auto-picked one) before anything is sent to the
+    // agent; see HandleBubbleKeydown, which handles both that first question and every
+    // follow-up through the same path.
     private async Task CreateBubbleAsync(NotePageView view, int pageNumber, string text)
     {
         var highlightId = Guid.NewGuid();
         await view.ApplyHighlightAsync(highlightId);
+        await OnPageBodyChanged.InvokeAsync(Pages[pageNumber - 1]);
 
-        var question = DefaultQuestions[Math.Abs(text.GetHashCode()) % DefaultQuestions.Length];
         var highlight = new NoteHighlight { Id = highlightId, PageNumber = pageNumber, SelectedText = text };
-        highlight.Messages.Add(new AiChatMessage { Question = question, Answer = NoteAiMockResponder.Answer(question, text, Title) });
         Highlights.Add(highlight);
     }
 
-    private void HandleBubbleKeydown(KeyboardEventArgs e, NoteHighlight highlight)
+    // The Answer starts empty — the bubble renders a loading state until the caller's server
+    // round-trip (interactive-chat-agent-synapse) fills it in, in place, on the same message
+    // object. StateHasChanged forces that loading state to actually paint before the (slow)
+    // await. Whether this is the highlight's first question (creates + persists it) or a
+    // follow-up (appends to an already-persisted one) is just whether Messages was empty.
+    private async Task HandleBubbleKeydown(KeyboardEventArgs e, NoteHighlight highlight)
     {
-        if (e.Key != "Enter")
+        if (e.Key != "Enter" || e.ShiftKey)
             return;
 
         var draft = GetDraft(highlight.Id).Trim();
         if (draft.Length == 0)
             return;
 
-        highlight.Messages.Add(new AiChatMessage { Question = draft, Answer = NoteAiMockResponder.Answer(draft, highlight.SelectedText, Title) });
+        var isFirstQuestion = highlight.Messages.Count == 0;
+        var message = new AiChatMessage { Question = draft };
+        highlight.Messages.Add(message);
         SetDraft(highlight.Id, "");
+        StateHasChanged();
+
+        if (isFirstQuestion)
+            await OnHighlightCreated.InvokeAsync(highlight);
+        else
+            await OnHighlightMessageAdded.InvokeAsync((highlight.Id, message));
     }
 
     private async Task AddToDocument(NoteHighlight highlight)
@@ -207,7 +261,30 @@ else
         var lastMessage = highlight.Messages[^1];
         var isEditRequest = EditKeywords.Any(k => lastMessage.Question.Contains(k, StringComparison.OrdinalIgnoreCase));
         await SinglePageView.ApplyDocumentEditAsync(highlight.Id, lastMessage.Answer, isEditRequest);
+        await OnPageBodyChanged.InvokeAsync(LeftPage);
         await OnDocumentChanged.InvokeAsync();
+    }
+
+    private async Task HandleGeneralChatKeydown(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter" || e.ShiftKey || PostId is null)
+            return;
+
+        var question = GeneralChatDraft.Trim();
+        if (question.Length == 0)
+            return;
+
+        var message = new AiChatMessage { Question = question };
+        GeneralChatMessages.Add(message);
+        GeneralChatDraft = "";
+        StateHasChanged();
+
+        var response = await PostsApi.AskAsync(PostId.Value, new AskAiRequest { Question = question, ThreadId = _generalChatThreadId });
+        if (response is null)
+            return;
+
+        message.Answer = response.Answer;
+        _generalChatThreadId = response.ThreadId;
     }
 
     private bool IsCollapsed(Guid id) => _collapsedBubbles.Contains(id);

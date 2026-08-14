@@ -18,7 +18,10 @@ else if (ShowAllPages)
             <span aria-hidden="true">←</span>
             <span>@Strings.Get("back")</span>
         </button>
-        <NotePagesViewer Pages="Post.Pages" Title="@Post.Title" Highlights="Post.Highlights" Posted="true" OnDocumentChanged="() => Post.DocumentChangeCount++" />
+        <NotePagesViewer Pages="Post.Pages" Title="@Post.Title" PostId="Post.Id" Highlights="Post.Highlights" Posted="Post.IsShared"
+                         OnShare="ShareCurrentPost" OnDocumentChanged="HandleDocumentChanged"
+                         OnPageBodyChanged="HandlePageBodyChanged" OnHighlightCreated="HandleHighlightCreated"
+                         OnHighlightMessageAdded="HandleHighlightMessageAdded" />
     </NoteDetailLayout>
 }
 else
@@ -52,6 +55,7 @@ else
         <div class="note-reader-actions-row">
             <button type="button" class="btn-primary note-reader-nav-btn" @onclick='() => Navigation.NavigateTo($"/notes/{Post.Id}/brain-map")'>@Strings.Get("brainMapButton")</button>
             <button type="button" class="btn-primary note-reader-nav-btn" @onclick='() => Navigation.NavigateTo($"/notes/{Post.Id}/process")'>@Strings.Get("process")</button>
+            <button type="button" class="btn-primary note-reader-nav-btn" @onclick='() => Navigation.NavigateTo($"/notes/{Post.Id}/map")'>@Strings.Get("mapButton")</button>
         </div>
     </NoteDetailLayout>
 }
@@ -61,9 +65,44 @@ else
 
     private Post? Post;
     private bool ShowAllPages;
+    private int? LoadedPostId;
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        Post = Store.FindById(PostId);
+        if (LoadedPostId == PostId)
+            return;
+
+        LoadedPostId = PostId;
+        Post = await Store.LoadPostDetailAsync(PostId);
+    }
+
+    private async Task ShareCurrentPost()
+    {
+        if (Post is not null)
+            await Store.ShareAsync(Post);
+    }
+
+    private async Task HandleDocumentChanged()
+    {
+        if (Post is not null)
+            await Store.IncrementDocumentChangeAsync(Post);
+    }
+
+    private async Task HandlePageBodyChanged(NotePage page)
+    {
+        if (Post is not null)
+            await Store.UpdatePageBodyAsync(Post, page.Number, page.Body);
+    }
+
+    private async Task HandleHighlightCreated(NoteHighlight highlight)
+    {
+        if (Post is not null)
+            await Store.CreateHighlightAsync(Post, highlight);
+    }
+
+    private async Task HandleHighlightMessageAdded((Guid HighlightId, AiChatMessage Message) args)
+    {
+        if (Post is not null)
+            await Store.AddHighlightMessageAsync(Post, args.HighlightId, args.Message);
     }
 }

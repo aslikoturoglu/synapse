@@ -21,6 +21,7 @@ builder.Services.AddSingleton<NotesStore>();
 builder.Services.AddSingleton<UiStrings>();
 builder.Services.AddSingleton<AuthApiClient>();
 builder.Services.AddSingleton<PostsApiClient>();
+builder.Services.AddSingleton<AiApiClient>();
 builder.Services.AddSingleton<AuthState>();
 
 var host = builder.Build();

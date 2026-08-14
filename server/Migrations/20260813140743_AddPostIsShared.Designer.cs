@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Server.Data;
 
@@ -10,9 +11,11 @@ using Server.Data;
 namespace Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260813140743_AddPostIsShared")]
+    partial class AddPostIsShared
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -64,59 +67,6 @@ namespace Server.Migrations
                     b.ToTable("PostReposts", (string)null);
                 });
 
-            modelBuilder.Entity("Server.Models.AiChatMessage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    b.Property<string>("Answer")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<Guid>("HighlightId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Question")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("HighlightId");
-
-                    b.ToTable("AiChatMessages");
-                });
-
-            modelBuilder.Entity("Server.Models.BrainMapKeyword", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Count")
-                        .HasColumnType("int");
-
-                    b.Property<int>("PostId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PostId");
-
-                    b.ToTable("BrainMapKeywords");
-                });
-
             modelBuilder.Entity("Server.Models.Group", b =>
                 {
                     b.Property<int>("Id")
@@ -166,63 +116,6 @@ namespace Server.Migrations
                     b.ToTable("NoteFiles");
                 });
 
-            modelBuilder.Entity("Server.Models.NoteHighlight", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("AgentThreadId")
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("PageNumber")
-                        .HasColumnType("int");
-
-                    b.Property<int>("PostId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("SelectedText")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PostId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("NoteHighlights");
-                });
-
-            modelBuilder.Entity("Server.Models.NotePage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .HasColumnType("mediumtext");
-
-                    b.Property<string>("Heading")
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("Number")
-                        .HasColumnType("int");
-
-                    b.Property<int>("PostId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PostId");
-
-                    b.ToTable("NotePages");
-                });
-
             modelBuilder.Entity("Server.Models.Post", b =>
                 {
                     b.Property<int>("Id")
@@ -239,17 +132,8 @@ namespace Server.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<int>("DocumentChangeCount")
-                        .HasColumnType("int");
-
-                    b.Property<string>("DocumentKnowledgeBase")
-                        .HasColumnType("mediumtext");
-
                     b.Property<int>("Downloads")
                         .HasColumnType("int");
-
-                    b.Property<string>("GraphJson")
-                        .HasColumnType("mediumtext");
 
                     b.Property<int?>("GroupId")
                         .HasColumnType("int");
@@ -425,28 +309,6 @@ namespace Server.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Server.Models.AiChatMessage", b =>
-                {
-                    b.HasOne("Server.Models.NoteHighlight", "Highlight")
-                        .WithMany("Messages")
-                        .HasForeignKey("HighlightId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Highlight");
-                });
-
-            modelBuilder.Entity("Server.Models.BrainMapKeyword", b =>
-                {
-                    b.HasOne("Server.Models.Post", "Post")
-                        .WithMany("Keywords")
-                        .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Post");
-                });
-
             modelBuilder.Entity("Server.Models.Group", b =>
                 {
                     b.HasOne("Server.Models.User", "Owner")
@@ -462,34 +324,6 @@ namespace Server.Migrations
                 {
                     b.HasOne("Server.Models.Post", "Post")
                         .WithMany("Files")
-                        .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Post");
-                });
-
-            modelBuilder.Entity("Server.Models.NoteHighlight", b =>
-                {
-                    b.HasOne("Server.Models.Post", "Post")
-                        .WithMany("Highlights")
-                        .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Server.Models.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Post");
-                });
-
-            modelBuilder.Entity("Server.Models.NotePage", b =>
-                {
-                    b.HasOne("Server.Models.Post", "Post")
-                        .WithMany("Pages")
                         .HasForeignKey("PostId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -550,22 +384,11 @@ namespace Server.Migrations
                     b.Navigation("Posts");
                 });
 
-            modelBuilder.Entity("Server.Models.NoteHighlight", b =>
-                {
-                    b.Navigation("Messages");
-                });
-
             modelBuilder.Entity("Server.Models.Post", b =>
                 {
                     b.Navigation("Comments");
 
                     b.Navigation("Files");
-
-                    b.Navigation("Highlights");
-
-                    b.Navigation("Keywords");
-
-                    b.Navigation("Pages");
                 });
 
             modelBuilder.Entity("Server.Models.User", b =>

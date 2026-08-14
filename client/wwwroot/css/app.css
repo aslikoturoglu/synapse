@@ -839,36 +839,6 @@ p, label, .text-body {
     opacity: 1;
 }
 
-.drawer-sublist {
-    list-style: none;
-    margin: 0 0 0.25rem 0;
-    padding: 0;
-    display: none;
-}
-
-.drawer:hover .drawer-sublist {
-    display: block;
-}
-
-.drawer-subitem {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.4rem 0.5rem 0.4rem 2rem;
-    border-radius: 0.6rem;
-    color: var(--color-text-muted);
-    font-size: 0.825rem;
-    text-decoration: none;
-}
-
-.drawer-subitem:hover {
-    background-color: var(--color-btn-secondary-bg);
-}
-
-.drawer-subicon {
-    flex-shrink: 0;
-}
-
 .drawer-search {
     margin: 1rem 0;
     padding: 0 0.5rem;
@@ -1809,6 +1779,38 @@ button.post-action-toggle {
     outline: none;
 }
 
+.wizard-orchestrator-summary {
+    width: 100%;
+    max-width: 55rem;
+    box-sizing: border-box;
+    margin: 0 auto 1.5rem;
+    color: var(--color-text-body);
+    font-size: 1rem;
+    line-height: 1.6;
+    text-align: center;
+}
+
+.wizard-orchestrator-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+    max-width: 55rem;
+    box-sizing: border-box;
+    padding: 1.5rem;
+    border-radius: 1rem;
+    background-color: var(--color-bg-post-user);
+}
+
+.wizard-orchestrator-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--color-text-title);
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
 .wizard-subtext {
     margin: 0;
     color: var(--color-text-muted);
@@ -1863,13 +1865,16 @@ button.post-action-toggle {
     flex-direction: column;
     align-items: center;
     gap: 0.1rem;
+    max-width: 10rem;
     transform: translate(-50%, -50%);
 }
 
 .brain-map-label {
     color: var(--color-text-title);
     font-size: 1.15rem;
-    white-space: nowrap;
+    line-height: 1.2;
+    text-align: center;
+    white-space: normal;
 }
 
 .brain-map-count {
@@ -1882,6 +1887,64 @@ button.post-action-toggle {
     display: flex;
     align-items: baseline;
     gap: 0.3rem;
+}
+
+.brain-map-graph {
+    position: relative;
+    width: 900px;
+    max-width: 100%;
+    height: 640px;
+    margin: 0 auto;
+}
+
+.brain-map-graph-lines {
+    position: absolute;
+    inset: 0;
+}
+
+.brain-map-graph-node {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+    max-width: 9rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 0.6rem;
+    background-color: var(--color-bg-post-user);
+    text-align: center;
+    transform: translate(-50%, -50%);
+}
+
+.brain-map-graph-node-root {
+    background-color: var(--color-btn-secondary-bg);
+    font-weight: 700;
+}
+
+.brain-map-graph-node-count {
+    color: var(--color-text-muted);
+    font-size: 0.7rem;
+}
+
+.brain-map-graph-node-label {
+    color: var(--color-text-title);
+    font-size: 0.85rem;
+    line-height: 1.25;
+}
+
+.brain-map-graph-node-root .brain-map-graph-node-label {
+    font-size: 1.1rem;
+}
+
+.brain-map-graph-edge-label {
+    position: absolute;
+    padding: 0.05rem 0.35rem;
+    border-radius: 0.3rem;
+    background-color: var(--color-bg-app);
+    color: var(--color-text-muted);
+    font-size: 0.7rem;
+    white-space: nowrap;
+    transform: translate(-50%, -50%);
 }
 
 .brain-map-remove {
@@ -2163,6 +2226,12 @@ button.post-action-toggle {
     text-align: center;
 }
 
+.note-map-actions-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 1rem;
+}
+
 /* Ask AI mode: single page + floating highlight bubbles */
 
 .note-ai-view {
@@ -2186,7 +2255,7 @@ button.post-action-toggle {
     box-sizing: border-box;
     padding: 1rem 1.25rem;
     border-radius: 0.75rem;
-    background-color: var(--color-btn-secondary-bg);
+    background-color: var(--color-bg-post-user);
 }
 
 .note-ai-bubble-header-row {
@@ -2262,6 +2331,11 @@ button.post-action-toggle {
     box-sizing: border-box;
     margin-top: 0.75rem;
     font-size: 0.85rem;
+    font-family: inherit;
+    resize: none;
+    overflow: hidden;
+    field-sizing: content;
+    max-height: 12rem;
 }
 
 .note-ai-bubble-actions {
@@ -2272,7 +2346,10 @@ button.post-action-toggle {
 }
 
 .note-ai-bubble-chat-tag {
-    color: var(--color-text-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    color: var(--color-success);
     font-size: 0.75rem;
     font-weight: 600;
 }
@@ -2295,10 +2372,122 @@ button.post-action-toggle {
     max-width: 42rem;
 }
 
-.note-ai-done-btn {
+.note-ai-bottom-actions {
     position: fixed;
-    left: 1.5rem;
+    right: 1.5rem;
     bottom: 1.5rem;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.note-ai-general-chat-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    box-sizing: border-box;
+    border: none;
+    border-radius: 999px;
+    background-color: #ffffff;
+    color: var(--color-text-title);
+    box-shadow: 0 0.5rem 1.5rem rgba(24, 24, 27, 0.12);
+    cursor: pointer;
+}
+
+.note-ai-general-chat-toggle:hover,
+.note-ai-general-chat-toggle-active {
+    background-color: var(--color-btn-primary-bg);
+    color: #ffffff;
+}
+
+.note-ai-general-chat {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 5.5rem;
+    z-index: 30;
+    width: 22rem;
+    max-width: calc(100vw - 3rem);
+    display: flex;
+    flex-direction: column;
+    border-radius: 0.9rem;
+    background-color: #ffffff;
+    box-shadow: 0 0.75rem 2rem rgba(24, 24, 27, 0.18);
+    overflow: hidden;
+}
+
+.note-ai-general-chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.9rem 1.1rem;
+    background-color: var(--color-btn-primary-bg);
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.note-ai-general-chat-close {
+    border: none;
+    background: none;
+    color: #ffffff;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.note-ai-general-chat-messages {
+    min-height: 4rem;
+    max-height: 18rem;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.note-ai-general-chat-empty {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+}
+
+.note-ai-general-chat-input {
+    box-sizing: border-box;
+    width: 100%;
+    display: block;
+    margin: 0;
+    padding: 0.9rem 1.1rem;
+    border: none;
+    border-top: 1px solid var(--color-btn-secondary-border);
+    border-radius: 0;
+    font-size: 0.85rem;
+    font-family: inherit;
+    resize: none;
+    overflow: hidden;
+    field-sizing: content;
+    max-height: 12rem;
+}
+
+.note-ai-float-btn {
+    position: fixed;
+    z-index: 50;
+    transform: translate(-50%, calc(-100% - 0.5rem));
+    padding: 0.4rem 0.9rem;
+    border: none;
+    border-radius: 999px;
+    background-color: #18181b;
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.25);
+}
+
+.note-ai-float-btn:hover {
+    background-color: #000000;
 }
 
 .note-ai-inserted {

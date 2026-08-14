@@ -23,7 +23,7 @@
                         {
                             <div class="process-chat-message">
                                 <p class="process-chat-question">@message.Question</p>
-                                <p class="process-chat-answer">@message.Answer</p>
+                                <p class="process-chat-answer">@(string.IsNullOrEmpty(message.Answer) ? Strings.Get("askAiThinking") : message.Answer)</p>
                             </div>
                         }
 
@@ -39,6 +39,7 @@
 @code {
     [Parameter, EditorRequired] public Post Post { get; set; } = null!;
     [Parameter] public Guid? SelectedHighlightId { get; set; }
+    [Parameter] public EventCallback<(Guid HighlightId, AiChatMessage Message)> OnFollowUpAsked { get; set; }
 
     private Guid? ExpandedHighlightId;
     private string FollowUpText = "";
@@ -52,13 +53,17 @@
     private void ToggleExpand(Guid highlightId) =>
         ExpandedHighlightId = ExpandedHighlightId == highlightId ? null : highlightId;
 
-    private void HandleFollowUpKeydown(KeyboardEventArgs e, NoteHighlight highlight)
+    private async Task HandleFollowUpKeydown(KeyboardEventArgs e, NoteHighlight highlight)
     {
         if (e.Key != "Enter" || string.IsNullOrWhiteSpace(FollowUpText))
             return;
 
         var question = FollowUpText.Trim();
-        highlight.Messages.Add(new AiChatMessage { Question = question, Answer = NoteAiMockResponder.Answer(question, highlight.SelectedText, Post.Title) });
+        var message = new AiChatMessage { Question = question };
+        highlight.Messages.Add(message);
         FollowUpText = "";
+        StateHasChanged();
+
+        await OnFollowUpAsked.InvokeAsync((highlight.Id, message));
     }
 }

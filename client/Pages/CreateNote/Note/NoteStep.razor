@@ -2,16 +2,51 @@
 @using Client.Pages.CreateNote
 @inject NotesStore Store
 
-<NotePagesViewer Pages="Draft.Pages" Title="@Draft.Title" Posted="Draft.IsCreated" OnShare="SharePost" />
+<NotePagesViewer Pages="Draft.Pages" Title="@Draft.Title" PostId="CreatedPost?.Id" Posted="CreatedPost?.IsShared ?? false" OnShare="SharePost" Highlights="CreatedPost?.Highlights ?? []"
+                 OnDocumentChanged="HandleDocumentChanged" OnPageBodyChanged="HandlePageBodyChanged"
+                 OnHighlightCreated="HandleHighlightCreated" OnHighlightMessageAdded="HandleHighlightMessageAdded" />
 
 @code {
     [Parameter, EditorRequired] public NoteDraft Draft { get; set; } = null!;
 
-    protected override void OnInitialized()
+    private Post? CreatedPost;
+
+    protected override async Task OnInitializedAsync()
     {
-        if (Draft.Pages.Count == 0)
-            Draft.Pages.AddRange(NoteGenerator.Generate(Draft));
+        // Pages already come from the real generation pipeline (ProcessingStep) by the time
+        // the wizard reaches this step.
+        // Saved to All Notes the moment the note is ready — sharing it publicly is a
+        // separate, explicit step (see SharePost below).
+        CreatedPost = await Store.CreatePostFromDraftIfNeededAsync();
     }
 
-    private Task SharePost() => Store.CreatePostFromDraftIfNeededAsync();
+    private async Task SharePost()
+    {
+        if (CreatedPost is not null)
+            await Store.ShareAsync(CreatedPost);
+    }
+
+    private async Task HandleDocumentChanged()
+    {
+        if (CreatedPost is not null)
+            await Store.IncrementDocumentChangeAsync(CreatedPost);
+    }
+
+    private async Task HandlePageBodyChanged(NotePage page)
+    {
+        if (CreatedPost is not null)
+            await Store.UpdatePageBodyAsync(CreatedPost, page.Number, page.Body);
+    }
+
+    private async Task HandleHighlightCreated(NoteHighlight highlight)
+    {
+        if (CreatedPost is not null)
+            await Store.CreateHighlightAsync(CreatedPost, highlight);
+    }
+
+    private async Task HandleHighlightMessageAdded((Guid HighlightId, AiChatMessage Message) args)
+    {
+        if (CreatedPost is not null)
+            await Store.AddHighlightMessageAsync(CreatedPost, args.HighlightId, args.Message);
+    }
 }

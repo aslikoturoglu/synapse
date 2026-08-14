@@ -25,9 +25,6 @@ else
     [Parameter, EditorRequired] public NoteDraft Draft { get; set; } = null!;
     [Parameter] public EventCallback OnContinue { get; set; }
 
-    private void HandleFilesSelected(InputFileChangeEventArgs e)
-    {
-        foreach (var file in e.GetMultipleFiles(20))
-            Draft.FileNames.Add(file.Name);
-    }
+    private Task HandleFilesSelected(InputFileChangeEventArgs e) =>
+        UploadedFileReader.AddFilesAsync(Draft, e.GetMultipleFiles(20));
 }

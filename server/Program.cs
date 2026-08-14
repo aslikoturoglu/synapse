@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using MySql.EntityFrameworkCore.Extensions;
 using Server.Data;
 using Server.Services;
+using Server.Services.AiFoundry;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +22,14 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<PostService>();
 builder.Services.AddScoped<GroupService>();
+
+// FoundryAgentClient wraps a PersistentAgentsClient (thread-safe, reused like any other Azure
+// SDK client), so it's a singleton; the higher-level AiFoundry services need AppDbContext
+// (scoped) so they stay scoped like PostService.
+builder.Services.AddSingleton<FoundryAgentClient>();
+builder.Services.AddScoped<NoteCreationAiService>();
+builder.Services.AddScoped<NoteMapAiService>();
+builder.Services.AddScoped<NoteChatAiService>();
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var jwtKey = builder.Configuration["Jwt:Key"]

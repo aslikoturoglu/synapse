@@ -11,6 +11,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Post> Posts => Set<Post>();
     public DbSet<NoteFile> NoteFiles => Set<NoteFile>();
     public DbSet<PostComment> Comments => Set<PostComment>();
+    public DbSet<NotePage> NotePages => Set<NotePage>();
+    public DbSet<BrainMapKeyword> BrainMapKeywords => Set<BrainMapKeyword>();
+    public DbSet<NoteHighlight> NoteHighlights => Set<NoteHighlight>();
+    public DbSet<AiChatMessage> AiChatMessages => Set<AiChatMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -47,6 +51,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .HasConversion(d => d.ToDateTime(TimeOnly.MinValue), dt => DateOnly.FromDateTime(dt))
                 .HasColumnType("date");
 
+            entity.Property(p => p.DocumentKnowledgeBase).HasColumnType("mediumtext");
+            entity.Property(p => p.GraphJson).HasColumnType("mediumtext");
+
             entity.HasOne(p => p.Author)
                 .WithMany(u => u.Posts)
                 .HasForeignKey(p => p.AuthorId);
@@ -73,6 +80,39 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .HasOne(f => f.Post)
             .WithMany(p => p.Files)
             .HasForeignKey(f => f.PostId);
+
+        modelBuilder.Entity<NotePage>(entity =>
+        {
+            entity.Property(p => p.Body).HasColumnType("mediumtext");
+
+            entity.HasOne(p => p.Post)
+                .WithMany(p => p.Pages)
+                .HasForeignKey(p => p.PostId);
+        });
+
+        modelBuilder.Entity<BrainMapKeyword>()
+            .HasOne(k => k.Post)
+            .WithMany(p => p.Keywords)
+            .HasForeignKey(k => k.PostId);
+
+        modelBuilder.Entity<NoteHighlight>(entity =>
+        {
+            entity.HasOne(h => h.Post)
+                .WithMany(p => p.Highlights)
+                .HasForeignKey(h => h.PostId);
+
+            // Restrict, not Cascade: same reasoning as PostComment.Author below — a highlight
+            // already cascades from its Post, EF/MySQL can't cascade the same row twice.
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(h => h.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<AiChatMessage>()
+            .HasOne(m => m.Highlight)
+            .WithMany(h => h.Messages)
+            .HasForeignKey(m => m.HighlightId);
 
         modelBuilder.Entity<PostComment>(entity =>
         {

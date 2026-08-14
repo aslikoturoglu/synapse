@@ -1,9 +1,14 @@
 @using Client.Pages.Home
 @inject NavigationManager Navigation
+@inject NotesStore Store
 @inject UiStrings Strings
 
 <div class="note-file-preview" @onclick:stopPropagation="true">
-    @if (Post.Pages.Count == 0)
+    @if (Loading)
+    {
+        <p class="stub-text">@Strings.Get("loadingGeneratedNote")</p>
+    }
+    else if (Post.Pages.Count == 0)
     {
         <p class="stub-text">@Strings.Get("noGeneratedNoteYet")</p>
     }
@@ -30,6 +35,21 @@
 
 @code {
     [Parameter, EditorRequired] public Post Post { get; set; } = null!;
+
+    private bool Loading;
+
+    // Pages are lazy — the feed/mine list only carries GeneratedPageCount, not the full
+    // Pages list, so a post that hasn't been individually opened yet this session needs a
+    // detail fetch here before there's anything to preview.
+    protected override async Task OnInitializedAsync()
+    {
+        if (Post.Pages.Count == 0 && Post.GeneratedPageCount > 0)
+        {
+            Loading = true;
+            await Store.LoadPostDetailAsync(Post.Id);
+            Loading = false;
+        }
+    }
 
     private void OpenReader() => Navigation.NavigateTo($"/notes/{Post.Id}");
 }

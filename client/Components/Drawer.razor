@@ -1,11 +1,13 @@
+@using Client.Services
 @inject NavigationManager Navigation
+@inject AuthState AuthState
 @inject UiStrings Strings
 
 <nav class="drawer">
     <p class="drawer-greeting">Hello, @UserName</p>
 
     <div class="drawer-section">
-        <NavLink class="drawer-item" href="/notes/new">
+        <button type="button" class="drawer-item @(IsOnCreateNotePage ? "active" : "")" @onclick="GoToCreateNote">
             <span class="drawer-icon">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -13,7 +15,7 @@
                 </svg>
             </span>
             <span class="drawer-label">@Strings.Get("createNewNote")</span>
-        </NavLink>
+        </button>
 
         <NavLink class="drawer-item" href="/notes">
             <span class="drawer-icon">
@@ -23,18 +25,6 @@
             </span>
             <span class="drawer-label">@Strings.Get("allNotes")</span>
         </NavLink>
-
-        <ul class="drawer-sublist">
-            @foreach (var note in MockNoteTitles)
-            {
-                <li>
-                    <NavLink class="drawer-subitem" href="/notes">
-                        <span class="drawer-subicon" aria-hidden="true">↳</span>
-                        <span class="drawer-label">@note</span>
-                    </NavLink>
-                </li>
-            }
-        </ul>
 
         <NavLink class="drawer-item" href="/favorites">
             <span class="drawer-icon">
@@ -114,17 +104,24 @@
     [Parameter] public string UserName { get; set; } = "there";
     [Parameter] public string UserEmail { get; set; } = "";
 
-    private static readonly string[] MockNoteTitles =
-    [
-        "Week 7 - Harm Principle",
-        "Graph Algorithms Summary",
-        "Midterm Review",
-        "Lecture 3 - Utilitarianism",
-        "Lab Notes - Sorting",
-    ];
+    private bool IsOnCreateNotePage => Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith("notes/new");
 
-    private void HandleLogout()
+    // A plain button, not a NavLink: navigating to "/notes/new" while already sitting on it
+    // (e.g. right after finishing a note) is a same-URI Blazor navigation, which the router
+    // treats as a no-op and never re-runs CreateNote.razor's OnInitialized — so the page would
+    // stay stuck showing the just-finished note. ForceLoad only in that exact case reloads the
+    // app fresh (Draft included); a normal SPA navigation is used from every other page.
+    private void GoToCreateNote()
     {
+        Navigation.NavigateTo("/notes/new", forceLoad: IsOnCreateNotePage);
+    }
+
+    // ClearSessionAsync actually drops the stored token — just navigating to "/" left the old
+    // (possibly expired) token sitting in localStorage, so a "logged out" user was still
+    // silently authenticated as soon as they signed back in via the same tab.
+    private async Task HandleLogout()
+    {
+        await AuthState.ClearSessionAsync();
         Navigation.NavigateTo("/");
     }
 }

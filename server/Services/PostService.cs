@@ -2,15 +2,20 @@ using Microsoft.EntityFrameworkCore;
 using Server.Data;
 using Server.Dtos;
 using Server.Models;
+using Server.Services.AiFoundry;
 
 namespace Server.Services;
 
 public enum PostOpResult { Success, NotFound, Forbidden, GroupNotFound }
 
-public class PostService(AppDbContext db)
+public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteMapAiService mapAiService)
 {
+    // The public feed only ever shows posts their author has chosen to share — a freshly
+    // created post is visible to its author (see GetMineAsync) but nobody else until then.
     public async Task<List<PostDto>> GetFeedAsync(int userId) =>
-        await QueryDto(userId).OrderByDescending(p => p.CreatedDate).ThenByDescending(p => p.Id).ToListAsync();
+        await QueryDto(userId).Where(p => p.IsShared)
+            .OrderByDescending(p => p.CreatedDate).ThenByDescending(p => p.Id)
+            .ToListAsync();
 
     public async Task<List<PostDto>> GetMineAsync(int userId) =>
         await QueryDto(userId).Where(p => p.AuthorId == userId)
@@ -30,15 +35,258 @@ public class PostService(AppDbContext db)
             MiniDescription = request.MiniDescription.Trim(),
             CreatedDate = DateOnly.FromDateTime(DateTime.UtcNow),
             AuthorId = userId,
+            DocumentKnowledgeBase = request.DocumentKnowledgeBase,
         };
 
         foreach (var file in request.Files)
             post.Files.Add(new NoteFile { FileName = file.FileName, FileUrl = file.FileUrl, PageCount = file.PageCount });
 
+        // Already fully generated (by the real AI pipeline) by the time the wizard reaches
+        // this point — persisted as-is, not regenerated server-side.
+        foreach (var page in request.Pages)
+            post.Pages.Add(new Models.NotePage { Number = page.Number, Heading = page.Heading, Body = page.Body });
+
+        foreach (var keyword in request.Keywords)
+        {
+            post.Keywords.Add(new BrainMapKeyword
+            {
+                Text = keyword.Text,
+                Count = keyword.Count,
+                Status = Enum.Parse<KeywordStatus>(keyword.Status),
+            });
+        }
+
         db.Posts.Add(post);
         await db.SaveChangesAsync();
 
         return ToDto(post, author);
+    }
+
+    // Any signed-in viewer can read a shared post's full content; only the author can read
+    // their own not-yet-shared draft. Highlights only ever include the caller's own — see
+    // NoteHighlight.UserId.
+    public async Task<PostDetailDto?> GetDetailAsync(int userId, int postId)
+    {
+        var post = await db.Posts
+            .Include(p => p.Pages)
+            .Include(p => p.Keywords)
+            .Include(p => p.Highlights).ThenInclude(h => h.Messages)
+            .Include(p => p.Author)
+            .FirstOrDefaultAsync(p => p.Id == postId);
+
+        if (post is null || (!post.IsShared && post.AuthorId != userId))
+            return null;
+
+        var dto = ToDetailDto(await QueryDto(userId).FirstAsync(p => p.Id == postId));
+        dto.DocumentChangeCount = post.DocumentChangeCount;
+        dto.Pages = post.Pages.OrderBy(p => p.Number)
+            .Select(p => new NotePageDto { Number = p.Number, Heading = p.Heading, Body = p.Body })
+            .ToList();
+        dto.Keywords = post.Keywords
+            .Select(k => new BrainMapKeywordDto { Id = k.Id, Text = k.Text, Count = k.Count, Status = k.Status.ToString() })
+            .ToList();
+        dto.Highlights = post.Highlights.Where(h => h.UserId == userId)
+            .Select(h => new NoteHighlightDto
+            {
+                Id = h.Id,
+                PageNumber = h.PageNumber,
+                SelectedText = h.SelectedText,
+                Messages = h.Messages.OrderBy(m => m.CreatedAt)
+                    .Select(m => new AiChatMessageDto { Id = m.Id, Question = m.Question, Answer = m.Answer, CreatedAt = m.CreatedAt })
+                    .ToList(),
+            })
+            .ToList();
+
+        return dto;
+    }
+
+    public async Task<BrainMapKeywordDto?> AddKeywordAsync(int userId, int postId, string text)
+    {
+        var post = await db.Posts.FindAsync(postId);
+        if (post is null || post.AuthorId != userId)
+            return null;
+
+        var keyword = new BrainMapKeyword { PostId = postId, Text = text.Trim(), Status = KeywordStatus.UserAdded };
+        db.BrainMapKeywords.Add(keyword);
+        await db.SaveChangesAsync();
+
+        return new BrainMapKeywordDto { Id = keyword.Id, Text = keyword.Text, Count = keyword.Count, Status = keyword.Status.ToString() };
+    }
+
+    // AI-originated keywords keep their history (shown red in the Brain Map history view) —
+    // ones the user typed in themselves have no AI history worth keeping, so they're just
+    // removed outright.
+    public async Task<PostOpResult> RemoveKeywordAsync(int userId, int postId, int keywordId)
+    {
+        var post = await db.Posts.FindAsync(postId);
+        if (post is null)
+            return PostOpResult.NotFound;
+        if (post.AuthorId != userId)
+            return PostOpResult.Forbidden;
+
+        var keyword = await db.BrainMapKeywords.FirstOrDefaultAsync(k => k.Id == keywordId && k.PostId == postId);
+        if (keyword is null)
+            return PostOpResult.NotFound;
+
+        if (keyword.Status == KeywordStatus.UserAdded)
+            db.BrainMapKeywords.Remove(keyword);
+        else
+            keyword.Status = KeywordStatus.AiDeleted;
+
+        await db.SaveChangesAsync();
+        return PostOpResult.Success;
+    }
+
+    public async Task<PostOpResult> UpdatePageBodyAsync(int userId, int postId, int pageNumber, string body)
+    {
+        var post = await db.Posts.FindAsync(postId);
+        if (post is null)
+            return PostOpResult.NotFound;
+        if (post.AuthorId != userId)
+            return PostOpResult.Forbidden;
+
+        var page = await db.NotePages.FirstOrDefaultAsync(p => p.PostId == postId && p.Number == pageNumber);
+        if (page is null)
+            return PostOpResult.NotFound;
+
+        page.Body = body;
+        await db.SaveChangesAsync();
+        return PostOpResult.Success;
+    }
+
+    public async Task<PostOpResult> IncrementDocumentChangeAsync(int userId, int postId)
+    {
+        var post = await db.Posts.FindAsync(postId);
+        if (post is null)
+            return PostOpResult.NotFound;
+        if (post.AuthorId != userId)
+            return PostOpResult.Forbidden;
+
+        post.DocumentChangeCount++;
+        await db.SaveChangesAsync();
+        return PostOpResult.Success;
+    }
+
+    // Any viewer who can see the post (author, or anyone once it's shared) can highlight
+    // their own copy of it and ask interactive-chat-agent-synapse about it — see
+    // NoteHighlight.UserId. The agent needs a real answer before anything is saved, so this
+    // is the first place a highlight's own Foundry thread gets created.
+    public async Task<NoteHighlightDto?> CreateHighlightAsync(int userId, int postId, CreateHighlightRequest request)
+    {
+        var post = await db.Posts.FindAsync(postId);
+        if (post is null || (!post.IsShared && post.AuthorId != userId))
+            return null;
+
+        var sessionContext = string.IsNullOrWhiteSpace(post.DocumentKnowledgeBase)
+            ? null
+            : $"Selected passage: \"{request.SelectedText}\"\n\n{post.DocumentKnowledgeBase}";
+        var (answer, threadId) = await chatAiService.AskAsync(null, sessionContext, request.Question);
+
+        var highlight = new NoteHighlight
+        {
+            Id = request.Id,
+            PostId = postId,
+            UserId = userId,
+            PageNumber = request.PageNumber,
+            SelectedText = request.SelectedText,
+            AgentThreadId = threadId,
+        };
+        var message = new AiChatMessage { HighlightId = request.Id, Question = request.Question, Answer = answer };
+        highlight.Messages.Add(message);
+
+        db.NoteHighlights.Add(highlight);
+        await db.SaveChangesAsync();
+
+        return new NoteHighlightDto
+        {
+            Id = highlight.Id,
+            PageNumber = highlight.PageNumber,
+            SelectedText = highlight.SelectedText,
+            Messages = [new AiChatMessageDto { Id = message.Id, Question = message.Question, Answer = message.Answer, CreatedAt = message.CreatedAt }],
+        };
+    }
+
+    public async Task<AiChatMessageDto?> AddHighlightMessageAsync(int userId, Guid highlightId, AddHighlightMessageRequest request)
+    {
+        var highlight = await db.NoteHighlights.FirstOrDefaultAsync(h => h.Id == highlightId);
+        if (highlight is null || highlight.UserId != userId)
+            return null;
+
+        // AgentThreadId is always set by CreateHighlightAsync above — reused here so the
+        // agent sees the real conversation history instead of a fresh, context-less prompt.
+        var (answer, _) = await chatAiService.AskAsync(highlight.AgentThreadId, null, request.Question);
+
+        var message = new AiChatMessage { HighlightId = highlightId, Question = request.Question, Answer = answer };
+        db.AiChatMessages.Add(message);
+        await db.SaveChangesAsync();
+
+        return new AiChatMessageDto { Id = message.Id, Question = message.Question, Answer = message.Answer, CreatedAt = message.CreatedAt };
+    }
+
+    // General, not-tied-to-any-highlight question — grounded in the post's document-rag
+    // knowledge base on the first call of a conversation (threadId null), then just continues
+    // whatever thread the client already has for follow-ups. Never persisted server-side.
+    public async Task<(string Answer, string ThreadId)?> AskGeneralAsync(int userId, int postId, string? threadId, string question)
+    {
+        var post = await db.Posts.FindAsync(postId);
+        if (post is null || (!post.IsShared && post.AuthorId != userId))
+            return null;
+
+        return await chatAiService.AskAsync(threadId, threadId is null ? post.DocumentKnowledgeBase : null, question);
+    }
+
+    // Cached: brain-map-agent-synapse is only called once, on first request; later opens of
+    // the Map view reuse Post.GraphJson until the user explicitly asks to regenerate.
+    public async Task<GraphDto?> GetOrGenerateMapAsync(int userId, int postId)
+    {
+        var post = await db.Posts.FindAsync(postId);
+        if (post is null || (!post.IsShared && post.AuthorId != userId))
+            return null;
+
+        if (!string.IsNullOrWhiteSpace(post.GraphJson))
+            return System.Text.Json.JsonSerializer.Deserialize<GraphDto>(post.GraphJson);
+
+        return await RegenerateMapAsync(post);
+    }
+
+    public async Task<GraphDto?> RegenerateMapAsync(int userId, int postId)
+    {
+        var post = await db.Posts.FindAsync(postId);
+        if (post is null || (!post.IsShared && post.AuthorId != userId))
+            return null;
+
+        return await RegenerateMapAsync(post);
+    }
+
+    private async Task<GraphDto> RegenerateMapAsync(Post post)
+    {
+        var keywords = await db.BrainMapKeywords
+            .Where(k => k.PostId == post.Id && k.Status != KeywordStatus.AiDeleted)
+            .Select(k => new BrainMapKeywordDto { Id = k.Id, Text = k.Text, Count = k.Count, Status = k.Status.ToString() })
+            .ToListAsync();
+
+        var graph = await mapAiService.GenerateGraphAsync(post.DocumentKnowledgeBase ?? "", keywords);
+        post.GraphJson = System.Text.Json.JsonSerializer.Serialize(graph);
+        await db.SaveChangesAsync();
+
+        return graph;
+    }
+
+    public async Task<PostOpResult> ShareAsync(int userId, int postId)
+    {
+        var post = await db.Posts.FindAsync(postId);
+        if (post is null)
+            return PostOpResult.NotFound;
+        if (post.AuthorId != userId)
+            return PostOpResult.Forbidden;
+
+        if (!post.IsShared)
+        {
+            post.IsShared = true;
+            await db.SaveChangesAsync();
+        }
+
+        return PostOpResult.Success;
     }
 
     public async Task<PostOpResult> DeleteAsync(int userId, int postId)
@@ -156,6 +404,7 @@ public class PostService(AppDbContext db)
             Description = p.Description,
             MiniDescription = p.MiniDescription,
             CreatedDate = p.CreatedDate,
+            IsShared = p.IsShared,
             AuthorId = p.AuthorId,
             AuthorName = p.Author.Name + " " + p.Author.Surname,
             AuthorRole = p.Author.JobTitle,
@@ -166,6 +415,7 @@ public class PostService(AppDbContext db)
             Files = p.Files
                 .Select(f => new NoteFileDto { FileName = f.FileName, FileUrl = f.FileUrl, PageCount = f.PageCount })
                 .ToList(),
+            GeneratedPageCount = p.Pages.Count,
             LikeCount = p.LikedByUsers.Count,
             FavoriteCount = p.FavoritedByUsers.Count,
             RepostCount = p.RepostedByUsers.Count,
@@ -186,6 +436,33 @@ public class PostService(AppDbContext db)
                 .ToList(),
         });
 
+    private static PostDetailDto ToDetailDto(PostDto basic) => new()
+    {
+        Id = basic.Id,
+        Title = basic.Title,
+        Description = basic.Description,
+        MiniDescription = basic.MiniDescription,
+        CreatedDate = basic.CreatedDate,
+        IsShared = basic.IsShared,
+        AuthorId = basic.AuthorId,
+        AuthorName = basic.AuthorName,
+        AuthorRole = basic.AuthorRole,
+        GroupId = basic.GroupId,
+        GroupName = basic.GroupName,
+        Sends = basic.Sends,
+        Downloads = basic.Downloads,
+        Files = basic.Files,
+        GeneratedPageCount = basic.GeneratedPageCount,
+        LikeCount = basic.LikeCount,
+        FavoriteCount = basic.FavoriteCount,
+        RepostCount = basic.RepostCount,
+        CommentCount = basic.CommentCount,
+        LikedByMe = basic.LikedByMe,
+        FavoritedByMe = basic.FavoritedByMe,
+        RepostedByMe = basic.RepostedByMe,
+        Comments = basic.Comments,
+    };
+
     private static PostDto ToDto(Post post, User author) => new()
     {
         Id = post.Id,
@@ -200,5 +477,6 @@ public class PostService(AppDbContext db)
         Files = post.Files
             .Select(f => new NoteFileDto { FileName = f.FileName, FileUrl = f.FileUrl, PageCount = f.PageCount })
             .ToList(),
+        GeneratedPageCount = post.Pages.Count,
     };
 }

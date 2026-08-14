@@ -22,7 +22,7 @@ else
         {
             <div class="process-columns">
                 <ProcessSummaryPanel Post="Post" SelectedHighlightId="SelectedHighlightId" OnSelect="SelectHighlight" />
-                <ProcessChatPanel Post="Post" SelectedHighlightId="SelectedHighlightId" />
+                <ProcessChatPanel Post="Post" SelectedHighlightId="SelectedHighlightId" OnFollowUpAsked="HandleFollowUpAsked" />
 
                 <div class="process-document-column">
                     <NotePageView @ref="PageView" Page="CurrentPage" EditMode="false" DocumentTitle="@Post.Title" />
@@ -53,15 +53,26 @@ else
     [Parameter] public int PostId { get; set; }
 
     private Post? Post;
+    private int? LoadedPostId;
     private int CurrentPageNumber = 1;
     private Guid? SelectedHighlightId;
     private Guid? PendingScrollHighlightId;
 
     private NotePageView? PageView;
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        Post = Store.FindById(PostId);
+        if (LoadedPostId == PostId)
+            return;
+
+        LoadedPostId = PostId;
+        Post = await Store.LoadPostDetailAsync(PostId);
+    }
+
+    private async Task HandleFollowUpAsked((Guid HighlightId, AiChatMessage Message) args)
+    {
+        if (Post is not null)
+            await Store.AddHighlightMessageAsync(Post, args.HighlightId, args.Message);
     }
 
     private NotePage CurrentPage => Post!.Pages[CurrentPageNumber - 1];

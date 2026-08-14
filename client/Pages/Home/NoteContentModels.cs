@@ -4,6 +4,10 @@ public enum KeywordStatus { AiKept, AiDeleted, UserAdded }
 
 public class BrainMapKeyword
 {
+    // 0 for keywords that only exist in the creation wizard's Draft so far — assigned a real
+    // id by the server once the note is actually saved (Post.Keywords).
+    public int Id { get; set; }
+
     public required string Text { get; set; }
 
     // null means the keyword was added by hand (no real frequency to report).
@@ -21,12 +25,14 @@ public class NotePage
     public string Body { get; set; } = "";
 }
 
-// Mock only: there is no real AI, so this is one templated question/answer pair
-// produced by NoteAiMockResponder instead of an actual model call.
+// One question/answer pair from interactive-chat-agent-synapse. Answer starts empty and is
+// filled in once the real server round-trip completes — see NotesStore.CreateHighlightAsync/
+// AddHighlightMessageAsync, which mutate it in place so the caller's already-rendered bubble
+// (same object reference) picks up the real answer instead of a re-add.
 public class AiChatMessage
 {
     public required string Question { get; init; }
-    public required string Answer { get; init; }
+    public string Answer { get; set; } = "";
     public DateTime CreatedAt { get; init; } = DateTime.Now;
 }
 
@@ -41,9 +47,10 @@ public class NoteHighlight
     public List<AiChatMessage> Messages { get; } = [];
 }
 
-// Shared by the creation wizard's BrainMapStep and the reopened Brain Map history page —
-// both just add/remove keywords on whichever list they're holding (NoteDraft.Keywords or
-// Post.Keywords).
+// Used by the creation wizard's BrainMapStep, where keywords only live in the local Draft
+// and there's no server round-trip yet. The reopened Brain Map page (a real, saved Post)
+// mirrors this same remove-or-mark-deleted decision, but the server makes it — see
+// PostService.RemoveKeywordAsync.
 public static class BrainMapKeywordActions
 {
     public static void Remove(List<BrainMapKeyword> keywords, BrainMapKeyword keyword)

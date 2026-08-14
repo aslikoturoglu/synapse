@@ -59,18 +59,56 @@ window.noteEditor = {
         }
         return element.innerHTML;
     },
-    // Ask AI mode: once the user is already looking at the single-page view, selecting more
-    // text shouldn't require a button click again — it should just make a new bubble appear,
-    // the same way it would in a real annotation tool. One listener per element instance
-    // (the element itself is thrown away and replaced whenever a highlight is applied, since
-    // NotePageView keys the <p> on Page.Body, so there's nothing to unregister here).
+    // Ask AI mode: selecting a word/phrase (drag-select, or double-click which selects the
+    // word under the cursor) shows a small floating "Ask to AI" button right next to the
+    // selection — the highlight itself is only created once the user actually clicks it, so
+    // highlighting always stays a deliberate user action, never automatic.
+    //
+    // NotePageView keys its <p> on Page.Body, so applying a highlight destroys this exact DOM
+    // node and Blazor mounts a brand new one — this function gets called again for the new
+    // node (NotePageView calls it on every render, not just the first), and the
+    // dataset.selectionListenerAttached guard just stops us from double-attaching if it's
+    // called again for a node that already has a listener.
     onSelectionMade: function (element, dotNetRef) {
-        if (!element) return;
-        element.addEventListener("mouseup", () => {
-            const sel = window.getSelection();
-            if (sel && !sel.isCollapsed && element.contains(sel.anchorNode) && sel.toString().trim().length > 0) {
-                dotNetRef.invokeMethodAsync("NotifyTextSelected");
+        if (!element || element.dataset.selectionListenerAttached) return;
+        element.dataset.selectionListenerAttached = "1";
+
+        let floatBtn = null;
+        const removeFloatBtn = () => {
+            if (floatBtn) {
+                floatBtn.remove();
+                floatBtn = null;
             }
+        };
+
+        element.addEventListener("mouseup", () => {
+            removeFloatBtn();
+
+            const sel = window.getSelection();
+            if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+            const range = sel.getRangeAt(0);
+            if (!element.contains(range.commonAncestorContainer)) return;
+            if (!sel.toString().trim()) return;
+
+            const rect = range.getBoundingClientRect();
+            floatBtn = document.createElement("button");
+            floatBtn.type = "button";
+            floatBtn.className = "note-ai-float-btn";
+            floatBtn.textContent = "Ask to AI";
+            floatBtn.style.left = (rect.left + rect.width / 2) + "px";
+            floatBtn.style.top = rect.top + "px";
+            // Keep the browser selection alive through the click — a plain click on any
+            // element outside the selection collapses it before the click handler runs.
+            floatBtn.addEventListener("mousedown", e => e.preventDefault());
+            floatBtn.addEventListener("click", () => {
+                dotNetRef.invokeMethodAsync("NotifyTextSelected");
+                removeFloatBtn();
+            });
+            document.body.appendChild(floatBtn);
+        });
+
+        document.addEventListener("mousedown", e => {
+            if (floatBtn && e.target !== floatBtn) removeFloatBtn();
         });
     },
 };

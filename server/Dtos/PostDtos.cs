@@ -14,6 +14,7 @@ public class PostDto
     public string Description { get; set; } = "";
     public string MiniDescription { get; set; } = "";
     public required DateOnly CreatedDate { get; set; }
+    public bool IsShared { get; set; }
 
     public required int AuthorId { get; set; }
     public required string AuthorName { get; set; }
@@ -26,6 +27,11 @@ public class PostDto
     public int Downloads { get; set; }
 
     public List<NoteFileDto> Files { get; set; } = [];
+
+    // The generated document's page count — kept separate from the full Pages list (which
+    // only PostDetailDto carries) so list views (feed/mine) can show an accurate "N Pages"
+    // without paying for every page's full body on every card.
+    public int GeneratedPageCount { get; set; }
 
     public int LikeCount { get; set; }
     public int FavoriteCount { get; set; }
@@ -48,12 +54,91 @@ public class PostCommentDto
     public DateTime CreatedAt { get; set; }
 }
 
+public class NotePageDto
+{
+    public required int Number { get; set; }
+    public string? Heading { get; set; }
+    public string Body { get; set; } = "";
+}
+
+// Status is a string ("AiKept" / "AiDeleted" / "UserAdded"), same convention as UserDto.Role.
+public class BrainMapKeywordDto
+{
+    public required int Id { get; set; }
+    public required string Text { get; set; }
+    public int? Count { get; set; }
+    public required string Status { get; set; }
+}
+
+public class AiChatMessageDto
+{
+    public required int Id { get; set; }
+    public required string Question { get; set; }
+    public required string Answer { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class NoteHighlightDto
+{
+    public required Guid Id { get; set; }
+    public required int PageNumber { get; set; }
+    public required string SelectedText { get; set; }
+    public List<AiChatMessageDto> Messages { get; set; } = [];
+}
+
+// Everything PostDto has, plus the generated note content — kept as a separate, heavier DTO
+// so feed/mine list responses (which can be many posts) don't drag full page bodies along.
+public class PostDetailDto : PostDto
+{
+    public int DocumentChangeCount { get; set; }
+    public List<NotePageDto> Pages { get; set; } = [];
+    public List<BrainMapKeywordDto> Keywords { get; set; } = [];
+    public List<NoteHighlightDto> Highlights { get; set; } = [];
+}
+
 public class CreatePostRequest
 {
     public required string Title { get; set; }
     public string Description { get; set; } = "";
     public string MiniDescription { get; set; } = "";
     public required List<NoteFileDto> Files { get; set; }
+
+    // Already fully generated (by the real AI pipeline — see AiController/NoteCreationAiService)
+    // by the time the note is saved — sent along with creation instead of round-tripping page
+    // by page.
+    public List<NotePageDto> Pages { get; set; } = [];
+    public List<BrainMapKeywordDto> Keywords { get; set; } = [];
+
+    // document-rag-agent-synapse's raw structured output, carried through the wizard in
+    // NoteDraft — persisted here so the Map view can (re)generate its graph later without
+    // needing the original uploaded files again.
+    public string? DocumentKnowledgeBase { get; set; }
+}
+
+public class AddKeywordRequest
+{
+    public required string Text { get; set; }
+}
+
+public class UpdatePageBodyRequest
+{
+    public required string Body { get; set; }
+}
+
+// No Answer field: the mock used to have the client compute it, but the real
+// interactive-chat-agent-synapse answer can only be produced server-side (see
+// PostService.CreateHighlightAsync).
+public class CreateHighlightRequest
+{
+    public required Guid Id { get; set; }
+    public required int PageNumber { get; set; }
+    public required string SelectedText { get; set; }
+    public required string Question { get; set; }
+}
+
+public class AddHighlightMessageRequest
+{
+    public required string Question { get; set; }
 }
 
 public class UpdatePostGroupRequest

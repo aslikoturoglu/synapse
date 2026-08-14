@@ -1,4 +1,5 @@
 @page "/home"
+@using Client.Pages.Home
 @inject NotesStore Store
 
 <PageTitle>synapse.</PageTitle>
@@ -9,9 +10,15 @@
     <Drawer UserName="@Store.Profile.Name" UserEmail="@Store.Profile.Email" />
 
     <div class="home-feed">
-        @foreach (var post in Store.Posts)
+        @foreach (var post in SharedPosts)
         {
             <PostCard Post="post" OnDeleted="StateHasChanged" />
         }
     </div>
 </div>
+
+@code {
+    // The public feed only ever shows shared posts — Store.Posts also carries the caller's
+    // own not-yet-shared notes (so All Notes can list them), which don't belong here.
+    private List<Post> SharedPosts => Store.Posts.Where(p => p.IsShared).ToList();
+}

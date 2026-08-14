@@ -102,10 +102,12 @@
   "draftUploadedFiles": "Uploaded files:",
   "stepUpload": "Uploading files",
   "stepDescribe": "Writing description",
-  "stepProcessing": "Creating synapses",
+  "stepOrchestrator": "Scanning documents",
   "stepBrainMap": "Brain map",
-  "stepFinalizing": "Creating synapses",
+  "stepProcessing": "Creating synapses",
   "stepNote": "Note ready",
+  "generationFailed": "Something went wrong while generating your note.",
+  "retry": "Retry",
 
   "edit": "edit",
   "addMoreTopics": "add more topics",
@@ -131,8 +133,12 @@
   "previousPage": "Previous Page",
   "brainMapButton": "Brain Map",
   "process": "Process",
+  "mapButton": "Map",
+  "regenerateMap": "Regenerate",
+  "noMapYet": "No graph generated yet.",
   "tapToSeeAllPages": "Tap to see all the pages",
   "noGeneratedNoteYet": "This note hasn't been generated yet.",
+  "loadingGeneratedNote": "Loading...",
   "noKeywordsYet": "No keywords yet.",
   "noHighlightsYet": "No highlights yet — select some text in the note and ask the AI about it.",
 
@@ -152,5 +158,7 @@
   "noneLabel": "None",
 
   "askAiPlaceholder": "Ask a question about this...",
-  "addToDocument": "Add to Document"
+  "addToDocument": "Add to Document",
+  "askAiGeneralEmpty": "Ask anything about this note — not tied to a specific highlight.",
+  "askAiThinking": "Thinking..."
 }

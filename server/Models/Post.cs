@@ -14,6 +14,11 @@ public class Post
 
     public DateOnly CreatedDate { get; set; }
 
+    // A newly-created post is saved for its author (shows up in their All Notes) but stays
+    // invisible to everyone else until they explicitly share it — at which point it starts
+    // appearing in the public feed too.
+    public bool IsShared { get; set; }
+
     public int? GroupId { get; set; }
     public Group? Group { get; set; }
 
@@ -26,4 +31,22 @@ public class Post
     public List<User> LikedByUsers { get; } = [];
     public List<User> FavoritedByUsers { get; } = [];
     public List<User> RepostedByUsers { get; } = [];
+
+    // The generated note itself (Brain Map keywords, finished pages) plus what readers did
+    // with it (highlights + AI chats, manual edit count). See NotePage/BrainMapKeyword/
+    // NoteHighlight for why Keywords/Pages are shared across every viewer but Highlights
+    // aren't.
+    public List<NotePage> Pages { get; } = [];
+    public List<BrainMapKeyword> Keywords { get; } = [];
+    public List<NoteHighlight> Highlights { get; } = [];
+    public int DocumentChangeCount { get; set; }
+
+    // document-rag-agent's raw structured knowledge-base output, captured once at creation
+    // time. Reused later (without re-reading the original files) whenever the Map view needs
+    // to (re)generate its node/edge graph via brain-map-agent.
+    public string? DocumentKnowledgeBase { get; set; }
+
+    // Cached brain-map-agent output (serialized {nodes, edges}) so opening Map doesn't call
+    // the agent again on every visit — only on first generation or an explicit Regenerate.
+    public string? GraphJson { get; set; }
 }

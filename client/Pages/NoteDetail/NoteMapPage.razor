@@ -1,0 +1,65 @@
+@page "/notes/{PostId:int}/map"
+@using Client.Pages.Home
+@using Client.Services
+@inject NotesStore Store
+@inject PostsApiClient PostsApi
+@inject UiStrings Strings
+
+<PageTitle>@(Post?.Title ?? Strings.Get("allNotes"))</PageTitle>
+
+@if (Post is null)
+{
+    <p class="stub-text">@Strings.Get("noPostsYet")</p>
+}
+else
+{
+    <NoteDetailLayout Post="Post">
+        @if (Loading)
+        {
+            <div class="wizard-spinner" aria-hidden="true"></div>
+        }
+        else if (Graph is null || Graph.Nodes.Count == 0)
+        {
+            <p class="stub-text">@Strings.Get("noMapYet")</p>
+        }
+        else
+        {
+            <div class="note-map-actions-row">
+                <button type="button" class="btn-primary" disabled="@Regenerating" @onclick="Regenerate">@Strings.Get("regenerateMap")</button>
+            </div>
+            <BrainMapGraph Nodes="Graph.Nodes" Edges="Graph.Edges" />
+        }
+    </NoteDetailLayout>
+}
+
+@code {
+    [Parameter] public int PostId { get; set; }
+
+    private Post? Post;
+    private int? LoadedPostId;
+    private GraphDto? Graph;
+    private bool Loading = true;
+    private bool Regenerating;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (LoadedPostId == PostId)
+            return;
+
+        LoadedPostId = PostId;
+        Loading = true;
+        Post = await Store.LoadPostDetailAsync(PostId);
+        if (Post is not null)
+            Graph = await PostsApi.GetMapAsync(PostId);
+        Loading = false;
+    }
+
+    private async Task Regenerate()
+    {
+        Regenerating = true;
+        var graph = await PostsApi.RegenerateMapAsync(PostId);
+        if (graph is not null)
+            Graph = graph;
+        Regenerating = false;
+    }
+}

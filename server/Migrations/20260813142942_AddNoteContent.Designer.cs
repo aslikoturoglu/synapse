@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Server.Data;
 
@@ -10,9 +11,11 @@ using Server.Data;
 namespace Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260813142942_AddNoteContent")]
+    partial class AddNoteContent
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -172,9 +175,6 @@ namespace Server.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<string>("AgentThreadId")
-                        .HasColumnType("longtext");
-
                     b.Property<int>("PageNumber")
                         .HasColumnType("int");
 
@@ -242,14 +242,8 @@ namespace Server.Migrations
                     b.Property<int>("DocumentChangeCount")
                         .HasColumnType("int");
 
-                    b.Property<string>("DocumentKnowledgeBase")
-                        .HasColumnType("mediumtext");
-
                     b.Property<int>("Downloads")
                         .HasColumnType("int");
-
-                    b.Property<string>("GraphJson")
-                        .HasColumnType("mediumtext");
 
                     b.Property<int?>("GroupId")
                         .HasColumnType("int");

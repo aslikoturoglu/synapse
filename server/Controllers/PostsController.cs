@@ -26,6 +26,110 @@ public class PostsController(PostService postService) : ControllerBase
         return CreatedAtAction(nameof(GetFeed), post);
     }
 
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<PostDetailDto>> GetDetail(int id)
+    {
+        var post = await postService.GetDetailAsync(User.GetUserId(), id);
+        return post is null ? NotFound() : Ok(post);
+    }
+
+    [HttpPost("{id:int}/keywords")]
+    public async Task<ActionResult<BrainMapKeywordDto>> AddKeyword(int id, AddKeywordRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Text))
+            return BadRequest(new { error = "Keyword text is required." });
+
+        var keyword = await postService.AddKeywordAsync(User.GetUserId(), id, request.Text);
+        return keyword is null ? Forbid() : Ok(keyword);
+    }
+
+    [HttpDelete("{id:int}/keywords/{keywordId:int}")]
+    public async Task<IActionResult> RemoveKeyword(int id, int keywordId)
+    {
+        var result = await postService.RemoveKeywordAsync(User.GetUserId(), id, keywordId);
+        return result switch
+        {
+            PostOpResult.Success => NoContent(),
+            PostOpResult.NotFound => NotFound(),
+            PostOpResult.Forbidden => Forbid(),
+            _ => BadRequest(),
+        };
+    }
+
+    [HttpPut("{id:int}/pages/{pageNumber:int}")]
+    public async Task<IActionResult> UpdatePageBody(int id, int pageNumber, UpdatePageBodyRequest request)
+    {
+        var result = await postService.UpdatePageBodyAsync(User.GetUserId(), id, pageNumber, request.Body);
+        return result switch
+        {
+            PostOpResult.Success => NoContent(),
+            PostOpResult.NotFound => NotFound(),
+            PostOpResult.Forbidden => Forbid(),
+            _ => BadRequest(),
+        };
+    }
+
+    [HttpPost("{id:int}/document-change")]
+    public async Task<IActionResult> IncrementDocumentChange(int id)
+    {
+        var result = await postService.IncrementDocumentChangeAsync(User.GetUserId(), id);
+        return result switch
+        {
+            PostOpResult.Success => NoContent(),
+            PostOpResult.NotFound => NotFound(),
+            PostOpResult.Forbidden => Forbid(),
+            _ => BadRequest(),
+        };
+    }
+
+    [HttpPost("{id:int}/highlights")]
+    public async Task<ActionResult<NoteHighlightDto>> CreateHighlight(int id, CreateHighlightRequest request)
+    {
+        var highlight = await postService.CreateHighlightAsync(User.GetUserId(), id, request);
+        return highlight is null ? Forbid() : Ok(highlight);
+    }
+
+    [HttpPost("{id:int}/highlights/{highlightId:guid}/messages")]
+    public async Task<ActionResult<AiChatMessageDto>> AddHighlightMessage(int id, Guid highlightId, AddHighlightMessageRequest request)
+    {
+        var message = await postService.AddHighlightMessageAsync(User.GetUserId(), highlightId, request);
+        return message is null ? Forbid() : Ok(message);
+    }
+
+    [HttpPost("{id:int}/ask")]
+    public async Task<ActionResult<AskAiResponse>> Ask(int id, AskAiRequest request)
+    {
+        var result = await postService.AskGeneralAsync(User.GetUserId(), id, request.ThreadId, request.Question);
+        return result is null ? Forbid() : Ok(new AskAiResponse { Answer = result.Value.Answer, ThreadId = result.Value.ThreadId });
+    }
+
+    [HttpPost("{id:int}/map")]
+    public async Task<ActionResult<GraphDto>> GetMap(int id)
+    {
+        var graph = await postService.GetOrGenerateMapAsync(User.GetUserId(), id);
+        return graph is null ? NotFound() : Ok(graph);
+    }
+
+    [HttpPost("{id:int}/map/regenerate")]
+    public async Task<ActionResult<GraphDto>> RegenerateMap(int id)
+    {
+        var graph = await postService.RegenerateMapAsync(User.GetUserId(), id);
+        return graph is null ? NotFound() : Ok(graph);
+    }
+
+    [HttpPost("{id:int}/share")]
+    public async Task<IActionResult> Share(int id)
+    {
+        var result = await postService.ShareAsync(User.GetUserId(), id);
+        return result switch
+        {
+            PostOpResult.Success => NoContent(),
+            PostOpResult.NotFound => NotFound(),
+            PostOpResult.Forbidden => Forbid(),
+            _ => BadRequest(),
+        };
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {

@@ -34,25 +34,30 @@ else
     [Parameter] public int PostId { get; set; }
 
     private Post? Post;
+    private int? LoadedPostId;
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        Post = Store.FindById(PostId);
+        if (LoadedPostId == PostId)
+            return;
+
+        LoadedPostId = PostId;
+        Post = await Store.LoadPostDetailAsync(PostId);
     }
 
     private int GeneratedCount => Post?.Keywords.Count(k => k.Status != KeywordStatus.UserAdded) ?? 0;
     private int DeletedCount => Post?.Keywords.Count(k => k.Status == KeywordStatus.AiDeleted) ?? 0;
     private int AddedCount => Post?.Keywords.Count(k => k.Status == KeywordStatus.UserAdded) ?? 0;
 
-    private void RemoveKeyword(BrainMapKeyword keyword)
+    private async Task RemoveKeyword(BrainMapKeyword keyword)
     {
         if (Post is not null)
-            BrainMapKeywordActions.Remove(Post.Keywords, keyword);
+            await Store.RemoveKeywordAsync(Post, keyword);
     }
 
-    private void AddKeyword(string text)
+    private async Task AddKeyword(string text)
     {
         if (Post is not null)
-            BrainMapKeywordActions.Add(Post.Keywords, text);
+            await Store.AddKeywordAsync(Post, text);
     }
 }

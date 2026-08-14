@@ -25,6 +25,11 @@ public class Post
     public string MiniDescription { get; set; } = "";
     public DateOnly CreatedDate { get; set; }
 
+    // Saved (created) as soon as the wizard reaches the finished-note view — shows up in the
+    // author's own All Notes right away. Only becomes visible in the public feed, to other
+    // users, once explicitly shared (NotesStore.ShareAsync).
+    public bool IsShared { get; set; }
+
     public int AuthorId { get; set; }
     public required string AuthorName { get; set; }
     public string AuthorRole { get; set; } = "";
@@ -48,12 +53,16 @@ public class Post
 
     // The AI-generated note itself: brain-map keywords (with their AI/user/deleted history),
     // the finished pages, and what the user did while reading them (highlights + AI chats,
-    // manual edits). Client-only — the server has no notion of any of this yet — so it's
-    // empty for posts that never went through the note-creation wizard in this session.
+    // manual edits). Server-backed (NotesStore.LoadPostDetailAsync) — empty here until that's
+    // been called, since the lightweight feed/mine list payloads don't include it.
     public List<BrainMapKeyword> Keywords { get; init; } = [];
     public List<NotePage> Pages { get; init; } = [];
     public List<NoteHighlight> Highlights { get; init; } = [];
     public int DocumentChangeCount { get; set; }
+
+    // The real, server-known page count — always accurate, unlike Pages.Count which is 0
+    // until LoadPostDetailAsync has actually been called for this post this session.
+    public int GeneratedPageCount { get; set; }
 
     public bool IsExpanded { get; set; }
     public bool IsFollowing { get; set; }

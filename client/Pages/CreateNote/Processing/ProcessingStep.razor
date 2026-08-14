@@ -1,14 +1,74 @@
+@using Client.Pages.Home
+@using Client.Services
+@inject AiApiClient AiApi
 @inject UiStrings Strings
 
-<h2 class="wizard-heading">@Strings.Get("creatingSynapses")</h2>
-<div class="wizard-spinner" aria-hidden="true"></div>
+@if (Failed)
+{
+    <h2 class="wizard-heading">@Strings.Get("generationFailed")</h2>
+    <button type="button" class="wizard-continue-btn" @onclick="Generate">@Strings.Get("retry")</button>
+}
+else
+{
+    <h2 class="wizard-heading">@Strings.Get("creatingSynapses")</h2>
+    <div class="wizard-spinner" aria-hidden="true"></div>
+}
 
 @code {
+    [Parameter, EditorRequired] public NoteDraft Draft { get; set; } = null!;
     [Parameter] public EventCallback OnComplete { get; set; }
 
-    protected override async Task OnInitializedAsync()
+    private bool Failed;
+
+    protected override Task OnInitializedAsync() => Generate();
+
+    // document-rag-agent-synapse + topic-synthesizer-agent-synapse both run here — real
+    // network time, not the old 2-second fake delay. Idempotent (skips straight to OnComplete
+    // if Pages are already there, e.g. resuming a draft that already finished this step).
+    private async Task Generate()
     {
-        await Task.Delay(2000);
+        Failed = false;
+
+        if (Draft.Pages.Count > 0)
+        {
+            await OnComplete.InvokeAsync();
+            return;
+        }
+
+        if (Draft.Directive is not { } directive || Draft.OrchestratorThreadId is null)
+        {
+            Failed = true;
+            return;
+        }
+
+        var response = await AiApi.GenerateNoteAsync(new GenerateNoteRequest
+        {
+            ThreadId = Draft.OrchestratorThreadId,
+            FileIds = Draft.FoundryFileIds,
+            Directive = new NoteAiDirectiveDto
+            {
+                SeedKeywords = directive.SeedKeywords,
+                FocusAreas = directive.FocusAreas,
+                SynthesisMode = directive.SynthesisMode,
+                UserCustomInstructions = directive.UserCustomInstructions,
+            },
+            Keywords = Draft.Keywords.Select(k => new BrainMapKeywordDto
+            {
+                Id = k.Id,
+                Text = k.Text,
+                Count = k.Count,
+                Status = k.Status.ToString(),
+            }).ToList(),
+        });
+
+        if (response is null)
+        {
+            Failed = true;
+            return;
+        }
+
+        Draft.Pages.AddRange(response.Pages.Select(p => new NotePage { Number = p.Number, Heading = p.Heading, Body = p.Body }));
+        Draft.DocumentKnowledgeBase = response.DocumentKnowledgeBase;
         await OnComplete.InvokeAsync();
     }
 }

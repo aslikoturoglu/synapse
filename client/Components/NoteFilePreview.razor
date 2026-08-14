@@ -1,14 +1,17 @@
 @using Client.Pages.Home
 
 <div class="note-file-preview" @onclick:stopPropagation="true">
-    <div class="note-file-list">
-        @foreach (var file in Post.Files)
-        {
-            <button type="button" class="note-file-item @(file == SelectedFile ? "note-file-item-active" : "")" @onclick="() => SelectFile(file)">
-                @file.FileName
-            </button>
-        }
-    </div>
+    @if (ShowFileList)
+    {
+        <div class="note-file-list">
+            @foreach (var file in Post.Files)
+            {
+                <button type="button" class="note-file-item @(file == SelectedFile ? "note-file-item-active" : "")" @onclick="() => SelectFile(file)">
+                    @file.FileName
+                </button>
+            }
+        </div>
+    }
 
     <div class="note-file-page">
         <div class="note-file-page-surface">
@@ -38,6 +41,7 @@
 
 @code {
     [Parameter, EditorRequired] public Post Post { get; set; } = null!;
+    [Parameter] public bool ShowFileList { get; set; } = true;
 
     private NoteFile SelectedFile { get; set; } = null!;
     private int CurrentPageNumber { get; set; } = 1;

@@ -1,12 +1,12 @@
 @using Client.Pages.Home
 @inject UiStrings Strings
 
-<div class="brain-map-diagram">
+<div class="brain-map-diagram" style="width: @(DiagramWidth)px; height: @(DiagramHeight)px;">
     <svg class="brain-map-lines" width="@DiagramWidth" height="@DiagramHeight">
         @foreach (var node in PositionedKeywords)
         {
             var (startX, startY) = EdgeOfCenterText(node.AngleDegrees);
-            var (arrowX, arrowY) = PointAt(node.AngleDegrees, ArrowRadiusX, ArrowRadiusY);
+            var (arrowX, arrowY) = PointAt(node.AngleDegrees, node.LabelRadiusX - ArrowGapX, node.LabelRadiusY - ArrowGapY);
             <line x1="@startX" y1="@startY" x2="@arrowX" y2="@arrowY" stroke="@LineColor(node.Keyword)" stroke-width="1.5" marker-end="@MarkerFor(node.Keyword)" />
         }
         <defs>
@@ -93,14 +93,25 @@
 </div>
 
 @code {
-    private const int DiagramWidth = 900;
-    private const int DiagramHeight = 420;
-    private const int CenterX = DiagramWidth / 2;
-    private const int CenterY = DiagramHeight / 2;
-    private const int ArrowRadiusX = 200;
-    private const int ArrowRadiusY = 138;
-    private const int LabelRadiusX = 250;
-    private const int LabelRadiusY = 172;
+    // Below this count, everything fits on one ring at the original size — unchanged from
+    // before. Above it (real AI-generated keyword lists can easily run to a dozen+, unlike the
+    // old fixed 7-keyword mock), nodes alternate between a near and a far ring by index parity
+    // — each ring then only holds half the nodes, roughly doubling the angular gap between
+    // same-ring neighbors — and the whole diagram grows to give the far ring room to breathe.
+    private const int StaggerThreshold = 8;
+    private const int ArrowGapX = 55;
+    private const int ArrowGapY = 36;
+
+    private int KeywordCount => VisibleKeywords.Count();
+    private bool IsStaggered => KeywordCount > StaggerThreshold;
+
+    private int DiagramWidth => IsStaggered ? 1000 : 900;
+    private int DiagramHeight => IsStaggered ? 640 : 420;
+    private int CenterX => DiagramWidth / 2;
+    private int CenterY => DiagramHeight / 2;
+
+    private (int X, int Y) NearLabelRadius => (250, 172);
+    private (int X, int Y) FarLabelRadius => (370, 260);
 
     [Parameter, EditorRequired] public List<BrainMapKeyword> Keywords { get; set; } = [];
     [Parameter] public bool ShowHistory { get; set; }
@@ -117,22 +128,24 @@
     private IEnumerable<BrainMapKeyword> VisibleKeywords =>
         ShowHistory ? Keywords : Keywords.Where(k => k.Status != KeywordStatus.AiDeleted);
 
-    private IEnumerable<(BrainMapKeyword Keyword, double AngleDegrees, int X, int Y, bool IsLeftSide)> PositionedKeywords
+    private IEnumerable<(BrainMapKeyword Keyword, double AngleDegrees, int LabelRadiusX, int LabelRadiusY, int X, int Y, bool IsLeftSide)> PositionedKeywords
     {
         get
         {
             var visible = VisibleKeywords.ToList();
             var count = visible.Count;
+            var staggered = IsStaggered;
             for (var i = 0; i < count; i++)
             {
                 var angle = -90 + i * (360.0 / count);
-                var (x, y) = PointAt(angle, LabelRadiusX, LabelRadiusY);
-                yield return (visible[i], angle, x, y, x < CenterX);
+                var (radiusX, radiusY) = staggered && i % 2 == 1 ? FarLabelRadius : NearLabelRadius;
+                var (x, y) = PointAt(angle, radiusX, radiusY);
+                yield return (visible[i], angle, radiusX, radiusY, x, y, x < CenterX);
             }
         }
     }
 
-    private static (int X, int Y) PointAt(double angleDegrees, int radiusX, int radiusY)
+    private (int X, int Y) PointAt(double angleDegrees, int radiusX, int radiusY)
     {
         var angleRadians = angleDegrees * Math.PI / 180;
         return (CenterX + (int)(radiusX * Math.Cos(angleRadians)), CenterY + (int)(radiusY * Math.Sin(angleRadians)));
@@ -140,7 +153,7 @@
 
     // Finds where a ray from the center at the given angle exits the "brain map" label's
     // bounding ellipse, so arrows start just outside the text instead of drawing through it.
-    private static (int X, int Y) EdgeOfCenterText(double angleDegrees)
+    private (int X, int Y) EdgeOfCenterText(double angleDegrees)
     {
         const double halfWidth = 135;
         const double halfHeight = 40;

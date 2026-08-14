@@ -34,11 +34,16 @@
     private ElementReference BodyElement;
     private DotNetObjectReference<NotePageView>? _selfRef;
 
+    // Not gated on firstRender: applying a highlight changes Page.Body, and since the <p>
+    // above is keyed on Page.Body, Blazor throws that exact DOM node away and mounts a new
+    // one — the JS listener attached to the old node goes with it, so this needs to run again
+    // on every render for the new node to pick one up. noteEditor.onSelectionMade guards
+    // against double-attaching to a node that already has a listener.
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && EnableSelectionListener && !EditMode)
+        if (EnableSelectionListener && !EditMode)
         {
-            _selfRef = DotNetObjectReference.Create(this);
+            _selfRef ??= DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("noteEditor.onSelectionMade", BodyElement, _selfRef);
         }
     }

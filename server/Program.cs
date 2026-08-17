@@ -22,6 +22,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<PostService>();
 builder.Services.AddScoped<GroupService>();
+builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<DashboardService>();
+builder.Services.AddSingleton<EmailService>();
 
 // FoundryAgentClient wraps a PersistentAgentsClient (thread-safe, reused like any other Azure
 // SDK client), so it's a singleton; the higher-level AiFoundry services need AppDbContext
@@ -30,6 +33,7 @@ builder.Services.AddSingleton<FoundryAgentClient>();
 builder.Services.AddScoped<NoteCreationAiService>();
 builder.Services.AddScoped<NoteMapAiService>();
 builder.Services.AddScoped<NoteChatAiService>();
+builder.Services.AddScoped<AdminChatAiService>();
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var jwtKey = builder.Configuration["Jwt:Key"]

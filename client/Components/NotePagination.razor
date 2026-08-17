@@ -1,0 +1,38 @@
+@using Client.Components
+
+<div class="note-file-pagination">
+    <button type="button" class="note-page-arrow" disabled="@(Current - Step < 1)" @onclick="() => OnSelect.InvokeAsync(Current - Step)" aria-label="Previous page">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+    </button>
+
+    @foreach (var item in PaginationItems)
+    {
+        @if (item is null)
+        {
+            <span class="note-page-ellipsis">…</span>
+        }
+        else
+        {
+            var pageNumber = item.Value;
+            <button type="button" class="note-page-btn @(pageNumber == Current ? "note-page-btn-active" : "")" @onclick="() => OnSelect.InvokeAsync(pageNumber)">
+                @pageNumber
+            </button>
+        }
+    }
+
+    <button type="button" class="note-page-arrow" disabled="@(Current + Step > Total)" @onclick="() => OnSelect.InvokeAsync(Current + Step)" aria-label="Next page">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+    </button>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public int Total { get; set; }
+    [Parameter, EditorRequired] public int Current { get; set; }
+    [Parameter, EditorRequired] public EventCallback<int> OnSelect { get; set; }
+
+    // 2 for the two-page (book spread) view, where Current is always the left page and moving
+    // by 1 would just get snapped back to itself by that caller's own odd/even normalization.
+    [Parameter] public int Step { get; set; } = 1;
+
+    private List<int?> PaginationItems => PageNumberPagination.GetItems(Total, Current);
+}

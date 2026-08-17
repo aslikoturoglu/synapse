@@ -32,10 +32,6 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi)
         Profile.JobTitle = user.JobTitle;
     }
 
-    // Admin-only: usernames the admin has deactivated. Mock only, same as everything else
-    // here — there's no Users table on the client, so "an account" is just an AuthorName.
-    public HashSet<string> DeactivatedUsers { get; } = [];
-
     // Swallows anything except 401: a transient/network failure shouldn't crash whatever
     // flow is loading the feed (login, signup, app boot) — it just leaves Posts empty for
     // now. A 401 means the caller's token is dead and propagates, since only the caller
@@ -75,12 +71,6 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi)
 
     public List<(Post Post, PostComment Comment)> GetCommentsByAuthor(string authorName) =>
         Posts.SelectMany(p => p.Comments.Where(c => c.AuthorName == authorName).Select(c => (Post: p, Comment: c))).ToList();
-
-    public void ToggleUserDeactivated(string authorName)
-    {
-        if (!DeactivatedUsers.Remove(authorName))
-            DeactivatedUsers.Add(authorName);
-    }
 
     public Post? FindById(int id) => Posts.FirstOrDefault(p => p.Id == id);
 
@@ -209,7 +199,9 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi)
         var request = new CreatePostRequest
         {
             Title = Draft.Title,
-            Description = Draft.Description,
+            // No dedicated description step anymore — the Intake step's free-form notes are
+            // the closest available substitute for "what this note is about".
+            Description = Draft.UserNotes,
             Files =
             [
                 new NoteFileDto
@@ -222,6 +214,8 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi)
             Pages = Draft.Pages.Select(ToNotePageDto).ToList(),
             Keywords = Draft.Keywords.Select(ToKeywordDto).ToList(),
             DocumentKnowledgeBase = Draft.DocumentKnowledgeBase,
+            SynthesizedDocumentMarkdown = Draft.SynthesizedMarkdown,
+            FinalGraph = Draft.FinalGraph,
         };
 
         var dto = await postsApi.CreateAsync(request);

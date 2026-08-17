@@ -36,6 +36,8 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
             CreatedDate = DateOnly.FromDateTime(DateTime.UtcNow),
             AuthorId = userId,
             DocumentKnowledgeBase = request.DocumentKnowledgeBase,
+            SynthesizedDocumentMarkdown = request.SynthesizedDocumentMarkdown,
+            GraphJson = request.FinalGraph is null ? null : System.Text.Json.JsonSerializer.Serialize(request.FinalGraph),
         };
 
         foreach (var file in request.Files)
@@ -177,9 +179,7 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
         if (post is null || (!post.IsShared && post.AuthorId != userId))
             return null;
 
-        var sessionContext = string.IsNullOrWhiteSpace(post.DocumentKnowledgeBase)
-            ? null
-            : $"Selected passage: \"{request.SelectedText}\"\n\n{post.DocumentKnowledgeBase}";
+        var sessionContext = BuildSessionContext(post, request.SelectedText);
         var (answer, threadId) = await chatAiService.AskAsync(null, sessionContext, request.Question);
 
         var highlight = new NoteHighlight
@@ -232,7 +232,43 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
         if (post is null || (!post.IsShared && post.AuthorId != userId))
             return null;
 
-        return await chatAiService.AskAsync(threadId, threadId is null ? post.DocumentKnowledgeBase : null, question);
+        var sessionContext = threadId is null ? BuildSessionContext(post, selectedText: null) : null;
+        return await chatAiService.AskAsync(threadId, sessionContext, question);
+    }
+
+    // interactive-chat-agent-synapse's spec grounds it in the finished document, the Document
+    // RAG knowledge base, and the current Brain Map's node/edge relationships (to surface
+    // "Bağlantılı Kavramlar" for whatever the user selected) — only built on the first turn
+    // of a conversation, exactly like the old DocumentKnowledgeBase-only context was.
+    private static string? BuildSessionContext(Post post, string? selectedText)
+    {
+        if (string.IsNullOrWhiteSpace(post.DocumentKnowledgeBase) && string.IsNullOrWhiteSpace(post.SynthesizedDocumentMarkdown) && string.IsNullOrWhiteSpace(post.GraphJson))
+            return null;
+
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(selectedText))
+            parts.Add($"Selected passage: \"{selectedText}\"");
+        if (!string.IsNullOrWhiteSpace(post.SynthesizedDocumentMarkdown))
+            parts.Add($"Finished document:\n{post.SynthesizedDocumentMarkdown}");
+        if (!string.IsNullOrWhiteSpace(post.DocumentKnowledgeBase))
+            parts.Add($"Document RAG knowledge base:\n{post.DocumentKnowledgeBase}");
+        if (!string.IsNullOrWhiteSpace(post.GraphJson))
+        {
+            var graph = System.Text.Json.JsonSerializer.Deserialize<GraphDto>(post.GraphJson);
+            if (graph is { Nodes.Count: > 0 })
+            {
+                var nodeLines = graph.Nodes.Select(n => $"- {n.Label} ({n.Type})");
+                var edgeLines = graph.Edges.Select(e =>
+                {
+                    var source = graph.Nodes.FirstOrDefault(n => n.Id == e.Source)?.Label ?? e.Source;
+                    var target = graph.Nodes.FirstOrDefault(n => n.Id == e.Target)?.Label ?? e.Target;
+                    return $"- {source} {e.Label} {target}";
+                });
+                parts.Add("Brain Map — nodes:\n" + string.Join('\n', nodeLines) + "\n\nBrain Map — relationships:\n" + string.Join('\n', edgeLines));
+            }
+        }
+
+        return string.Join("\n\n", parts);
     }
 
     // Cached: brain-map-agent-synapse is only called once, on first request; later opens of
@@ -258,18 +294,39 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
         return await RegenerateMapAsync(post);
     }
 
+    // Always final mode: by the time a Post exists it already has a finished document, so
+    // Regenerate re-runs the enrichment pass against whatever the user's current (possibly
+    // since-edited) keyword list is — never the draft, single-shot pass that only makes sense
+    // before the document exists.
     private async Task<GraphDto> RegenerateMapAsync(Post post)
     {
         var keywords = await db.BrainMapKeywords
             .Where(k => k.PostId == post.Id && k.Status != KeywordStatus.AiDeleted)
-            .Select(k => new BrainMapKeywordDto { Id = k.Id, Text = k.Text, Count = k.Count, Status = k.Status.ToString() })
+            .Select(k => k.Text)
             .ToListAsync();
 
-        var graph = await mapAiService.GenerateGraphAsync(post.DocumentKnowledgeBase ?? "", keywords);
+        var document = string.IsNullOrWhiteSpace(post.SynthesizedDocumentMarkdown)
+            ? await FallbackDocumentFromPagesAsync(post)
+            : post.SynthesizedDocumentMarkdown;
+
+        var graph = await mapAiService.GenerateFinalGraphAsync(keywords, document, post.DocumentKnowledgeBase ?? "");
         post.GraphJson = System.Text.Json.JsonSerializer.Serialize(graph);
         await db.SaveChangesAsync();
 
         return graph;
+    }
+
+    // Posts created before SynthesizedDocumentMarkdown existed don't have the real
+    // topic-synthesizer-agent output stored — best-effort reconstruction from the already-
+    // persisted, HTML-converted Pages instead of failing Regenerate outright for them.
+    private async Task<string> FallbackDocumentFromPagesAsync(Post post)
+    {
+        var pages = await db.NotePages
+            .Where(p => p.PostId == post.Id)
+            .OrderBy(p => p.Number)
+            .ToListAsync();
+
+        return string.Join("\n\n", pages.Select(p => $"## {p.Heading}\n{System.Text.RegularExpressions.Regex.Replace(p.Body, "<[^>]+>", "")}"));
     }
 
     public async Task<PostOpResult> ShareAsync(int userId, int postId)

@@ -9,17 +9,11 @@
 @inject AuthState AuthState
 @inject NavigationManager Navigation
 @inject UiStrings Strings
+@inject UsersApiClient UsersApi
 
 <PageTitle>@(IsOwnProfile ? Store.Profile.FullName : DisplayName)</PageTitle>
 
-@if (IsOwnProfile)
-{
-    <PrimaryHeader UserDisplayName="@Store.Profile.FullName" />
-}
-else
-{
-    <PrimaryHeader />
-}
+<PrimaryHeader UserDisplayName="@DisplayName" />
 
 <div class="home-body">
     <Drawer UserName="@Store.Profile.Name" UserEmail="@Store.Profile.Email" />
@@ -159,9 +153,9 @@ else
         }
         else
         {
-            <div class="profile-header">
+            <div class="profile-header profile-header-other">
                 <span class="avatar-circle avatar-circle-lg" aria-hidden="true">@DisplayName.Substring(0, 1)</span>
-                <div>
+                <div class="profile-header-identity">
                     <h2 class="profile-name">
                         @DisplayName
                         @if (AuthState.IsAdmin && IsDeactivated)
@@ -174,16 +168,44 @@ else
                         <p class="profile-role">@DisplayRole</p>
                     }
                 </div>
+
+                @if (AuthState.IsAdmin && OtherUserDetail is not null)
+                {
+                    <div class="profile-header-details">
+                        <div class="profile-header-detail-row">
+                            <span class="profile-info-label">@Strings.Get("email")</span>
+                            <span class="profile-info-value">@OtherUserDetail.Email</span>
+                        </div>
+                        <div class="profile-header-detail-row">
+                            <span class="profile-info-label">@Strings.Get("phone")</span>
+                            <span class="profile-info-value">@OtherUserDetail.Phone</span>
+                        </div>
+                        <div class="profile-header-detail-row">
+                            <span class="profile-info-label">@Strings.Get("jobTitle")</span>
+                            <span class="profile-info-value">@OtherUserDetail.JobTitle</span>
+                        </div>
+                    </div>
+
+                    <div class="profile-header-stats">
+                        <p><strong>@OtherPosts.Count</strong> @Strings.Get("postsCount")</p>
+                        <p><strong>@OtherPosts.Count</strong> @Strings.Get("notesCount")</p>
+                    </div>
+                }
             </div>
 
             @if (AuthState.IsAdmin)
             {
                 <nav class="profile-nav">
                     <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Posts ? "profile-nav-item-active" : "")" @onclick="() => OtherTab = OtherProfileTab.Posts">@Strings.Get("postsTab")</button>
+                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Notes ? "profile-nav-item-active" : "")" @onclick="() => OtherTab = OtherProfileTab.Notes">@Strings.Get("notesTab")</button>
                     <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Favorites ? "profile-nav-item-active" : "")" @onclick="() => OtherTab = OtherProfileTab.Favorites">@Strings.Get("favoritesTab")</button>
+                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Connections ? "profile-nav-item-active" : "")" @onclick="() => OtherTab = OtherProfileTab.Connections">@Strings.Get("connectionsTab")</button>
                     <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Comments ? "profile-nav-item-active" : "")" @onclick="() => OtherTab = OtherProfileTab.Comments">@Strings.Get("commentsTab")</button>
                     <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Likes ? "profile-nav-item-active" : "")" @onclick="() => OtherTab = OtherProfileTab.Likes">@Strings.Get("likesTab")</button>
-                    <button type="button" class="profile-nav-item profile-nav-item-danger" @onclick="() => DeactivateModalOpen = true">@(IsDeactivated ? Strings.Get("reactivateAccount") : Strings.Get("deactivateAccount"))</button>
+                    @if (OtherUserDetail is not null)
+                    {
+                        <button type="button" class="profile-nav-item profile-nav-item-danger" @onclick="() => DeactivateModalOpen = true">@(IsDeactivated ? Strings.Get("reactivateAccount") : Strings.Get("deactivateAccount"))</button>
+                    }
                 </nav>
 
                 @if (OtherTab == OtherProfileTab.Posts)
@@ -199,6 +221,21 @@ else
                             <PostCard Post="post" OnDeleted="StateHasChanged" />
                         }
                     }
+                }
+                else if (OtherTab == OtherProfileTab.Notes)
+                {
+                    @if (OtherPosts.Count == 0)
+                    {
+                        <p class="stub-text">@Strings.Get("noNotesYet")</p>
+                    }
+                    else
+                    {
+                        <NotesList Title="" Posts="OtherPosts" OnDelete="HandleDeleteOtherNote" />
+                    }
+                }
+                else if (OtherTab == OtherProfileTab.Connections)
+                {
+                    <p class="stub-text">@Strings.Get("comingSoon")</p>
                 }
                 else if (OtherTab == OtherProfileTab.Favorites)
                 {
@@ -270,17 +307,16 @@ else
     </div>
 </div>
 
-@if (AuthState.IsAdmin && !IsOwnProfile)
+@if (AuthState.IsAdmin && !IsOwnProfile && OtherUserDetail is not null && OtherUserId is int otherUserId)
 {
-    <Modal IsOpen="DeactivateModalOpen" IsOpenChanged="@(open => DeactivateModalOpen = open)" OnAccept="ToggleDeactivate" AcceptLabel="@(IsDeactivated ? Strings.Get("reactivateAccount") : Strings.Get("deactivateAccount"))" AcceptButtonClass="btn-danger">
-        <h3 class="modal-form-heading">@(IsDeactivated ? Strings.Get("reactivateAccount") : Strings.Get("deactivateAccount"))</h3>
-        <p class="stub-text">@Strings.Get("deactivateAccountConfirm")</p>
-    </Modal>
+    <DeactivateAccountModal IsOpen="DeactivateModalOpen" IsOpenChanged="@(open => DeactivateModalOpen = open)"
+        UserId="otherUserId" UserName="@DisplayName" UserEmail="@OtherUserDetail.Email"
+        IsCurrentlyDeactivated="IsDeactivated" OnChanged="RefreshOtherUserDetail" />
 }
 
 @code {
     private enum ProfileTab { Profile, MyPosts, MyFavorites, MyNotes, Settings }
-    private enum OtherProfileTab { Posts, Favorites, Comments, Likes }
+    private enum OtherProfileTab { Posts, Notes, Favorites, Connections, Comments, Likes }
 
     [Parameter] public string? AuthorName { get; set; }
 
@@ -298,11 +334,35 @@ else
 
     private string DisplayRole => OtherPosts.Count > 0 ? OtherPosts[0].AuthorRole : "";
 
+    // Email/Phone/JobTitle aren't carried on Post (only AuthorName/AuthorRole are), so the
+    // richer admin-only info row needs a real lookup — keyed off any of this author's posts
+    // for their AuthorId, since routing here only ever gives us a display name.
+    private UserDto? OtherUserDetail { get; set; }
+    private string? OtherUserDetailLoadedFor { get; set; }
+    private int? OtherUserId => OtherPosts.FirstOrDefault()?.AuthorId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!AuthState.IsAdmin || IsOwnProfile)
+            return;
+
+        if (OtherUserDetailLoadedFor == DisplayName)
+            return;
+
+        OtherUserDetailLoadedFor = DisplayName;
+        await RefreshOtherUserDetail();
+    }
+
+    private async Task RefreshOtherUserDetail()
+    {
+        OtherUserDetail = OtherUserId is int id ? await UsersApi.GetByIdAsync(id) : null;
+    }
+
     private ProfileTab ActiveTab { get; set; } = ProfileTab.Profile;
     private OtherProfileTab OtherTab { get; set; } = OtherProfileTab.Posts;
 
     private bool DeactivateModalOpen { get; set; }
-    private bool IsDeactivated => Store.DeactivatedUsers.Contains(DisplayName);
+    private bool IsDeactivated => OtherUserDetail?.IsDeactivated ?? false;
 
     private static readonly RenderFragment TrashIcon = @<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>;
 
@@ -374,7 +434,7 @@ else
 
     private static bool IsFieldValid(string field, string value) => field switch
     {
-        "phone" => Regex.IsMatch(value.Trim(), @"^[0-9+()\-\s]{7,}$"),
+        "phone" => SignupValidation.IsValidPhoneFormat(value),
         "jobTitle" => !string.IsNullOrWhiteSpace(value),
         "username" => Regex.IsMatch(value.Trim(), @"^[A-Za-z0-9_.]{3,}$"),
         "password" => SignupValidation.GetPasswordRequirements(value).All(r => r.Satisfied),
@@ -387,7 +447,7 @@ else
         Navigation.NavigateTo("/");
     }
 
-    private void ToggleDeactivate() => Store.ToggleUserDeactivated(DisplayName);
-
     private async Task DeleteComment(Post post, PostComment comment) => await Store.DeleteCommentAsync(post, comment);
+
+    private async Task HandleDeleteOtherNote(Post post) => await Store.DeletePostAsync(post);
 }

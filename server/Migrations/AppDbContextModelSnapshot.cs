@@ -232,6 +232,9 @@ namespace Server.Migrations
                     b.Property<int>("AuthorId")
                         .HasColumnType("int");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("date");
 
@@ -263,6 +266,9 @@ namespace Server.Migrations
 
                     b.Property<int>("Sends")
                         .HasColumnType("int");
+
+                    b.Property<string>("SynthesizedDocumentMarkdown")
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -314,10 +320,16 @@ namespace Server.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("DeactivationReason")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
+
+                    b.Property<bool>("IsDeactivated")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("JobTitle")
                         .IsRequired()
@@ -326,6 +338,9 @@ namespace Server.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("PasswordChangedAt")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()

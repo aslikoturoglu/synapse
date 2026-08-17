@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(brew list *)",
+      "Read(//usr/local/mysql-8.4.7-macos15-x86_64/**)",
+      "Read(//opt/homebrew/**)",
+      "Bash(/usr/local/mysql/bin/mysql -uroot -p'asliKorcan7' -h127.0.0.1 -P3306 synapse_db -e \"SELECT Id, Username, PasswordChangedAt FROM Users WHERE Id=1;\")",
+      "Bash(/usr/local/mysql/bin/mysql -uroot -pasliKorcan7 -h127.0.0.1 -P3306 synapse_db -e 'UPDATE Users SET PasswordHash='\\\\''__CMDSUB_OUTPUT__'\\\\'', PasswordChangedAt=NULL WHERE Id=1;')",
+      "Bash(python3 -c \"import sys,json; [print\\(u['id'], u['username'], u['role'], u['email']\\) for u in json.load\\(sys.stdin\\)]\")",
+      "Bash(python3 -c ' *)",
+      "Bash(/usr/local/mysql/bin/mysql -uroot -p'asliKorcan7' -h127.0.0.1 -P3306 synapse_db -e \"SELECT Id, LENGTH\\(SynthesizedDocumentMarkdown\\) AS MdLen, LENGTH\\(GraphJson\\) AS GraphLen FROM Posts WHERE Id=3;\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} \\(time: %{time_total}s\\)\\\\n\" --max-time 5 http://localhost:5057/api/auth/login -X POST -H \"Content-Type: application/json\" -d '{\"usernameOrEmail\":\"x\",\"password\":\"x\"}')"
+    ]
+  }
+}

@@ -6,24 +6,73 @@ using Server.Dtos;
 namespace Server.Services.AiFoundry;
 
 // Converts topic-synthesizer-agent's Markdown output into paginated NotePageDtos — one page
-// per level-2 (##) or level-3 (###) heading, in document order. Only handles the small,
-// predictable subset of Markdown the agent's own OUTPUT FORMAT actually produces (headings,
-// bold text, bullet lists, paragraphs, "---" separators) — not a general-purpose parser.
+// per level-2 (##) or level-3 (###) heading, in document order, further split by length so a
+// single long section becomes multiple pages instead of one overflowing one (the reader must
+// never need to scroll inside a page — worst case it just continues on the next page). Only
+// handles the small, predictable subset of Markdown the agent's own OUTPUT FORMAT actually
+// produces (headings, bold text, bullet lists, paragraphs, "---" separators) — not a
+// general-purpose parser.
 public static class MarkdownPager
 {
     private static readonly Regex BoldPattern = new(@"\*\*(.+?)\*\*", RegexOptions.Compiled);
 
+    // Rough budget, in raw Markdown characters, for how much a single page can hold before
+    // splitting onto a continuation page — calibrated against the reader's page card
+    // width/font-size (see .note-file-page-surface in app.css), not exact since markdown
+    // syntax characters (**, - ) don't render 1:1, but comfortably conservative so pages
+    // don't need to scroll.
+    private const int MaxCharsPerPage = 2000;
+
     public static List<NotePageDto> SplitIntoPages(string markdown)
     {
         var sections = SplitOnHeadings(markdown);
-        var pages = sections
-            .Select((section, index) => new NotePageDto { Number = index + 1, Heading = section.Heading, Body = ToHtml(section.Body) })
-            .ToList();
+        var pages = new List<NotePageDto>();
+
+        foreach (var section in sections)
+            AddSectionPages(pages, section.Heading, section.Body);
 
         if (pages.Count == 0)
-            pages.Add(new NotePageDto { Number = 1, Heading = null, Body = ToHtml(markdown) });
+            AddSectionPages(pages, null, markdown);
 
         return pages;
+    }
+
+    // Only the first continuation chunk of a section keeps its heading — like a book chapter
+    // that doesn't repeat "Chapter 5" on every one of its pages.
+    private static void AddSectionPages(List<NotePageDto> pages, string? heading, string body)
+    {
+        var chunks = SplitBodyIntoChunks(body, MaxCharsPerPage);
+        for (var i = 0; i < chunks.Count; i++)
+            pages.Add(new NotePageDto { Number = pages.Count + 1, Heading = i == 0 ? heading : null, Body = ToHtml(chunks[i]) });
+    }
+
+    // Cuts only on line boundaries — every line this format actually produces (a bullet item,
+    // a paragraph, a blank separator) is self-contained, so this never splits mid-syntax.
+    private static List<string> SplitBodyIntoChunks(string body, int maxChars)
+    {
+        var lines = body.Replace("\r\n", "\n").Split('\n');
+        var chunks = new List<string>();
+        var current = new List<string>();
+        var currentLength = 0;
+
+        foreach (var line in lines)
+        {
+            var lineLength = line.Length + 1;
+            if (currentLength + lineLength > maxChars && current.Count > 0)
+            {
+                chunks.Add(string.Join('\n', current));
+                current = [];
+                currentLength = 0;
+            }
+
+            current.Add(line);
+            currentLength += lineLength;
+        }
+
+        if (current.Count > 0)
+            chunks.Add(string.Join('\n', current));
+
+        return chunks.Count > 0 ? chunks : [body];
     }
 
     private static List<(string? Heading, string Body)> SplitOnHeadings(string markdown)

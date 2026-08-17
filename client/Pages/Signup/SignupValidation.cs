@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace Client.Pages.Signup;
 
 // BACKEND NOTE: Username must be unique. The client cannot check this (no DB access from the
@@ -19,6 +21,11 @@ public static class SignupValidation
         // Real format/deliverability verification is intentionally out of scope for now.
         return !string.IsNullOrWhiteSpace(email) && email.Contains('@');
     }
+
+    // Shared with Profile.razor's phone field editor, so both places agree on what counts as
+    // a valid phone number.
+    public static bool IsValidPhoneFormat(string phone) =>
+        Regex.IsMatch(phone.Trim(), @"^[0-9+()\-\s]{7,}$");
 
     public static IReadOnlyList<(string Description, bool Satisfied)> GetPasswordRequirements(string password)
     {

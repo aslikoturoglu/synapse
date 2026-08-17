@@ -6,41 +6,58 @@ public class OrchestratorStartRequest
     public required string Description { get; set; }
 }
 
+// orchestrator-chat-agent-synapse's own quick read of the uploaded documents — candidate
+// keywords plus a light classification, produced immediately on upload and forwarded
+// unchanged to topic-synthesizer-agent-synapse later as preliminary_classification.
+public class PreliminaryScanDto
+{
+    public List<string> SeedKeywords { get; set; } = [];
+    public string Language { get; set; } = "";
+    public string Domain { get; set; } = "";
+    public string EstimatedStructure { get; set; } = "";
+}
+
+// Bundles everything that starts the moment files are uploaded: the Orchestrator's
+// preliminary scan, document-rag-agent-synapse's full analysis, and brain-map-agent-synapse's
+// draft (keyword-only, no edges) map — all fired immediately, none of it waits on user input.
 public class OrchestratorStartResponse
 {
     public required string ThreadId { get; set; }
-    public required string Summary { get; set; }
     public List<string> FileIds { get; set; } = [];
-}
-
-public class OrchestratorSelectRequest
-{
-    public required string ThreadId { get; set; }
-
-    // Built client-side from the fixed 5-item menu's checkboxes, e.g. "1, 3, 5" or "All" —
-    // matches the exact reply format orchestrator-chat-agent-synapse's own instructions expect.
-    public required string Selection { get; set; }
-}
-
-public class NoteAiDirectiveDto
-{
-    public List<string> SeedKeywords { get; set; } = [];
-    public List<string> FocusAreas { get; set; } = [];
-    public string SynthesisMode { get; set; } = "";
-    public string UserCustomInstructions { get; set; } = "";
+    public PreliminaryScanDto PreliminaryScan { get; set; } = new();
+    public required string DocumentKnowledgeBase { get; set; }
+    public required GraphDto DraftGraph { get; set; }
 }
 
 public class GenerateNoteRequest
 {
     public required string ThreadId { get; set; }
-    public List<string> FileIds { get; set; } = [];
-    public required NoteAiDirectiveDto Directive { get; set; }
-    public List<BrainMapKeywordDto> Keywords { get; set; } = [];
+    public required string DocumentKnowledgeBase { get; set; }
+
+    // Raw free text ("bulleted please", "give me a narrative walkthrough", ...) — the
+    // Orchestrator agent (not this code) is responsible for mapping it into
+    // bulleted_breakdown | narrative | summary, per its own strict "no technical jargon to
+    // the user" constraint.
+    public required string FormatPreference { get; set; }
+    public string UserNotes { get; set; } = "";
+    public List<string> FinalKeywords { get; set; } = [];
+    public PreliminaryScanDto PreliminaryClassification { get; set; } = new();
 }
 
 public class GenerateNoteResponse
 {
     public List<NotePageDto> Pages { get; set; } = [];
+
+    // topic-synthesizer-agent-synapse's raw Markdown, before MarkdownPager splits it into
+    // Pages — brain-map-agent-synapse's final mode needs this verbatim as its primary
+    // grounding source, and it's what gets persisted as Post.SynthesizedDocumentMarkdown.
+    public required string SynthesizedMarkdown { get; set; }
+}
+
+public class GenerateFinalBrainMapRequest
+{
+    public List<string> DraftKeywords { get; set; } = [];
+    public required string SynthesizedMarkdown { get; set; }
     public required string DocumentKnowledgeBase { get; set; }
 }
 
@@ -61,6 +78,11 @@ public class GraphEdgeDto
 
 public class GraphDto
 {
+    // "draft" (keywords only, no edges yet) | "final" (enriched with real relationships).
+    // Defaults to "final" so deserializing an old cached Post.GraphJson blob (written before
+    // this field existed, back when there was only ever one single-shot mode) still reads as
+    // the correct mode rather than an empty string.
+    public string Mode { get; set; } = "final";
     public List<GraphNodeDto> Nodes { get; set; } = [];
     public List<GraphEdgeDto> Edges { get; set; } = [];
 }

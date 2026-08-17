@@ -22,53 +22,62 @@ else
 
     protected override Task OnInitializedAsync() => Generate();
 
-    // document-rag-agent-synapse + topic-synthesizer-agent-synapse both run here — real
-    // network time, not the old 2-second fake delay. Idempotent (skips straight to OnComplete
-    // if Pages are already there, e.g. resuming a draft that already finished this step).
+    // topic-synthesizer-agent-synapse runs first (via the Orchestrator's synthesis_mode
+    // mapping), then brain-map-agent-synapse's final mode enriches the draft map using the
+    // now-finished document. Each half is independently idempotent — a retry after the note
+    // succeeded but the final map failed only redoes the map, not the whole document.
     private async Task Generate()
     {
         Failed = false;
 
-        if (Draft.Pages.Count > 0)
-        {
-            await OnComplete.InvokeAsync();
-            return;
-        }
-
-        if (Draft.Directive is not { } directive || Draft.OrchestratorThreadId is null)
+        if (Draft.OrchestratorThreadId is null || Draft.DocumentKnowledgeBase is null)
         {
             Failed = true;
             return;
         }
 
-        var response = await AiApi.GenerateNoteAsync(new GenerateNoteRequest
+        if (Draft.Pages.Count == 0)
         {
-            ThreadId = Draft.OrchestratorThreadId,
-            FileIds = Draft.FoundryFileIds,
-            Directive = new NoteAiDirectiveDto
+            var finalKeywords = Draft.Keywords.Where(k => k.Status != KeywordStatus.AiDeleted).Select(k => k.Text).ToList();
+            var noteResponse = await AiApi.GenerateNoteAsync(new GenerateNoteRequest
             {
-                SeedKeywords = directive.SeedKeywords,
-                FocusAreas = directive.FocusAreas,
-                SynthesisMode = directive.SynthesisMode,
-                UserCustomInstructions = directive.UserCustomInstructions,
-            },
-            Keywords = Draft.Keywords.Select(k => new BrainMapKeywordDto
-            {
-                Id = k.Id,
-                Text = k.Text,
-                Count = k.Count,
-                Status = k.Status.ToString(),
-            }).ToList(),
-        });
+                ThreadId = Draft.OrchestratorThreadId,
+                DocumentKnowledgeBase = Draft.DocumentKnowledgeBase,
+                FormatPreference = Draft.FormatPreference,
+                UserNotes = Draft.UserNotes,
+                FinalKeywords = finalKeywords,
+                PreliminaryClassification = Draft.PreliminaryClassification ?? new PreliminaryScanDto(),
+            });
 
-        if (response is null)
-        {
-            Failed = true;
-            return;
+            if (noteResponse is null)
+            {
+                Failed = true;
+                return;
+            }
+
+            Draft.Pages.AddRange(noteResponse.Pages.Select(p => new NotePage { Number = p.Number, Heading = p.Heading, Body = p.Body }));
+            Draft.SynthesizedMarkdown = noteResponse.SynthesizedMarkdown;
         }
 
-        Draft.Pages.AddRange(response.Pages.Select(p => new NotePage { Number = p.Number, Heading = p.Heading, Body = p.Body }));
-        Draft.DocumentKnowledgeBase = response.DocumentKnowledgeBase;
+        if (Draft.FinalGraph is null && Draft.SynthesizedMarkdown is not null)
+        {
+            var draftKeywords = Draft.Keywords.Where(k => k.Status != KeywordStatus.AiDeleted).Select(k => k.Text).ToList();
+            var finalGraph = await AiApi.GenerateFinalBrainMapAsync(new GenerateFinalBrainMapRequest
+            {
+                DraftKeywords = draftKeywords,
+                SynthesizedMarkdown = Draft.SynthesizedMarkdown,
+                DocumentKnowledgeBase = Draft.DocumentKnowledgeBase,
+            });
+
+            if (finalGraph is null)
+            {
+                Failed = true;
+                return;
+            }
+
+            Draft.FinalGraph = finalGraph;
+        }
+
         await OnComplete.InvokeAsync();
     }
 }

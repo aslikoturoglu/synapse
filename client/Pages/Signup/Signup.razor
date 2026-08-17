@@ -45,6 +45,25 @@
             </div>
 
             <div class="form-group">
+                <label class="form-label" for="signup-phone">@Strings.Get("phone")</label>
+                <InputText id="signup-phone" class="@FieldClass(string.IsNullOrWhiteSpace(Phone), PhoneFormatValid)" placeholder="@Strings.Get("phonePlaceholder")"
+                           @bind-Value="Phone" @bind-Value:after="ValidatePhone" @onfocusout="() => PhoneTouched = true" />
+                @if (PhoneTouched && string.IsNullOrWhiteSpace(Phone))
+                {
+                    <p class="field-error">@Strings.Get("fieldRequired")</p>
+                }
+                else if (PhoneTouched && !PhoneFormatValid)
+                {
+                    <p class="field-error">@Strings.Get("invalidPhoneFormat")</p>
+                }
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="signup-job-title">@Strings.Get("jobTitle") <span class="field-optional-hint">@Strings.Get("optional")</span></label>
+                <InputText id="signup-job-title" class="form-input" placeholder="@Strings.Get("jobTitlePlaceholder")" @bind-Value="JobTitle" />
+            </div>
+
+            <div class="form-group">
                 <label class="form-label" for="signup-email">@Strings.Get("emailAddress")</label>
                 <InputText id="signup-email" class="@FieldClass(string.IsNullOrWhiteSpace(Email), EmailFormatValid)" placeholder="@Strings.Get("emailPlaceholder")"
                            @bind-Value="Email" @bind-Value:after="ValidateEmail" @onfocusout="() => EmailTouched = true" />
@@ -141,6 +160,8 @@
     private string Surname { get; set; } = "";
     private string Username { get; set; } = "";
     private string Email { get; set; } = "";
+    private string Phone { get; set; } = "";
+    private string JobTitle { get; set; } = "";
     private string Password { get; set; } = "";
     private string ConfirmPassword { get; set; } = "";
     private bool AgreeToTerms { get; set; }
@@ -154,10 +175,12 @@
     private bool SurnameTouched { get; set; }
     private bool UsernameTouched { get; set; }
     private bool EmailTouched { get; set; }
+    private bool PhoneTouched { get; set; }
     private bool PasswordTouched { get; set; }
     private bool ConfirmPasswordTouched { get; set; }
 
     private bool EmailFormatValid { get; set; } = true;
+    private bool PhoneFormatValid { get; set; } = true;
     private bool PasswordsMatch { get; set; } = true;
     private IReadOnlyList<(string Description, bool Satisfied)> PasswordRequirements { get; set; } =
         SignupValidation.GetPasswordRequirements("");
@@ -172,6 +195,7 @@
         !string.IsNullOrWhiteSpace(Surname) &&
         !string.IsNullOrWhiteSpace(Username) &&
         !string.IsNullOrWhiteSpace(Email) && EmailFormatValid &&
+        !string.IsNullOrWhiteSpace(Phone) && PhoneFormatValid &&
         !string.IsNullOrEmpty(Password) && PasswordRequirementsMet &&
         !string.IsNullOrEmpty(ConfirmPassword) && PasswordsMatch &&
         AgreeToTerms;
@@ -182,6 +206,11 @@
     private void ValidateEmail()
     {
         EmailFormatValid = SignupValidation.IsValidEmailFormat(Email);
+    }
+
+    private void ValidatePhone()
+    {
+        PhoneFormatValid = SignupValidation.IsValidPhoneFormat(Phone);
     }
 
     private void OnPasswordChanged(string value)
@@ -216,9 +245,11 @@
         SurnameTouched = true;
         UsernameTouched = true;
         EmailTouched = true;
+        PhoneTouched = true;
         PasswordTouched = true;
         ConfirmPasswordTouched = true;
         ValidateEmail();
+        ValidatePhone();
         PasswordRequirements = SignupValidation.GetPasswordRequirements(Password);
         ValidatePasswordsMatch();
     }
@@ -234,6 +265,8 @@
             Surname = Surname.Trim(),
             Username = Username.Trim(),
             Email = Email.Trim(),
+            Phone = Phone.Trim(),
+            JobTitle = JobTitle.Trim(),
             Password = Password,
         });
 

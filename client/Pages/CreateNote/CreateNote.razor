@@ -1,8 +1,7 @@
 @page "/notes/new"
 @using Client.Pages.Home
 @using Client.Pages.CreateNote.Upload
-@using Client.Pages.CreateNote.Describe
-@using Client.Pages.CreateNote.Orchestrator
+@using Client.Pages.CreateNote.Intake
 @using Client.Pages.CreateNote.Processing
 @using Client.Pages.CreateNote.BrainMap
 @using Client.Pages.CreateNote.Note
@@ -49,15 +48,11 @@
 
         @if (CurrentStep == NoteDraftStep.Upload)
         {
-            <UploadStep Draft="Store.Draft" OnContinue="() => GoTo(NoteDraftStep.Describe)" />
+            <UploadStep Draft="Store.Draft" OnContinue="() => GoTo(NoteDraftStep.Intake)" />
         }
-        else if (CurrentStep == NoteDraftStep.Describe)
+        else if (CurrentStep == NoteDraftStep.Intake)
         {
-            <DescribeStep Draft="Store.Draft" OnContinue="() => GoTo(NoteDraftStep.Orchestrator)" />
-        }
-        else if (CurrentStep == NoteDraftStep.Orchestrator)
-        {
-            <OrchestratorStep Draft="Store.Draft" OnContinue="() => GoTo(NoteDraftStep.BrainMap)" />
+            <IntakeStep Draft="Store.Draft" OnContinue="() => GoTo(NoteDraftStep.BrainMap)" />
         }
         else if (CurrentStep == NoteDraftStep.BrainMap)
         {
@@ -135,8 +130,7 @@
     private string StageLabel(NoteDraftStep step) => step switch
     {
         NoteDraftStep.Upload => Strings.Get("stepUpload"),
-        NoteDraftStep.Describe => Strings.Get("stepDescribe"),
-        NoteDraftStep.Orchestrator => Strings.Get("stepOrchestrator"),
+        NoteDraftStep.Intake => Strings.Get("stepIntake"),
         NoteDraftStep.BrainMap => Strings.Get("stepBrainMap"),
         NoteDraftStep.Processing => Strings.Get("stepProcessing"),
         NoteDraftStep.Note => Strings.Get("stepNote"),

@@ -1,0 +1,74 @@
+@using Client.Pages.Home
+@using Client.Services
+@inject AiApiClient AiApi
+@inject UiStrings Strings
+
+@if (Loading)
+{
+    <h2 class="wizard-heading">@Strings.Get("creatingSynapses")</h2>
+    <div class="wizard-spinner" aria-hidden="true"></div>
+}
+else
+{
+    <h2 class="wizard-heading">@Strings.Get("intakeHeading")</h2>
+
+    <div class="wizard-describe-box">
+        <textarea class="wizard-describe-input" placeholder="@Strings.Get("intakeNotesPlaceholder")" @bind="Draft.UserNotes" @bind:event="oninput"></textarea>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">@Strings.Get("intakeFormatLabel")</label>
+        <div class="wizard-orchestrator-menu">
+            @foreach (var (value, labelKey) in FormatOptions)
+            {
+                <label class="wizard-orchestrator-item">
+                    <input type="radio" name="format-preference" checked="@(Draft.FormatPreference == value)" @onchange="() => Draft.FormatPreference = value" />
+                    <span>@Strings.Get(labelKey)</span>
+                </label>
+            }
+        </div>
+    </div>
+
+    <button type="button" class="wizard-continue-btn" disabled="@string.IsNullOrWhiteSpace(Draft.FormatPreference)" @onclick="() => OnContinue.InvokeAsync()">@Strings.Get("continue")</button>
+}
+
+@code {
+    // Values sent as-is to the server, which forwards them verbatim to orchestrator-chat-
+    // agent-synapse — it maps them into synthesis_mode itself, per its own "no technical
+    // jargon to the user" constraint, so these stay plain English rather than the raw enum.
+    private static readonly (string Value, string LabelKey)[] FormatOptions =
+    [
+        ("Bulleted Breakdown", "formatBulleted"),
+        ("Narrative Explanation", "formatNarrative"),
+        ("Summary", "formatSummary"),
+    ];
+
+    [Parameter, EditorRequired] public NoteDraft Draft { get; set; } = null!;
+    [Parameter] public EventCallback OnContinue { get; set; }
+
+    private bool Loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Already started (e.g. resuming a draft) — don't re-upload the files or restart the
+        // conversation, just show what's already there.
+        if (Draft.OrchestratorThreadId is null)
+        {
+            var files = Draft.Files.Select(f => (f.Name, f.Bytes)).ToList();
+            var response = await AiApi.StartAsync(files, description: "");
+            if (response is not null)
+            {
+                Draft.OrchestratorThreadId = response.ThreadId;
+                Draft.FoundryFileIds.Clear();
+                Draft.FoundryFileIds.AddRange(response.FileIds);
+                Draft.PreliminaryKeywords.Clear();
+                Draft.PreliminaryKeywords.AddRange(response.PreliminaryScan.SeedKeywords);
+                Draft.PreliminaryClassification = response.PreliminaryScan;
+                Draft.DocumentKnowledgeBase = response.DocumentKnowledgeBase;
+                Draft.DraftGraph = response.DraftGraph;
+            }
+        }
+
+        Loading = false;
+    }
+}

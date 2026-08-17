@@ -101,6 +101,8 @@ public class CreatePostRequest
     public List<NotePageDto> Pages { get; set; } = [];
     public List<BrainMapKeywordDto> Keywords { get; set; } = [];
     public string? DocumentKnowledgeBase { get; set; }
+    public string? SynthesizedDocumentMarkdown { get; set; }
+    public GraphDto? FinalGraph { get; set; }
 }
 
 public class AddKeywordRequest
@@ -145,6 +147,7 @@ public class GraphEdgeDto
 
 public class GraphDto
 {
+    public string Mode { get; set; } = "final"; // "draft" | "final"
     public List<GraphNodeDto> Nodes { get; set; } = [];
     public List<GraphEdgeDto> Edges { get; set; } = [];
 }

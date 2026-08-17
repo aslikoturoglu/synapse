@@ -27,22 +27,7 @@ else
                 <div class="process-document-column">
                     <NotePageView @ref="PageView" Page="CurrentPage" EditMode="false" DocumentTitle="@Post.Title" />
 
-                    <div class="note-file-pagination">
-                        @foreach (var item in PaginationItems)
-                        {
-                            @if (item is null)
-                            {
-                                <span class="note-page-ellipsis">…</span>
-                            }
-                            else
-                            {
-                                var pageNumber = item.Value;
-                                <button type="button" class="note-page-btn @(pageNumber == CurrentPageNumber ? "note-page-btn-active" : "")" @onclick="() => CurrentPageNumber = pageNumber">
-                                    @pageNumber
-                                </button>
-                            }
-                        }
-                    </div>
+                    <NotePagination Total="Post.Pages.Count" Current="CurrentPageNumber" OnSelect="GoToPage" />
                 </div>
             </div>
         }
@@ -77,7 +62,7 @@ else
 
     private NotePage CurrentPage => Post!.Pages[CurrentPageNumber - 1];
 
-    private List<int?> PaginationItems => PageNumberPagination.GetItems(Post!.Pages.Count, CurrentPageNumber);
+    private void GoToPage(int pageNumber) => CurrentPageNumber = pageNumber;
 
     private void SelectHighlight(Guid highlightId)
     {

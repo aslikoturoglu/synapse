@@ -10,14 +10,32 @@
 {
     <div class="note-view">
         <div class="note-pages-row">
+            <button type="button" class="note-page-arrow note-page-side-arrow" disabled="@(CurrentLeftPage - 2 < 1)" @onclick="() => GoToPage(CurrentLeftPage - 2)" aria-label="Previous page">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+            </button>
+
             <NotePageView @ref="LeftPageView" Page="LeftPage" EditMode="EditMode" DocumentTitle="@Title" />
             @if (RightPage is not null)
             {
                 <NotePageView @ref="RightPageView" Page="RightPage" EditMode="EditMode" DocumentTitle="@Title" />
             }
+
+            <button type="button" class="note-page-arrow note-page-side-arrow" disabled="@(CurrentLeftPage + 2 > Pages.Count)" @onclick="() => GoToPage(CurrentLeftPage + 2)" aria-label="Next page">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+            </button>
         </div>
 
-        @PaginationRow(GoToPage)
+        <NotePagination Total="Pages.Count" Current="CurrentLeftPage" Step="2" OnSelect="GoToPage" />
+    </div>
+
+    @* Hidden on screen — visible only for @media print (see app.css), so "Download" (which
+       just opens the browser's print dialog) produces every page of the note, not just the
+       two currently on screen. *@
+    <div class="note-print-pages">
+        @foreach (var page in Pages)
+        {
+            <NotePageView Page="page" EditMode="false" DocumentTitle="@Title" />
+        }
     </div>
 
     <NoteToolbar EditMode="EditMode" Posted="Posted" OnToggleEdit="() => EditMode = true" OnDone="SaveAndExitEditMode" OnShowToc="() => TocOpen = true" OnAskAi="HandleAskAiClick" OnShare="OnShare" />
@@ -76,7 +94,7 @@ else
         <div class="note-ai-single-page">
             <NotePageView @ref="SinglePageView" Page="LeftPage" EditMode="false" DocumentTitle="@Title"
                           EnableSelectionListener="true" OnTextSelected="HandleAutoAsk" />
-            @PaginationRow(GoToSinglePage)
+            <NotePagination Total="Pages.Count" Current="CurrentLeftPage" OnSelect="GoToSinglePage" />
         </div>
     </div>
 
@@ -301,22 +319,4 @@ else
 
     private void SetDraft(Guid id, string value) => _bubbleDrafts[id] = value;
 
-    private List<int?> PaginationItems => PageNumberPagination.GetItems(Pages.Count, CurrentLeftPage);
-
-    private RenderFragment PaginationRow(Action<int> onSelect) => @<div class="note-file-pagination">
-        @foreach (var item in PaginationItems)
-        {
-            @if (item is null)
-            {
-                <span class="note-page-ellipsis">…</span>
-            }
-            else
-            {
-                var pageNumber = item.Value;
-                <button type="button" class="note-page-btn @(pageNumber == CurrentLeftPage ? "note-page-btn-active" : "")" @onclick="() => onSelect(pageNumber)">
-                    @pageNumber
-                </button>
-            }
-        }
-    </div>;
 }

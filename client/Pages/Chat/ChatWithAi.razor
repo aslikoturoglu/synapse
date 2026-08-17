@@ -1,0 +1,82 @@
+@page "/chat"
+@using Client.Pages.Home
+@using Client.Services
+@inject NotesStore Store
+@inject UiStrings Strings
+@inject AdminChatApiClient ChatApi
+
+<PageTitle>@Strings.Get("chatWithAi")</PageTitle>
+
+<PrimaryHeader />
+
+<div class="home-body">
+    <Drawer UserName="@Store.Profile.Name" UserEmail="@Store.Profile.Email" />
+
+    <div class="home-feed admin-chat-feed">
+        <div class="admin-chat-panel">
+            <div class="admin-chat-messages">
+                @if (Messages.Count == 0)
+                {
+                    <p class="stub-text">@Strings.Get("adminChatIntro")</p>
+                }
+                else
+                {
+                    @foreach (var message in Messages)
+                    {
+                        <div class="admin-chat-row admin-chat-row-user">
+                            <span class="avatar-circle" aria-hidden="true">@Store.Profile.Name.Substring(0, 1)</span>
+                            <p class="admin-chat-bubble admin-chat-bubble-user">@message.Question</p>
+                        </div>
+                        <div class="admin-chat-row admin-chat-row-ai">
+                            <span class="admin-chat-ai-icon" aria-hidden="true">✦</span>
+                            <p class="admin-chat-bubble admin-chat-bubble-ai">@(string.IsNullOrEmpty(message.Answer) ? Strings.Get("askAiThinking") : message.Answer)</p>
+                        </div>
+                    }
+                }
+            </div>
+
+            <div class="admin-chat-input-row">
+                <input class="form-input" placeholder="@Strings.Get("adminChatPlaceholder")" @bind="QuestionText" @bind:event="oninput"
+                       @onkeydown="HandleKeydown" disabled="@IsSending" />
+                <button type="button" class="btn-primary" disabled="@(IsSending || string.IsNullOrWhiteSpace(QuestionText))" @onclick="SendQuestion">@Strings.Get("send")</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<AiChatMessage> Messages { get; } = [];
+    private string QuestionText { get; set; } = "";
+    private string? ThreadId { get; set; }
+    private bool IsSending { get; set; }
+
+    private async Task HandleKeydown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !IsSending && !string.IsNullOrWhiteSpace(QuestionText))
+            await SendQuestion();
+    }
+
+    private async Task SendQuestion()
+    {
+        if (IsSending || string.IsNullOrWhiteSpace(QuestionText))
+            return;
+
+        var message = new AiChatMessage { Question = QuestionText.Trim() };
+        Messages.Add(message);
+        QuestionText = "";
+        IsSending = true;
+
+        var result = await ChatApi.AskAsync(ThreadId, message.Question);
+        if (result is not null)
+        {
+            message.Answer = result.Answer;
+            ThreadId = result.ThreadId;
+        }
+        else
+        {
+            message.Answer = Strings.Get("adminChatError");
+        }
+
+        IsSending = false;
+    }
+}

@@ -1,0 +1,89 @@
+@using Client.Services
+@inject UsersApiClient UsersApi
+@inject UiStrings Strings
+
+<Modal IsOpen="IsOpen" IsOpenChanged="@(open => IsOpenChanged.InvokeAsync(open))" ShowAcceptButton="false">
+    @if (IsCurrentlyDeactivated)
+    {
+        <h3 class="modal-form-heading">@Strings.Get("reactivateAccount")</h3>
+        <p class="stub-text">@Strings.Get("deactivateAccountConfirm")</p>
+        <button type="button" class="btn-primary btn-block" @onclick="SubmitReactivate">@Strings.Get("reactivateAccount")</button>
+    }
+    else
+    {
+        <h3 class="modal-form-heading">Why do you want to deactivate the account?</h3>
+
+        <div class="deactivate-reason-list">
+            @foreach (var reason in Reasons)
+            {
+                <label class="deactivate-reason-option">
+                    <input type="radio" name="deactivate-reason" checked="@(SelectedReason == reason)" @onchange="() => SelectedReason = reason" />
+                    <span>@reason</span>
+                </label>
+            }
+            <label class="deactivate-reason-option">
+                <input type="radio" name="deactivate-reason" checked="@(SelectedReason == OtherKey)" @onchange="() => SelectedReason = OtherKey" />
+                <span>Other</span>
+            </label>
+        </div>
+
+        @if (SelectedReason == OtherKey)
+        {
+            <textarea class="form-input deactivate-reason-other" placeholder="Type..." @bind="OtherText" @bind:event="oninput"></textarea>
+        }
+
+        <button type="button" class="btn-danger btn-block" disabled="@(!CanSubmit)" @onclick="SubmitDeactivate">@Strings.Get("deactivateAccount")</button>
+
+        <p class="deactivate-reason-note"><strong>@UserName</strong> will be notified via <strong>@UserEmail</strong> e-mail account with your justification.</p>
+    }
+</Modal>
+
+@code {
+    private const string OtherKey = "__other__";
+
+    private static readonly string[] Reasons =
+    [
+        "Harmful Posts",
+        "Disrespectful to other users",
+        "Spam or Fake Content",
+        "Policy Violation",
+        "Inactive Account",
+    ];
+
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter, EditorRequired] public int UserId { get; set; }
+    [Parameter, EditorRequired] public string UserName { get; set; } = "";
+    [Parameter, EditorRequired] public string UserEmail { get; set; } = "";
+    [Parameter] public bool IsCurrentlyDeactivated { get; set; }
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private string? SelectedReason { get; set; }
+    private string OtherText { get; set; } = "";
+
+    private bool CanSubmit => SelectedReason == OtherKey ? !string.IsNullOrWhiteSpace(OtherText) : SelectedReason is not null;
+
+    private async Task SubmitDeactivate()
+    {
+        if (!CanSubmit)
+            return;
+
+        var reason = SelectedReason == OtherKey ? OtherText.Trim() : SelectedReason!;
+        if (await UsersApi.DeactivateAsync(UserId, reason))
+            await CloseAndNotify();
+    }
+
+    private async Task SubmitReactivate()
+    {
+        if (await UsersApi.ReactivateAsync(UserId))
+            await CloseAndNotify();
+    }
+
+    private async Task CloseAndNotify()
+    {
+        SelectedReason = null;
+        OtherText = "";
+        await OnChanged.InvokeAsync();
+        await IsOpenChanged.InvokeAsync(false);
+    }
+}

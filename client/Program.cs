@@ -15,13 +15,23 @@ var apiBaseUrl = builder.Configuration["ApiBaseUrl"]
 // Singleton, not Scoped: a standalone WASM app has one root scope for its whole lifetime
 // anyway, and AuthState (Singleton) needs to hold this same HttpClient to keep its
 // Authorization header in sync — a Scoped HttpClient under a Singleton fails DI validation.
-builder.Services.AddSingleton(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
+//
+// Timeout is raised well past HttpClient's 100-second default: the AI creation pipeline
+// (api/ai/start in particular — file upload + document-rag-agent + orchestrator preliminary
+// scan + brain-map-agent draft mode, all in one request) can legitimately take longer than
+// that for real documents, and the default would silently cancel the request client-side
+// (shows up in DevTools as a "cancelled" request, not a server error, since the server just
+// keeps working on a connection the browser already gave up on).
+builder.Services.AddSingleton(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl), Timeout = TimeSpan.FromMinutes(10) });
 
 builder.Services.AddSingleton<NotesStore>();
 builder.Services.AddSingleton<UiStrings>();
 builder.Services.AddSingleton<AuthApiClient>();
 builder.Services.AddSingleton<PostsApiClient>();
 builder.Services.AddSingleton<AiApiClient>();
+builder.Services.AddSingleton<UsersApiClient>();
+builder.Services.AddSingleton<DashboardApiClient>();
+builder.Services.AddSingleton<AdminChatApiClient>();
 builder.Services.AddSingleton<AuthState>();
 
 var host = builder.Build();

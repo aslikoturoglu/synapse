@@ -10,4 +10,6 @@ public class UserDto
     public required string Phone { get; set; }
     public required string JobTitle { get; set; }
     public required string Role { get; set; }
+    public bool IsDeactivated { get; set; }
+    public string? DeactivationReason { get; set; }
 }

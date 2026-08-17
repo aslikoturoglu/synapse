@@ -25,6 +25,15 @@ public class User
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    // Null until an admin (ResetPassword) or the user themselves changes it for the first
+    // time — the Signup password never counts as a "change".
+    public DateTime? PasswordChangedAt { get; set; }
+
+    // Admin-only moderation state. A deactivated account can't log in (AuthService.LoginAsync)
+    // until an admin reactivates it; Reason is shown back on their profile and mailed to them.
+    public bool IsDeactivated { get; set; }
+    public string? DeactivationReason { get; set; }
+
     public UserSettings? Settings { get; set; }
 
     public List<Group> Groups { get; } = [];

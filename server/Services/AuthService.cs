@@ -33,6 +33,8 @@ public class AuthService(AppDbContext db, IConfiguration config)
             Surname = request.Surname.Trim(),
             Username = username,
             Email = email,
+            Phone = request.Phone.Trim(),
+            JobTitle = request.JobTitle.Trim(),
             PasswordHash = PasswordHasher.Hash(request.Password),
         };
         user.Settings = new UserSettings { User = user };
@@ -50,6 +52,9 @@ public class AuthService(AppDbContext db, IConfiguration config)
 
         if (user is null || !PasswordHasher.Verify(request.Password, user.PasswordHash))
             return AuthResult.Failure("Invalid username/email or password.");
+
+        if (user.IsDeactivated)
+            return AuthResult.Failure("This account has been deactivated.");
 
         return AuthResult.Success(BuildResponse(user));
     }

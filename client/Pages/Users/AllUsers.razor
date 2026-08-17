@@ -1,0 +1,193 @@
+@page "/users"
+@using Client.Pages.Home
+@using Client.Services
+@inject NotesStore Store
+@inject UiStrings Strings
+@inject UsersApiClient UsersApi
+
+<PageTitle>@Strings.Get("allUsers")</PageTitle>
+
+<PrimaryHeader />
+
+<div class="home-body">
+    <Drawer UserName="@Store.Profile.Name" UserEmail="@Store.Profile.Email" />
+
+    <div class="home-feed">
+        <h1 class="notes-title">@Strings.Get("allUsers")</h1>
+
+        @if (Users is null)
+        {
+            <p class="stub-text">@Strings.Get("loading")</p>
+        }
+        else if (Users.Count == 0)
+        {
+            <p class="stub-text">@Strings.Get("noUsersYet")</p>
+        }
+        else
+        {
+            <div class="users-table-wrap">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>@Strings.Get("user")</th>
+                            <th>@Strings.Get("role")</th>
+                            <th>@Strings.Get("mail")</th>
+                            <th>@Strings.Get("phoneNumber")</th>
+                            <th>@Strings.Get("accountCreated")</th>
+                            <th>@Strings.Get("passwordChanged")</th>
+                            <th>@Strings.Get("jobTitle")</th>
+                            <th>@Strings.Get("tokenUsage")</th>
+                            <th>@Strings.Get("actions")</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in Users)
+                        {
+                            <tr class="@(user.IsDeactivated ? "users-table-row-deactivated" : "")">
+                                <td>
+                                    <div class="users-table-user">
+                                        <span class="avatar-circle" aria-hidden="true">@user.Name.Substring(0, 1)</span>
+                                        <div>
+                                            <p class="users-table-name">@user.FullName</p>
+                                            <p class="users-table-username">@user.Username</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <button type="button" class="users-table-role-badge @(user.Role == "Admin" ? "users-table-role-badge-admin" : "")" @onclick="() => OpenToggleRole(user)">@user.Role</button>
+                                </td>
+                                <td>@user.Email</td>
+                                <td>@user.Phone</td>
+                                <td>@user.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                                <td>@(user.PasswordChangedAt is { } changed ? changed.ToLocalTime().ToString("dd/MM/yyyy") : "—")</td>
+                                <td>@user.JobTitle</td>
+                                <td>@user.TokenUsage</td>
+                                <td>
+                                    <div class="users-table-actions">
+                                        <a class="users-table-action users-table-action-go" title="@Strings.Get("goToProfile")" href="@($"/profile/{Uri.EscapeDataString(user.FullName)}")">
+                                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7" /><polyline points="7 7 17 7 17 17" /></svg>
+                                        </a>
+                                        <button type="button" class="users-table-action users-table-action-warn" title="@Strings.Get("getNewPassword")" @onclick="() => OpenResetPassword(user)">
+                                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                                        </button>
+                                        <button type="button" class="users-table-action users-table-action-warn" title="@(user.IsDeactivated ? Strings.Get("reactivateAccount") : Strings.Get("deactivateAccount"))" @onclick="() => OpenDeactivate(user)">
+                                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></svg>
+                                        </button>
+                                        <button type="button" class="users-table-action users-table-action-danger" title="@Strings.Get("deleteAccount")" @onclick="() => OpenDelete(user)">
+                                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@if (SelectedUser is not null)
+{
+    <DeactivateAccountModal IsOpen="DeactivateModalOpen" IsOpenChanged="@(open => DeactivateModalOpen = open)"
+        UserId="SelectedUser.Id" UserName="@SelectedUser.FullName" UserEmail="@SelectedUser.Email"
+        IsCurrentlyDeactivated="SelectedUser.IsDeactivated" OnChanged="ReloadUsers" />
+
+    <Modal IsOpen="DeleteModalOpen" IsOpenChanged="@(open => DeleteModalOpen = open)" OnAccept="ConfirmDelete" AcceptLabel="@Strings.Get("deleteAccount")" AcceptButtonClass="btn-danger">
+        <h3 class="modal-form-heading">@Strings.Get("deleteAccount")</h3>
+        <p class="stub-text">@Strings.Get("adminDeleteAccountConfirm") <strong>@SelectedUser.FullName</strong></p>
+    </Modal>
+
+    <Modal IsOpen="ResetPasswordModalOpen" IsOpenChanged="@(open => ResetPasswordModalOpen = open)" ShowAcceptButton="false">
+        <h3 class="modal-form-heading">@Strings.Get("getNewPassword")</h3>
+        @if (GeneratedPassword is null)
+        {
+            <p class="stub-text">@Strings.Get("generatingPassword")</p>
+        }
+        else
+        {
+            <p class="stub-text">@Strings.Get("passwordGeneratedNote") <strong>@SelectedUser.Email</strong>:</p>
+            <p class="users-generated-password">@GeneratedPassword</p>
+        }
+    </Modal>
+
+    <Modal IsOpen="RoleModalOpen" IsOpenChanged="@(open => RoleModalOpen = open)" ShowAcceptButton="false">
+        <h3 class="modal-form-heading">@Strings.Get("changeRole")</h3>
+        <p class="stub-text">Are you sure you want to change <strong>@SelectedUser.FullName</strong>'s role from <strong>@SelectedUser.Role</strong> to <strong>@OtherRole(SelectedUser.Role)</strong>?</p>
+        @if (RoleChangeError is not null)
+        {
+            <p class="field-error">@RoleChangeError</p>
+        }
+        <button type="button" class="btn-primary btn-block" @onclick="ConfirmToggleRole">@Strings.Get("accept")</button>
+    </Modal>
+}
+
+@code {
+    private List<AdminUserDto>? Users;
+    private AdminUserDto? SelectedUser;
+    private bool DeactivateModalOpen;
+    private bool DeleteModalOpen;
+    private bool ResetPasswordModalOpen;
+    private string? GeneratedPassword;
+    private bool RoleModalOpen;
+    private string? RoleChangeError;
+
+    private static string OtherRole(string role) => role == "Admin" ? "User" : "Admin";
+
+    protected override async Task OnInitializedAsync() => await ReloadUsers();
+
+    private async Task ReloadUsers() => Users = await UsersApi.GetAllAsync();
+
+    private void OpenDeactivate(AdminUserDto user)
+    {
+        SelectedUser = user;
+        DeactivateModalOpen = true;
+    }
+
+    private void OpenDelete(AdminUserDto user)
+    {
+        SelectedUser = user;
+        DeleteModalOpen = true;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (SelectedUser is null)
+            return;
+
+        await UsersApi.DeleteAsync(SelectedUser.Id);
+        await ReloadUsers();
+    }
+
+    private async Task OpenResetPassword(AdminUserDto user)
+    {
+        SelectedUser = user;
+        GeneratedPassword = null;
+        ResetPasswordModalOpen = true;
+        GeneratedPassword = await UsersApi.ResetPasswordAsync(user.Id);
+    }
+
+    private void OpenToggleRole(AdminUserDto user)
+    {
+        SelectedUser = user;
+        RoleChangeError = null;
+        RoleModalOpen = true;
+    }
+
+    private async Task ConfirmToggleRole()
+    {
+        if (SelectedUser is null)
+            return;
+
+        var (success, error) = await UsersApi.ToggleRoleAsync(SelectedUser.Id);
+        if (success)
+        {
+            RoleModalOpen = false;
+            await ReloadUsers();
+        }
+        else
+        {
+            RoleChangeError = error ?? "Something went wrong.";
+        }
+    }
+}

@@ -14,6 +14,10 @@ public class Post
 
     public DateOnly CreatedDate { get; set; }
 
+    // CreatedDate (above) is day-only and drives the Notes list's date grouping — this is the
+    // precise timestamp Dashboard's time-range filters (e.g. "Last 6 Hours") actually need.
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
     // A newly-created post is saved for its author (shows up in their All Notes) but stays
     // invisible to everyone else until they explicitly share it — at which point it starts
     // appearing in the public feed too.
@@ -45,6 +49,13 @@ public class Post
     // time. Reused later (without re-reading the original files) whenever the Map view needs
     // to (re)generate its node/edge graph via brain-map-agent.
     public string? DocumentKnowledgeBase { get; set; }
+
+    // topic-synthesizer-agent's raw Markdown output, captured once at creation time —
+    // MarkdownPager only keeps the HTML-converted Pages, but brain-map-agent's final mode
+    // needs the actual finalized document as its primary grounding source (per its own
+    // spec), not a re-derived approximation. Null for posts created before this field
+    // existed; RegenerateMapAsync falls back to Pages text for those.
+    public string? SynthesizedDocumentMarkdown { get; set; }
 
     // Cached brain-map-agent output (serialized {nodes, edges}) so opening Map doesn't call
     // the agent again on every visit — only on first generation or an explicit Regenerate.

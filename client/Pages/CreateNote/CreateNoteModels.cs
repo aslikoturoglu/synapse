@@ -1,26 +1,20 @@
 using Client.Pages.Home;
+using Client.Services;
 
 namespace Client.Pages.CreateNote;
 
-public enum NoteDraftStep { Upload, Describe, Orchestrator, BrainMap, Processing, Note }
+// Intake replaces the old fixed 5-item numbered-menu Orchestrator step and the separate
+// Describe step: it's what actually fires StartAsync (document-rag-agent + the Orchestrator's
+// preliminary scan + brain-map-agent's draft mode, all immediately, per the Orchestrator's own
+// "don't wait for user input" spec) as soon as it loads, right after Upload.
+public enum NoteDraftStep { Upload, Intake, BrainMap, Processing, Note }
 
-// A file the user picked in the Upload step, kept in full (not just its name) so the
-// Orchestrator step can actually upload its bytes to Azure AI Foundry.
+// A file the user picked in the Upload step, kept in full (not just its name) so StartAsync
+// can actually upload its bytes to Azure AI Foundry.
 public class UploadedFileDraft
 {
     public required string Name { get; init; }
     public required byte[] Bytes { get; init; }
-}
-
-// The Pipeline Directive orchestrator-chat-agent-synapse emits once the user picks their
-// menu items — drives both the initial Brain Map seed and the document-rag/topic-synthesizer
-// generation step that follows it.
-public class NoteAiDirective
-{
-    public List<string> SeedKeywords { get; set; } = [];
-    public List<string> FocusAreas { get; set; } = [];
-    public string SynthesisMode { get; set; } = "";
-    public string UserCustomInstructions { get; set; } = "";
 }
 
 // The in-progress wizard state lives here for the session (held by the NotesStore
@@ -32,20 +26,31 @@ public class NoteDraft
     public string Title { get; set; } = "New Note";
     public List<string> FileNames { get; } = [];
     public List<UploadedFileDraft> Files { get; } = [];
-    public string Description { get; set; } = "";
     public NoteDraftStep Step { get; set; } = NoteDraftStep.Upload;
     public List<BrainMapKeyword> Keywords { get; } = [];
     public List<NotePage> Pages { get; } = [];
     public bool IsCreated { get; set; }
     public int? CreatedPostId { get; set; }
 
-    // Orchestrator/document-rag pipeline state, carried through the wizard steps.
+    // Orchestrator/document-rag/brain-map-draft pipeline state — all fired and populated by
+    // AiApiClient.StartAsync immediately on upload (see IntakeStep.razor), then consumed
+    // later at Processing.
     public string? OrchestratorThreadId { get; set; }
     public List<string> FoundryFileIds { get; } = [];
-    public string OrchestratorSummary { get; set; } = "";
-    public List<int> SelectedMenuNumbers { get; } = [];
-    public NoteAiDirective? Directive { get; set; }
+    public List<string> PreliminaryKeywords { get; } = [];
+    public PreliminaryScanDto? PreliminaryClassification { get; set; }
     public string? DocumentKnowledgeBase { get; set; }
+    public GraphDto? DraftGraph { get; set; }
+
+    // Collected on the free-form Intake step. Extra keywords are added directly on the
+    // BrainMap step's own editor instead (BrainMapDiagram's existing add/remove UI) — no
+    // separate field needed here for that.
+    public string UserNotes { get; set; } = "";
+    public string FormatPreference { get; set; } = "";
+
+    // Produced by the Processing step.
+    public string? SynthesizedMarkdown { get; set; }
+    public GraphDto? FinalGraph { get; set; }
 
     public bool HasProgress => FileNames.Count > 0 || Step != NoteDraftStep.Upload;
 
@@ -58,7 +63,6 @@ public class NoteDraft
         Title = "New Note";
         FileNames.Clear();
         Files.Clear();
-        Description = "";
         Step = NoteDraftStep.Upload;
         Keywords.Clear();
         Pages.Clear();
@@ -66,24 +70,25 @@ public class NoteDraft
         CreatedPostId = null;
         OrchestratorThreadId = null;
         FoundryFileIds.Clear();
-        OrchestratorSummary = "";
-        SelectedMenuNumbers.Clear();
-        Directive = null;
+        PreliminaryKeywords.Clear();
+        PreliminaryClassification = null;
         DocumentKnowledgeBase = null;
+        DraftGraph = null;
+        UserNotes = "";
+        FormatPreference = "";
+        SynthesizedMarkdown = null;
+        FinalGraph = null;
     }
 
-    // Seeds the Brain Map from the orchestrator's directive once it's available; falls back
-    // to a small generic seed if the wizard somehow reaches BrainMap without one (shouldn't
-    // happen via the normal Orchestrator step, but keeps the step from rendering empty).
+    // Seeds the Brain Map from the Orchestrator's preliminary scan once it's available;
+    // falls back to a small generic seed if the wizard somehow reaches BrainMap without one
+    // (shouldn't happen via the normal Upload step, but keeps the step from rendering empty).
     public void EnsureKeywordsSeeded()
     {
         if (Keywords.Count > 0)
             return;
 
-        var seeds = Directive is { } directive
-            ? directive.SeedKeywords.Concat(directive.FocusAreas).Distinct(StringComparer.OrdinalIgnoreCase)
-            : ["main topic"];
-
+        var seeds = PreliminaryKeywords.Count > 0 ? PreliminaryKeywords : ["main topic"];
         Keywords.AddRange(seeds.Select(text => new BrainMapKeyword { Text = text, Count = null }));
     }
 }

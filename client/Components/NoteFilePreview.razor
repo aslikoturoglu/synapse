@@ -20,22 +20,7 @@
             <p class="note-file-page-footer">@Post.Title | Sayfa @CurrentPageNumber</p>
         </div>
 
-        <div class="note-file-pagination">
-            @foreach (var item in PaginationItems)
-            {
-                @if (item is null)
-                {
-                    <span class="note-page-ellipsis">…</span>
-                }
-                else
-                {
-                    var pageNumber = item.Value;
-                    <button type="button" class="note-page-btn @(pageNumber == CurrentPageNumber ? "note-page-btn-active" : "")" @onclick="() => CurrentPageNumber = pageNumber">
-                        @pageNumber
-                    </button>
-                }
-            }
-        </div>
+        <NotePagination Total="Post.TotalPageCount" Current="CurrentPageNumber" OnSelect="GoToPage" />
     </div>
 </div>
 
@@ -72,7 +57,7 @@
         return 1;
     }
 
-    private List<int?> PaginationItems => PageNumberPagination.GetItems(Post.TotalPageCount, CurrentPageNumber);
+    private void GoToPage(int pageNumber) => CurrentPageNumber = pageNumber;
 
     private string GetPageContent(int pageNumber) => pageNumber switch
     {

@@ -1,0 +1,131 @@
+@page "/dashboard"
+@using Client.Pages.Home
+@using Client.Services
+@inject NotesStore Store
+@inject UiStrings Strings
+@inject DashboardApiClient DashboardApi
+
+<PageTitle>@Strings.Get("dashboard")</PageTitle>
+
+<PrimaryHeader />
+
+<div class="home-body">
+    <Drawer UserName="@Store.Profile.Name" UserEmail="@Store.Profile.Email" />
+
+    <div class="home-feed">
+        <div class="dashboard-range-row">
+            <h1 class="dashboard-range-heading">@RangeHeading</h1>
+            <div class="dashboard-range-pills">
+                @foreach (var (key, label) in RangeOptions)
+                {
+                    <button type="button" class="dashboard-range-pill @(SelectedRange == key ? "dashboard-range-pill-active" : "")" @onclick="() => SelectRange(key)">@label</button>
+                }
+            </div>
+        </div>
+
+        <div class="dashboard-custom-range">
+            <span class="dashboard-custom-range-label">@Strings.Get("specificSearch")</span>
+            <label class="dashboard-custom-range-field">
+                @Strings.Get("from")
+                <input type="date" class="form-input" @bind="CustomFrom" @bind:event="onchange" />
+            </label>
+            <label class="dashboard-custom-range-field">
+                @Strings.Get("to")
+                <input type="date" class="form-input" @bind="CustomTo" @bind:event="onchange" />
+            </label>
+            <button type="button" class="btn-secondary" disabled="@(CustomFrom is null || CustomTo is null)" @onclick="ApplyCustomRange">@Strings.Get("search")</button>
+        </div>
+
+        @if (Stats is null)
+        {
+            <p class="stub-text">@Strings.Get("loading")</p>
+        }
+        else
+        {
+            <div class="dashboard-stats-grid">
+                <div class="dashboard-stat-tile">
+                    <h3 class="dashboard-stat-label">@Strings.Get("tokenUsage")</h3>
+                    <p class="dashboard-stat-value">@Stats.TokenUsage.ToString("N0")</p>
+                </div>
+                <div class="dashboard-stat-tile">
+                    <h3 class="dashboard-stat-label">@Strings.Get("accountsCreated")</h3>
+                    <p class="dashboard-stat-value">@Stats.AccountsCreated.ToString("N0")</p>
+                    <a class="dashboard-stat-link" href="/users">@Strings.Get("goToAllUsers")</a>
+                </div>
+                <div class="dashboard-stat-tile">
+                    <h3 class="dashboard-stat-label">@Strings.Get("averageTokenPerPerson")</h3>
+                    <p class="dashboard-stat-value">@Stats.AverageTokenPerPerson.ToString("N0")</p>
+                </div>
+                <div class="dashboard-stat-tile">
+                    <h3 class="dashboard-stat-label">@Strings.Get("postsCreated")</h3>
+                    <p class="dashboard-stat-value">@Stats.PostsCreated.ToString("N0")</p>
+                </div>
+                <div class="dashboard-stat-tile">
+                    <h3 class="dashboard-stat-label">@Strings.Get("notesCreated")</h3>
+                    <p class="dashboard-stat-value">@Stats.NotesCreated.ToString("N0")</p>
+                </div>
+                <div class="dashboard-stat-tile">
+                    <h3 class="dashboard-stat-label">@Strings.Get("downloads")</h3>
+                    <p class="dashboard-stat-value">@Stats.Downloads.ToString("N0")</p>
+                </div>
+                <div class="dashboard-stat-tile">
+                    <h3 class="dashboard-stat-label">@Strings.Get("sends")</h3>
+                    <p class="dashboard-stat-value">@Stats.Sends.ToString("N0")</p>
+                </div>
+                <div class="dashboard-stat-tile">
+                    <h3 class="dashboard-stat-label">@Strings.Get("commentsTab")</h3>
+                    <p class="dashboard-stat-value">@Stats.CommentsCreated.ToString("N0")</p>
+                </div>
+                <div class="dashboard-stat-tile">
+                    <h3 class="dashboard-stat-label">@Strings.Get("likesTab")</h3>
+                    <p class="dashboard-stat-value">@Stats.LikesGiven.ToString("N0")</p>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private static readonly (string Key, string Label)[] RangeOptions =
+    [
+        ("total", "Total"),
+        ("6h", "6 Hours"),
+        ("24h", "24 Hours"),
+        ("1w", "1 week"),
+        ("1m", "1 Month"),
+        ("6m", "6 Months"),
+        ("1y", "1 Year"),
+    ];
+
+    private string SelectedRange { get; set; } = "24h";
+    private DateTime? CustomFrom { get; set; }
+    private DateTime? CustomTo { get; set; }
+    private DashboardStatsDto? Stats { get; set; }
+
+    private string RangeHeading => SelectedRange switch
+    {
+        "total" => "All Time",
+        "custom" => "Custom Range",
+        _ => $"Last {RangeOptions.First(r => r.Key == SelectedRange).Label}",
+    };
+
+    protected override async Task OnInitializedAsync() => await LoadStats();
+
+    private async Task SelectRange(string key)
+    {
+        SelectedRange = key;
+        await LoadStats();
+    }
+
+    private async Task ApplyCustomRange()
+    {
+        if (CustomFrom is null || CustomTo is null)
+            return;
+
+        SelectedRange = "custom";
+        await LoadStats();
+    }
+
+    private async Task LoadStats() =>
+        Stats = await DashboardApi.GetStatsAsync(SelectedRange, CustomFrom, CustomTo);
+}

@@ -6,6 +6,8 @@ public class SignupRequest
     public required string Surname { get; set; }
     public required string Username { get; set; }
     public required string Email { get; set; }
+    public required string Phone { get; set; }
+    public string JobTitle { get; set; } = "";
     public required string Password { get; set; }
 }
 
@@ -25,6 +27,8 @@ public class UserDto
     public string Phone { get; set; } = "";
     public string JobTitle { get; set; } = "";
     public string Role { get; set; } = "User";
+    public bool IsDeactivated { get; set; }
+    public string? DeactivationReason { get; set; }
 }
 
 public class AuthResponseDto

@@ -4,92 +4,270 @@
    BrainMapDiagram (a flat, single-ring, editable keyword list). Same hybrid technique as
    BrainMapDiagram: an <svg> draws only the connecting lines, node/edge labels are plain HTML
    positioned on top of it — kept as pure Blazor + SVG, no JS graph library, per the project's
-   .NET-only rule. *@
+   .NET-only rule. Ring radii grow with how many nodes sit on that ring so labels get enough
+   arc length to not collide; zoom is a CSS transform driven by the corner buttons or the wheel
+   (Blazor's own @onwheel — no JS needed for that either).
 
-<div class="brain-map-graph">
-    <svg class="brain-map-graph-lines" width="@DiagramWidth" height="@DiagramHeight">
-        <defs>
-            <marker id="brain-map-graph-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
-                <path d="M0,0 L8,4 L0,8 Z" fill="#71717a" />
-            </marker>
-        </defs>
+   Starts collapsed to just the most-frequent nodes (not "all root-type nodes" — some documents'
+   maps come back with dozens of root-level topics, so type alone doesn't bound the node count)
+   and reveals a node's direct neighbors on click, building the map outward instead of dumping
+   everything on screen at once. The corner toggle bypasses this entirely and shows the full map. *@
 
-        @foreach (var edge in Edges)
-        {
-            @if (Positions.TryGetValue(edge.Source, out var from) && Positions.TryGetValue(edge.Target, out var to))
-            {
-                <line x1="@from.X" y1="@from.Y" x2="@to.X" y2="@to.Y" stroke="#a1a1aa" stroke-width="1.25" marker-end="url(#brain-map-graph-arrow)" />
-            }
-        }
-    </svg>
+<div class="brain-map-viewport" @onwheel="HandleWheel" @onwheel:preventDefault="true">
+    <div class="brain-map-canvas" style="width: @(ScaledWidth)px; height: @(ScaledHeight)px;">
+        <div class="brain-map-graph" style="width: @(DiagramWidth)px; height: @(DiagramHeight)px; transform: scale(@ZoomCss);">
+            <svg class="brain-map-graph-lines" width="@DiagramWidth" height="@DiagramHeight">
+                <defs>
+                    <marker id="brain-map-graph-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+                        <path d="M0,0 L8,4 L0,8 Z" fill="#71717a" />
+                    </marker>
+                </defs>
 
-    @foreach (var edge in Edges)
-    {
-        @if (Positions.TryGetValue(edge.Source, out var from) && Positions.TryGetValue(edge.Target, out var to))
-        {
-            var (midX, midY) = ((from.X + to.X) / 2, (from.Y + to.Y) / 2);
-            <span class="brain-map-graph-edge-label" style="left: @(midX)px; top: @(midY)px;">@edge.Label</span>
-        }
-    }
-
-    @foreach (var node in Nodes)
-    {
-        @if (Positions.TryGetValue(node.Id, out var pos))
-        {
-            <div class="brain-map-graph-node brain-map-graph-node-@node.Type" style="left: @(pos.X)px; top: @(pos.Y)px;" @key="node.Id">
-                @if (node.Frequency is int count)
+                @foreach (var edge in VisibleEdges)
                 {
-                    <span class="brain-map-graph-node-count">@count</span>
+                    @if (Positions.TryGetValue(edge.Source, out var from) && Positions.TryGetValue(edge.Target, out var to))
+                    {
+                        <line x1="@from.X" y1="@from.Y" x2="@to.X" y2="@to.Y" stroke="#a1a1aa" stroke-width="1.25" marker-end="url(#brain-map-graph-arrow)" />
+                    }
                 }
-                <span class="brain-map-graph-node-label">@node.Label</span>
-            </div>
-        }
-    }
+            </svg>
+
+            @foreach (var edge in VisibleEdges)
+            {
+                @if (Positions.TryGetValue(edge.Source, out var from) && Positions.TryGetValue(edge.Target, out var to))
+                {
+                    var (midX, midY) = ((from.X + to.X) / 2, (from.Y + to.Y) / 2);
+                    <span class="brain-map-graph-edge-label" style="left: @(midX)px; top: @(midY)px;">@edge.Label</span>
+                }
+            }
+
+            @foreach (var node in VisibleNodes)
+            {
+                @if (Positions.TryGetValue(node.Id, out var pos))
+                {
+                    var hidden = ShowAll ? 0 : HiddenNeighborCount(node.Id);
+                    <div class="brain-map-graph-node brain-map-graph-node-@node.Type @(hidden > 0 ? "brain-map-graph-node-expandable" : "")"
+                         style="left: @(pos.X)px; top: @(pos.Y)px;" @key="node.Id" @onclick="() => Expand(node.Id)">
+                        @if (node.Frequency is int count)
+                        {
+                            <span class="brain-map-graph-node-count">@count</span>
+                        }
+                        <span class="brain-map-graph-node-label">@node.Label</span>
+                        @if (hidden > 0)
+                        {
+                            <span class="brain-map-graph-node-badge">+@hidden</span>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    <div class="brain-map-zoom-controls">
+        <button type="button" class="brain-map-zoom-btn @(ShowAll ? "brain-map-zoom-btn-active" : "")" @onclick="ToggleShowAll" aria-label="@(ShowAll ? "Show less" : "Show all nodes")" data-tooltip="@(ShowAll ? "Show less" : "Show all nodes")">
+            @if (ShowAll)
+            {
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="4 14 10 14 10 20" />
+                    <polyline points="20 10 14 10 14 4" />
+                    <line x1="14" y1="10" x2="21" y2="3" />
+                    <line x1="3" y1="21" x2="10" y2="14" />
+                </svg>
+            }
+            else
+            {
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 3 21 3 21 9" />
+                    <polyline points="9 21 3 21 3 15" />
+                    <line x1="21" y1="3" x2="14" y2="10" />
+                    <line x1="3" y1="21" x2="10" y2="14" />
+                </svg>
+            }
+        </button>
+        <button type="button" class="brain-map-zoom-btn" disabled="@(Zoom >= MaxZoom)" @onclick="ZoomIn" aria-label="Zoom in">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7" />
+                <line x1="21" y1="21" x2="16.4" y2="16.4" />
+                <line x1="11" y1="8" x2="11" y2="14" />
+                <line x1="8" y1="11" x2="14" y2="11" />
+            </svg>
+        </button>
+        <button type="button" class="brain-map-zoom-btn" disabled="@(Zoom <= MinZoom)" @onclick="ZoomOut" aria-label="Zoom out">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7" />
+                <line x1="21" y1="21" x2="16.4" y2="16.4" />
+                <line x1="8" y1="11" x2="14" y2="11" />
+            </svg>
+        </button>
+    </div>
 </div>
 
 @code {
-    private const int DiagramWidth = 900;
-    private const int DiagramHeight = 640;
-    private const int CenterX = DiagramWidth / 2;
-    private const int CenterY = DiagramHeight / 2;
-    private const int TopicRadius = 190;
-    private const int ConceptRadius = 300;
+    // Budget of on-ring arc length (px) reserved per node so neighboring labels don't collide;
+    // ring radius grows with node count instead of staying fixed, which is what caused crowded
+    // rings to overlap regardless of how many nodes were actually placed on them.
+    private const int NodeSpacing = 170;
+    private const int RingGap = 170;
+    private const int MinRootRadius = 140;
+    private const int MinTopicRadius = 220;
+    private const int MinConceptRadius = 420;
+    private const int CanvasMargin = 140;
+
+    private const double MinZoom = 0.4;
+    private const double MaxZoom = 2.5;
+    private const double ZoomStep = 0.15;
+
+    // How many of the highest-Frequency nodes to seed the collapsed view with.
+    private const int InitialSeedCount = 8;
 
     [Parameter, EditorRequired] public List<GraphNodeDto> Nodes { get; set; } = [];
     [Parameter, EditorRequired] public List<GraphEdgeDto> Edges { get; set; } = [];
 
     private Dictionary<string, (int X, int Y)> Positions { get; set; } = [];
+    private int DiagramWidth { get; set; } = 900;
+    private int DiagramHeight { get; set; } = 640;
+    private double Zoom { get; set; } = 1;
 
-    protected override void OnParametersSet() => Positions = ComputePositions();
+    private readonly HashSet<string> _expanded = [];
+    private bool ShowAll;
+    private List<GraphNodeDto>? _lastNodes;
+
+    private int ScaledWidth => (int)(DiagramWidth * Zoom);
+    private int ScaledHeight => (int)(DiagramHeight * Zoom);
+    private string ZoomCss => Zoom.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private List<GraphNodeDto> VisibleNodes => ShowAll
+        ? Nodes
+        : Nodes.Where(n => VisibleNodeIds.Contains(n.Id)).ToList();
+
+    private List<GraphEdgeDto> VisibleEdges => ShowAll
+        ? Edges
+        : Edges.Where(e => VisibleNodeIds.Contains(e.Source) && VisibleNodeIds.Contains(e.Target)).ToList();
+
+    // Seed nodes (highest Frequency first) are always visible; expanding a node also reveals
+    // every node directly connected to it by an edge, regardless of type or ring.
+    private HashSet<string> VisibleNodeIds
+    {
+        get
+        {
+            var visible = new HashSet<string>(SeedNodeIds);
+            visible.UnionWith(_expanded);
+            foreach (var edge in Edges)
+            {
+                if (_expanded.Contains(edge.Source))
+                    visible.Add(edge.Target);
+                if (_expanded.Contains(edge.Target))
+                    visible.Add(edge.Source);
+            }
+            return visible;
+        }
+    }
+
+    private IEnumerable<string> SeedNodeIds =>
+        Nodes.OrderByDescending(n => n.Frequency ?? 0).Take(InitialSeedCount).Select(n => n.Id);
+
+    protected override void OnParametersSet()
+    {
+        // Reset the collapsed/expanded state only when this is genuinely a different graph
+        // (e.g. after Regenerate) — not on every re-render, which would undo a click before the
+        // user ever saw it expand.
+        if (!ReferenceEquals(_lastNodes, Nodes))
+        {
+            _lastNodes = Nodes;
+            _expanded.Clear();
+            ShowAll = false;
+        }
+
+        Positions = ComputePositions();
+    }
+
+    private void Expand(string nodeId)
+    {
+        _expanded.Add(nodeId);
+        Positions = ComputePositions();
+    }
+
+    private void ToggleShowAll()
+    {
+        ShowAll = !ShowAll;
+        Positions = ComputePositions();
+    }
+
+    private int HiddenNeighborCount(string nodeId)
+    {
+        var visible = VisibleNodeIds;
+        var count = 0;
+        foreach (var edge in Edges)
+        {
+            if (edge.Source == nodeId && !visible.Contains(edge.Target))
+                count++;
+            else if (edge.Target == nodeId && !visible.Contains(edge.Source))
+                count++;
+        }
+        return count;
+    }
 
     private Dictionary<string, (int X, int Y)> ComputePositions()
     {
+        var visibleNodes = VisibleNodes;
+        var rootNodes = visibleNodes.Where(n => n.Type == "root").ToList();
+        var topicNodes = visibleNodes.Where(n => n.Type == "topic").ToList();
+        var conceptNodes = visibleNodes.Where(n => n.Type != "root" && n.Type != "topic").ToList();
+
+        // A single root just sits at dead center (radius 0); more than one needs its own ring
+        // too — otherwise they stack in a straight vertical line with a fixed gap regardless of
+        // how many there are, which is exactly what was colliding on documents with a large
+        // number of root-level topics.
+        var rootRadius = rootNodes.Count > 1 ? RadiusFor(rootNodes.Count, MinRootRadius) : 0;
+        var topicRadius = RadiusFor(topicNodes.Count, Math.Max(MinTopicRadius, rootRadius + RingGap));
+        var conceptRadius = RadiusFor(conceptNodes.Count, Math.Max(MinConceptRadius, topicRadius + RingGap));
+        var outerRadius = conceptNodes.Count > 0 ? conceptRadius : topicNodes.Count > 0 ? topicRadius : rootRadius;
+
+        var canvasRadius = outerRadius + CanvasMargin;
+        DiagramWidth = Math.Max(900, canvasRadius * 2);
+        DiagramHeight = Math.Max(640, canvasRadius * 2);
+
         var positions = new Dictionary<string, (int X, int Y)>();
-
-        PlaceRing(Nodes.Where(n => n.Type == "root").ToList(), 0, positions);
-        PlaceRing(Nodes.Where(n => n.Type == "topic").ToList(), TopicRadius, positions);
-        PlaceRing(Nodes.Where(n => n.Type != "root" && n.Type != "topic").ToList(), ConceptRadius, positions);
-
+        PlaceRing(rootNodes, rootRadius, positions);
+        PlaceRing(topicNodes, topicRadius, positions);
+        PlaceRing(conceptNodes, conceptRadius, positions);
         return positions;
     }
 
-    private static void PlaceRing(List<GraphNodeDto> nodes, int radius, Dictionary<string, (int X, int Y)> positions)
+    // Ensures the ring's circumference has at least NodeSpacing px per node instead of a fixed
+    // radius regardless of count.
+    private static int RadiusFor(int count, int minRadius) =>
+        count == 0 ? minRadius : Math.Max(minRadius, (int)Math.Ceiling(count * NodeSpacing / (2 * Math.PI)));
+
+    private void PlaceRing(List<GraphNodeDto> nodes, int radius, Dictionary<string, (int X, int Y)> positions)
     {
         if (nodes.Count == 0)
             return;
+
+        var centerX = DiagramWidth / 2;
+        var centerY = DiagramHeight / 2;
 
         if (radius == 0)
         {
             // Root node(s) cluster at the center; stack vertically if there's more than one.
             for (var i = 0; i < nodes.Count; i++)
-                positions[nodes[i].Id] = (CenterX, CenterY + (int)((i - (nodes.Count - 1) / 2.0) * 50));
+                positions[nodes[i].Id] = (centerX, centerY + (int)((i - (nodes.Count - 1) / 2.0) * 50));
             return;
         }
 
         for (var i = 0; i < nodes.Count; i++)
         {
             var angle = -Math.PI / 2 + i * (2 * Math.PI / nodes.Count);
-            positions[nodes[i].Id] = (CenterX + (int)(radius * Math.Cos(angle)), CenterY + (int)(radius * 0.72 * Math.Sin(angle)));
+            positions[nodes[i].Id] = (centerX + (int)(radius * Math.Cos(angle)), centerY + (int)(radius * Math.Sin(angle)));
         }
     }
+
+    private void ZoomIn() => Zoom = Math.Clamp(Math.Round(Zoom + ZoomStep, 2), MinZoom, MaxZoom);
+
+    private void ZoomOut() => Zoom = Math.Clamp(Math.Round(Zoom - ZoomStep, 2), MinZoom, MaxZoom);
+
+    // Fires for both mouse wheel and touchpad scroll/pinch — a plain wheel gesture is the only
+    // one a mouse can make, so it drives zoom here rather than page panning.
+    private void HandleWheel(WheelEventArgs e) =>
+        Zoom = Math.Clamp(Math.Round(Zoom + (e.DeltaY > 0 ? -ZoomStep : ZoomStep), 2), MinZoom, MaxZoom);
 }

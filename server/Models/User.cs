@@ -43,4 +43,9 @@ public class User
     public List<Post> LikedPosts { get; } = [];
     public List<Post> FavoritedPosts { get; } = [];
     public List<Post> RepostedPosts { get; } = [];
+
+    // Follow rows where this user is the follower (who they follow) vs. the one being
+    // followed (their followers) — see AppDbContext for the two Restrict-delete FKs this needs.
+    public List<Follow> FollowingLinks { get; } = [];
+    public List<Follow> FollowerLinks { get; } = [];
 }

@@ -281,6 +281,7 @@
         await AuthState.SetSessionAsync(result.Response);
         Store.ApplyAuthUser(result.Response.User);
         await Store.LoadFeedAsync();
+        await Store.LoadGroupsAsync();
 
         Navigation.NavigateTo("/home");
     }

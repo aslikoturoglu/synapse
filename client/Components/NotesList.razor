@@ -36,7 +36,7 @@
 
     @foreach (var note in dateGroup)
     {
-        <NoteCard Post="note" OnDelete="OnDelete" OnAddToGroup="OnAddToGroup" />
+        <NoteCard Post="note" OnDelete="OnDelete" OnAddToGroup="OnAddToGroup" OnShare="OnShare" OnUnshare="OnUnshare" />
     }
 }
 
@@ -52,6 +52,8 @@
     [Parameter] public List<Post> Posts { get; set; } = [];
     [Parameter] public EventCallback<Post> OnDelete { get; set; }
     [Parameter] public EventCallback<Post> OnAddToGroup { get; set; }
+    [Parameter] public EventCallback<Post> OnShare { get; set; }
+    [Parameter] public EventCallback<Post> OnUnshare { get; set; }
 
     private string SearchTerm { get; set; } = "";
     private SortMode SelectedSort { get; set; } = SortMode.NewToOld;

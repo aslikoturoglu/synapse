@@ -1,4 +1,5 @@
 @using Client.Pages.Home
+@inject UiStrings Strings
 
 <div class="note-file-preview" @onclick:stopPropagation="true">
     @if (ShowFileList)
@@ -15,12 +16,9 @@
 
     <div class="note-file-page">
         <div class="note-file-page-surface">
-            <p class="note-file-page-title">@Post.Title</p>
-            <p class="note-file-page-body">@GetPageContent(CurrentPageNumber)</p>
-            <p class="note-file-page-footer">@Post.Title | Sayfa @CurrentPageNumber</p>
+            <p class="note-file-page-title">@SelectedFile.FileName</p>
+            <p class="note-file-page-body">@Strings.Get("noFilePreviewAvailable")</p>
         </div>
-
-        <NotePagination Total="Post.TotalPageCount" Current="CurrentPageNumber" OnSelect="GoToPage" />
     </div>
 </div>
 
@@ -29,53 +27,14 @@
     [Parameter] public bool ShowFileList { get; set; } = true;
 
     private NoteFile SelectedFile { get; set; } = null!;
-    private int CurrentPageNumber { get; set; } = 1;
 
     protected override void OnInitialized()
     {
         SelectedFile = Post.Files[0];
-        CurrentPageNumber = 1;
     }
 
     private void SelectFile(NoteFile file)
     {
         SelectedFile = file;
-        CurrentPageNumber = StartPageOf(file);
     }
-
-    private int StartPageOf(NoteFile file)
-    {
-        var page = 1;
-        foreach (var f in Post.Files)
-        {
-            if (ReferenceEquals(f, file))
-                return page;
-
-            page += f.PageCount;
-        }
-
-        return 1;
-    }
-
-    private void GoToPage(int pageNumber) => CurrentPageNumber = pageNumber;
-
-    private string GetPageContent(int pageNumber) => pageNumber switch
-    {
-        1 => "1. Justice as Fairness — Adalet ilkeleri tarafsız bir kabulden çıkar; herkesin kabul " +
-             "edeceği ilkeler arkasında \"cehalet peçesi\" (veil of ignorance) düşünce deneyi vardır.\n\n" +
-             "1.1 Original Position — Adaletin ilkelerini seçenler kendi konumlarını, yeteneklerini, " +
-             "dinini, sınıfını bilmez.\n1.2 Veil of Ignorance — Kişinin şansını, yeteneğini ve " +
-             "gelecekteki konumunu bilmemesi rasyonel ve tarafsız seçime zorlar.\n1.3 Maximin Strategy — " +
-             "En kötü olası konumu en iyi hale getiren ilke seçilir; risk almaktan kaçınılır.",
-        2 => "2. Two Principles of Justice — Rawls'ın adil toplum için önerdiği iki ilke.\n\n" +
-             "2.1 Equal Basic Liberties — Herkes için eşit temel hak ve özgürlükler.\n" +
-             "2.2 Fair Equality of Opportunity — Benzer yetenek ve motivasyona sahip kişiler benzer " +
-             "fırsatlara sahip olmalı.\n2.3 Difference Principle — Eşitsizlikler ancak en dezavantajlı " +
-             "kesimin yararına ise kabul edilebilir.",
-        3 => "3. Basic Structure — Toplumun temel kurumları (anayasa, mülkiyet, piyasa) adaletin " +
-             "uygulandığı ana alandır.\n\n4. Reciprocity — Toplumsal işbirliğinden doğan kazanımlar " +
-             "herkes için makul olmalıdır; kimse sistematik olarak dışlanmamalıdır.",
-        _ => $"Sayfa {pageNumber} — bu bölümün detaylı notları burada devam eder. " +
-             "(Bu, gerçek bir PDF görüntüleyici olmadığı için temsili bir önizlemedir.)",
-    };
 }

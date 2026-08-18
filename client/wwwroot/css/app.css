@@ -194,6 +194,18 @@ p, label, .text-body {
     font-weight: 500;
 }
 
+.form-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.4rem;
+}
+
+.form-label-row .form-label {
+    margin-bottom: 0;
+}
+
 .field-optional-hint {
     color: var(--color-text-muted);
     font-weight: 400;
@@ -326,6 +338,11 @@ p, label, .text-body {
     font-weight: 500;
     text-decoration: none;
     cursor: pointer;
+}
+
+.back-link-right {
+    left: auto;
+    right: 1.5rem;
 }
 
 .back-link:hover {
@@ -565,6 +582,26 @@ p, label, .text-body {
 }
 
 .profile-header-stats strong {
+    color: var(--color-text-title);
+}
+
+.profile-header-stat-link {
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--color-text-muted);
+    font: inherit;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.profile-header-stat-link:hover {
+    text-decoration: underline;
+}
+
+.profile-header-stat-link strong {
     color: var(--color-text-title);
 }
 
@@ -1107,6 +1144,11 @@ button.post-action-toggle {
     cursor: pointer;
 }
 
+button.post-action-toggle:disabled {
+    color: var(--color-btn-disabled-text);
+    cursor: not-allowed;
+}
+
 .post-action-liked {
     color: var(--color-like);
 }
@@ -1226,6 +1268,65 @@ button.post-action-toggle {
     color: var(--color-text-body);
 }
 
+.pdf-preview-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 2rem;
+    background-color: rgba(24, 24, 27, 0.45);
+}
+
+.pdf-preview-box {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 50rem;
+    height: 100%;
+    max-height: 44rem;
+    border-radius: 1rem;
+    background-color: #ffffff;
+    box-shadow: 0 1.5rem 3rem rgba(24, 24, 27, 0.25);
+    overflow: hidden;
+}
+
+.pdf-preview-header {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    padding: 1rem 3rem 1rem 1.25rem;
+    border-bottom: 1px solid var(--color-btn-secondary-border);
+    color: var(--color-text-title);
+    font-weight: 600;
+}
+
+.pdf-preview-frame {
+    flex: 1;
+    width: 100%;
+    border: none;
+    background-color: var(--color-btn-secondary-bg);
+}
+
+.pdf-preview-loading {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+}
+
+.pdf-preview-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--color-btn-secondary-border);
+}
+
 .modal-form-heading {
     margin: 0 0 1rem 0;
     color: var(--color-text-title);
@@ -1287,6 +1388,126 @@ button.post-action-toggle {
     margin: 1rem 0 0 0;
     color: var(--color-text-muted);
     font-size: 0.8rem;
+}
+
+/* Connections page */
+
+.connections-count {
+    align-self: flex-start;
+    width: 100%;
+    max-width: 60rem;
+    margin: 0;
+    color: var(--color-text-title);
+    font-style: italic;
+    font-size: 0.95rem;
+}
+
+.connections-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    width: 100%;
+    max-width: 60rem;
+}
+
+.connection-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-sizing: border-box;
+    padding: 0.9rem 1.1rem;
+    border-radius: 0.75rem;
+    background-color: var(--color-btn-secondary-bg);
+    text-decoration: none;
+    color: inherit;
+}
+
+.connection-card:hover {
+    background-color: var(--color-btn-secondary-bg-hover);
+}
+
+.connection-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.connection-name {
+    margin: 0;
+    color: var(--color-text-title);
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.connection-role {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+}
+
+.connection-arrow {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--color-text-muted);
+}
+
+.connections-split {
+    display: flex;
+    align-items: stretch;
+    gap: 2rem;
+    width: 100%;
+    max-width: 60rem;
+}
+
+.connections-column {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.connections-divider {
+    flex-shrink: 0;
+    width: 1px;
+    background-color: var(--color-btn-secondary-border);
+}
+
+.connections-column-heading {
+    margin: 0;
+    color: var(--color-text-title);
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.connections-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    max-height: 32rem;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+}
+
+@media (max-width: 40rem) {
+    .connections-split {
+        flex-direction: column;
+    }
+
+    .connections-divider {
+        display: none;
+    }
+}
+
+@media (max-width: 56rem) {
+    .connections-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 36rem) {
+    .connections-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* All Notes page */
@@ -1527,6 +1748,24 @@ button.post-action-toggle {
     color: #2563eb;
 }
 
+.note-action-share {
+    color: var(--color-text-title);
+}
+
+.note-action-shared {
+    color: var(--color-success);
+}
+
+.modal-confirm-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.modal-confirm-actions .btn-secondary,
+.modal-confirm-actions .btn-primary {
+    flex: 1;
+}
+
 .note-file-preview {
     display: flex;
     gap: 1.25rem;
@@ -1695,6 +1934,13 @@ button.post-action-toggle {
     width: 12rem;
 }
 
+.wizard-resume-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+}
+
 .wizard-resume-banner {
     display: inline-flex;
     align-items: center;
@@ -1720,6 +1966,57 @@ button.post-action-toggle {
     padding-left: 1.2rem;
     color: var(--color-text-body);
     font-size: 0.875rem;
+}
+
+.drafts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+    max-width: 50rem;
+}
+
+.draft-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-sizing: border-box;
+    padding: 1rem 1.25rem;
+    border-radius: 0.9rem;
+    background-color: #ffffff;
+    box-shadow: 0 0.25rem 0.75rem rgba(24, 24, 27, 0.06);
+}
+
+.draft-row-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.draft-row-title {
+    margin: 0;
+    color: var(--color-text-title);
+    font-weight: 700;
+}
+
+.draft-row-meta {
+    margin: 0.2rem 0 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+}
+
+.draft-row-files {
+    margin: 0.2rem 0 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.draft-row-actions {
+    display: flex;
+    flex-shrink: 0;
+    gap: 0.5rem;
 }
 
 .wizard-heading {
@@ -2008,12 +2305,22 @@ button.post-action-toggle {
     gap: 0.3rem;
 }
 
+.brain-map-viewport {
+    position: relative;
+    width: 100%;
+    max-height: calc(100vh - 20rem);
+    overflow: auto;
+    border-radius: 0.75rem;
+    background-color: var(--color-bg-app);
+}
+
+.brain-map-canvas {
+    margin: 2rem auto;
+}
+
 .brain-map-graph {
     position: relative;
-    width: 900px;
-    max-width: 100%;
-    height: 640px;
-    margin: 0 auto;
+    transform-origin: top left;
 }
 
 .brain-map-graph-lines {
@@ -2030,9 +2337,93 @@ button.post-action-toggle {
     max-width: 9rem;
     padding: 0.35rem 0.6rem;
     border-radius: 0.6rem;
-    background-color: var(--color-bg-post-user);
+    background-color: #e9f2ff;
+    box-shadow: 0 0.15rem 0.4rem rgba(24, 24, 27, 0.08);
     text-align: center;
+    cursor: default;
     transform: translate(-50%, -50%);
+}
+
+.brain-map-graph-node-expandable {
+    cursor: pointer;
+    box-shadow: 0 0.15rem 0.4rem rgba(24, 24, 27, 0.08), 0 0 0 1.5px var(--color-btn-primary-bg);
+}
+
+.brain-map-graph-node-badge {
+    position: absolute;
+    top: -0.5rem;
+    right: -0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.1rem;
+    height: 1.1rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    background-color: var(--color-btn-primary-bg);
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 700;
+}
+
+.brain-map-zoom-controls {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.brain-map-zoom-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid var(--color-btn-secondary-border);
+    border-radius: 999px;
+    background-color: #ffffff;
+    color: var(--color-text-title);
+    box-shadow: 0 0.25rem 0.75rem rgba(24, 24, 27, 0.12);
+    cursor: pointer;
+}
+
+.brain-map-zoom-btn:hover:not(:disabled) {
+    background-color: var(--color-btn-secondary-bg);
+}
+
+.brain-map-zoom-btn:disabled {
+    color: var(--color-btn-disabled-text);
+    cursor: not-allowed;
+}
+
+.brain-map-zoom-btn-active {
+    background-color: var(--color-btn-primary-bg);
+    border-color: var(--color-btn-primary-bg);
+    color: #ffffff;
+}
+
+.brain-map-zoom-btn-active:hover {
+    background-color: var(--color-btn-primary-bg-hover);
+}
+
+.brain-map-zoom-btn[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    margin-right: 0.7rem;
+    transform: translateY(-50%);
+    padding: 0.3rem 0.6rem;
+    border-radius: 0.4rem;
+    background-color: #18181b;
+    color: #ffffff;
+    font-size: 0.7rem;
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
 }
 
 .brain-map-graph-node-root {
@@ -2175,19 +2566,37 @@ button.post-action-toggle {
         display: block;
     }
 
+    .note-print-title {
+        display: block;
+        margin: 0 0 1.5rem 0;
+        color: #000000;
+        font-size: 1.6rem;
+        font-weight: 700;
+    }
+
+    /* Continuous flowing document, not one printed page per NotePage: no forced page-break
+       between them (the browser paginates wherever content actually runs out), and none of the
+       on-screen card chrome (padding/shadow/rounded corners/per-page footer) that made sense as
+       a UI "page" but not as a printed document. */
     .note-print-pages .note-file-page-surface {
         max-width: none;
         max-height: none;
-        overflow: visible;
-        box-shadow: none;
+        width: 100%;
+        padding: 0;
+        margin: 0 0 1.5rem 0;
         border-radius: 0;
-        page-break-after: always;
-        break-after: page;
+        box-shadow: none;
+        background: none;
+        overflow: visible;
     }
 
     .note-print-pages .note-file-page-body {
         max-height: none;
         overflow: visible;
+    }
+
+    .note-print-pages .note-file-page-footer {
+        display: none;
     }
 }
 
@@ -2293,7 +2702,24 @@ button.post-action-toggle {
 }
 
 .note-file-page-surface-clickable {
+    position: relative;
     cursor: pointer;
+}
+
+.note-file-page-surface-clickable[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 0.4rem;
+    background-color: #18181b;
+    color: #ffffff;
+    font-size: 0.7rem;
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 5;
 }
 
 /* Note detail: Reader / Brain Map history / Process */
@@ -2330,50 +2756,54 @@ button.post-action-toggle {
 }
 
 .note-reader-cover {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.75rem;
     width: 100%;
-    max-width: 48rem;
+    max-width: 40rem;
     cursor: pointer;
 }
 
-.note-reader-cover-tooltip {
+.note-reader-cover[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: -0.5rem;
+    left: 50%;
+    transform: translate(-50%, -100%);
     padding: 0.4rem 0.9rem;
     border-radius: 0.5rem;
     background-color: #18181b;
     color: #ffffff;
     font-size: 0.8rem;
     font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 10;
 }
 
 .note-reader-cover-card {
     box-sizing: border-box;
+    position: relative;
     width: 100%;
+    max-height: calc(100vh - 22rem);
     padding: 1.5rem;
     border-radius: 0.75rem;
     background-color: var(--color-btn-secondary-bg);
-}
-
-.note-reader-cover-pages {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
     overflow: hidden;
 }
 
-.note-reader-cover-page {
-    flex-shrink: 0;
-    width: 14rem;
-    transform: scale(0.9);
-    transform-origin: top left;
-    pointer-events: none;
+.note-reader-cover-card::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 4rem;
+    border-radius: 0 0 0.75rem 0.75rem;
+    background: linear-gradient(to bottom, transparent, var(--color-btn-secondary-bg));
 }
 
-.note-reader-cover-more {
-    color: var(--color-text-muted);
-    font-size: 1.5rem;
+.note-reader-cover-page {
+    pointer-events: none;
 }
 
 .note-reader-actions-row {
@@ -2896,6 +3326,47 @@ mark.note-highlight {
 
 /* All Users page */
 
+.users-filters-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+.users-search-input {
+    flex: 1;
+    min-width: 16rem;
+}
+
+.users-filter-select {
+    box-sizing: border-box;
+    padding: 0.65rem 0.9rem;
+    border-radius: 0.6rem;
+    border: 1px solid var(--color-btn-secondary-border);
+    background-color: #ffffff;
+    color: var(--color-text-title);
+    font-family: inherit;
+    font-size: 0.9375rem;
+}
+
+.users-bulk-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    background-color: var(--color-btn-secondary-bg);
+}
+
+.users-bulk-count {
+    margin-right: auto;
+    color: var(--color-text-title);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
 .users-table-wrap {
     width: 100%;
     max-width: 100%;
@@ -2987,6 +3458,7 @@ mark.note-highlight {
 }
 
 .users-table-action {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -3003,6 +3475,23 @@ mark.note-highlight {
 
 .users-table-action:hover {
     background-color: var(--color-btn-secondary-bg);
+}
+
+.users-table-action:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 0.4rem);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.3rem 0.6rem;
+    border-radius: 0.4rem;
+    background-color: #18181b;
+    color: #ffffff;
+    font-size: 0.7rem;
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 10;
 }
 
 .users-table-action-go {

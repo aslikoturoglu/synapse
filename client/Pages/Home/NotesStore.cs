@@ -1,23 +1,39 @@
 using System.Net;
+using System.Text.Json;
 using Client.Pages.CreateNote;
 using Client.Services;
+using Microsoft.JSInterop;
 
 namespace Client.Pages.Home;
 
 // Holds session-wide UI state. Posts now come from the real backend (via PostsApiClient);
 // Groups/Profile/Settings are still mock-only — kept here for the session the same way Posts
 // used to be, until those get their own backend wiring.
-public class NotesStore(AuthState authState, PostsApiClient postsApi)
+public class NotesStore(AuthState authState, PostsApiClient postsApi, ConnectionsApiClient connectionsApi, GroupsApiClient groupsApi, ProfileApiClient profileApi, IJSRuntime js)
 {
+    private const string ActiveDraftStorageKey = "synapse_active_draft";
+    private const string ArchivedDraftsStorageKey = "synapse_archived_drafts";
+
     public List<Post> Posts { get; private set; } = [];
 
-    public List<string> Groups { get; } = [];
+    public List<GroupDto> Groups { get; private set; } = [];
 
     public UserProfile Profile { get; } = new();
 
     public UserSettings Settings { get; } = new();
 
-    public NoteDraft Draft { get; } = new();
+    public NoteDraft Draft { get; private set; } = new();
+
+    // Other in-progress notes the user stepped away from without finishing — see
+    // StartFreshDraftAsync/SwapActiveDraftAsync. Excludes anything already IsCreated (that's
+    // just a finished note now, not an "unfinished project").
+    public List<NoteDraft> ArchivedDrafts { get; private set; } = [];
+
+    public List<NoteDraft> AllUnfinishedDrafts =>
+        (Draft.HasProgress && !Draft.IsCreated ? [Draft] : Enumerable.Empty<NoteDraft>())
+            .Concat(ArchivedDrafts)
+            .OrderByDescending(d => d.UpdatedAt)
+            .ToList();
 
     // Hydrates the session's mock Profile from a real authenticated user — called on login
     // and again on app startup once AuthState restores a session from localStorage, since
@@ -31,6 +47,83 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi)
         Profile.Phone = user.Phone;
         Profile.JobTitle = user.JobTitle;
     }
+
+    // Restores whatever wizard state survived a reload — called once at boot (see Program.cs),
+    // after AuthState so this only runs for a signed-in session.
+    public async Task LoadDraftStateAsync()
+    {
+        var activeJson = await js.InvokeAsync<string?>("draftStorage.getItem", ActiveDraftStorageKey);
+        if (!string.IsNullOrEmpty(activeJson) && JsonSerializer.Deserialize<NoteDraft>(activeJson) is { } restored)
+            Draft = restored;
+
+        var archivedJson = await js.InvokeAsync<string?>("draftStorage.getItem", ArchivedDraftsStorageKey);
+        if (!string.IsNullOrEmpty(archivedJson))
+            ArchivedDrafts = JsonSerializer.Deserialize<List<NoteDraft>>(archivedJson) ?? [];
+    }
+
+    // Call after every step transition (see CreateNote.razor's GoTo) so the active draft never
+    // falls more than one step behind what's actually in localStorage.
+    public async Task SaveDraftStateAsync()
+    {
+        if (Draft.HasProgress && !Draft.IsCreated)
+        {
+            Draft.UpdatedAt = DateTime.UtcNow;
+            await js.InvokeVoidAsync("draftStorage.setItem", ActiveDraftStorageKey, JsonSerializer.Serialize(Draft));
+        }
+        else
+        {
+            await js.InvokeVoidAsync("draftStorage.removeItem", ActiveDraftStorageKey);
+        }
+    }
+
+    // Archives the current draft (if it's genuinely unfinished work, not just a blank slate)
+    // and swaps in a brand new one — used when the user wants to start a different note
+    // without losing track of the one they were already partway through.
+    public async Task StartFreshDraftAsync()
+    {
+        if (Draft.HasProgress && !Draft.IsCreated)
+            ArchivedDrafts.Insert(0, Draft);
+
+        Draft = new NoteDraft();
+        await PersistArchivedDraftsAsync();
+        await js.InvokeVoidAsync("draftStorage.removeItem", ActiveDraftStorageKey);
+    }
+
+    // Makes an archived draft the active one again, archiving whatever was active in its place
+    // (same reasoning as StartFreshDraftAsync — nothing unfinished just gets silently dropped).
+    public async Task SwapActiveDraftAsync(Guid targetId)
+    {
+        if (Draft.Id == targetId)
+            return;
+
+        var target = ArchivedDrafts.FirstOrDefault(d => d.Id == targetId);
+        if (target is null)
+            return;
+
+        ArchivedDrafts.Remove(target);
+        if (Draft.HasProgress && !Draft.IsCreated)
+            ArchivedDrafts.Insert(0, Draft);
+
+        Draft = target;
+        await PersistArchivedDraftsAsync();
+        await SaveDraftStateAsync();
+    }
+
+    public async Task DiscardDraftAsync(Guid id)
+    {
+        if (Draft.Id == id)
+        {
+            Draft = new NoteDraft();
+            await js.InvokeVoidAsync("draftStorage.removeItem", ActiveDraftStorageKey);
+            return;
+        }
+
+        ArchivedDrafts.RemoveAll(d => d.Id == id);
+        await PersistArchivedDraftsAsync();
+    }
+
+    private Task PersistArchivedDraftsAsync() =>
+        js.InvokeVoidAsync("draftStorage.setItem", ArchivedDraftsStorageKey, JsonSerializer.Serialize(ArchivedDrafts)).AsTask();
 
     // Swallows anything except 401: a transient/network failure shouldn't crash whatever
     // flow is loading the feed (login, signup, app boot) — it just leaves Posts empty for
@@ -52,6 +145,40 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi)
         catch (HttpRequestException ex) when (ex.StatusCode != HttpStatusCode.Unauthorized)
         {
         }
+    }
+
+    // Swallows failures the same way LoadFeedAsync does — an empty Groups list just means the
+    // "Add to Group" picker offers nothing yet, not a crash.
+    public async Task LoadGroupsAsync()
+    {
+        try
+        {
+            Groups = await groupsApi.GetMineAsync();
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode != HttpStatusCode.Unauthorized)
+        {
+        }
+    }
+
+    public async Task<string?> CreateGroupAsync(string name)
+    {
+        var (group, error) = await groupsApi.CreateAsync(name);
+        if (group is not null)
+            Groups.Add(group);
+
+        return error;
+    }
+
+    // Server-enforced: only the caller's own posts can move, and only into a group the caller
+    // themselves owns (PostService.SetGroupAsync) — this just mirrors the result back locally.
+    public async Task<bool> SetPostGroupAsync(Post post, int? groupId)
+    {
+        if (!await postsApi.SetGroupAsync(post.Id, groupId))
+            return false;
+
+        post.GroupId = groupId;
+        post.GroupName = groupId is int id ? Groups.FirstOrDefault(g => g.Id == id)?.Name : null;
+        return true;
     }
 
     public List<Post> GetMyPosts() => Posts.Where(p => p.AuthorId == authState.CurrentUser?.Id).ToList();
@@ -202,15 +329,17 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi)
             // No dedicated description step anymore — the Intake step's free-form notes are
             // the closest available substitute for "what this note is about".
             Description = Draft.UserNotes,
-            Files =
-            [
-                new NoteFileDto
-                {
-                    FileName = $"{Draft.Title}.pdf",
-                    FileUrl = "sample-pdfs/sps303-final-notes.pdf",
-                    PageCount = Math.Max(Draft.Pages.Count, 1),
-                },
-            ],
+            // One entry per file actually picked in the wizard's Upload step — not the note's
+            // own generated title/page count, which described the AI-written note, not what was
+            // uploaded. FileUrl still points at the shared sample PDF: the real bytes are only
+            // ever sent to Azure AI Foundry (AiApiClient.StartAsync) and never persisted
+            // server-side, so there's no real per-file URL to link to yet.
+            Files = Draft.Files.Select(f => new NoteFileDto
+            {
+                FileName = f.Name,
+                FileUrl = "sample-pdfs/sps303-final-notes.pdf",
+                PageCount = 1,
+            }).ToList(),
             Pages = Draft.Pages.Select(ToNotePageDto).ToList(),
             Keywords = Draft.Keywords.Select(ToKeywordDto).ToList(),
             DocumentKnowledgeBase = Draft.DocumentKnowledgeBase,
@@ -230,6 +359,10 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi)
 
         Draft.IsCreated = true;
         Draft.CreatedPostId = post?.Id;
+        // Now a real, saved Post — no longer "unfinished", so the persisted copy of it as an
+        // in-progress draft has to go too, or a later reload would restore it and show a
+        // resume banner for a note that's actually already done.
+        await SaveDraftStateAsync();
         return post;
     }
 
@@ -244,6 +377,20 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi)
             return false;
 
         post.IsShared = true;
+        return true;
+    }
+
+    // Pulls a post back out of the public feed — likes/comments/CreatedDate are left alone
+    // server-side, so re-sharing later just picks the same post back up.
+    public async Task<bool> UnshareAsync(Post post)
+    {
+        if (!post.IsShared)
+            return true;
+
+        if (!await postsApi.UnshareAsync(post.Id))
+            return false;
+
+        post.IsShared = false;
         return true;
     }
 
@@ -273,6 +420,37 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi)
         p.RepostedByMe = r.Active;
         p.RepostCount = r.Count;
     });
+
+    // Following is per-author, not per-post — every post by that author currently loaded
+    // needs the same IsFollowing state, not just the card the button was clicked on.
+    public async Task ToggleFollowAsync(Post post)
+    {
+        var following = await ToggleFollowByUserIdAsync(post.AuthorId);
+        if (following is not null)
+            post.IsFollowing = following.Value;
+    }
+
+    // Same toggle, usable from a profile header where there's no Post to hang it off of —
+    // still fans the new state out to every already-loaded post by that author.
+    public async Task<bool?> ToggleFollowByUserIdAsync(int userId)
+    {
+        var following = await connectionsApi.ToggleFollowAsync(userId);
+        if (following is null)
+            return null;
+
+        foreach (var p in Posts.Where(p => p.AuthorId == userId))
+            p.IsFollowing = following.Value;
+
+        return following;
+    }
+
+    public async Task<List<Post>> GetRepostsByAuthorAsync(string fullName) =>
+        (await profileApi.GetRepostsAsync(fullName)).Select(ToPost).ToList();
+
+    // Prefer this over the name-based overload above whenever the caller already knows the
+    // id — display name isn't unique, so the name-based lookup can resolve to the wrong account.
+    public async Task<List<Post>> GetRepostsByAuthorIdAsync(int userId) =>
+        (await profileApi.GetRepostsByIdAsync(userId)).Select(ToPost).ToList();
 
     public async Task AddCommentAsync(Post post, string text)
     {
@@ -317,6 +495,7 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi)
         LikedByMe = dto.LikedByMe,
         FavoritedByMe = dto.FavoritedByMe,
         RepostedByMe = dto.RepostedByMe,
+        IsFollowing = dto.FollowedByMe,
     };
 
     private static PostComment ToComment(PostCommentDto dto) => new()

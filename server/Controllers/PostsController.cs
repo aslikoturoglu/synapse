@@ -19,6 +19,11 @@ public class PostsController(PostService postService) : ControllerBase
     [HttpPost]
     public async Task<ActionResult<PostDto>> Create(CreatePostRequest request)
     {
+        // Admin is a moderation role, not a participant — same reasoning as the like/comment/
+        // share guards below.
+        if (User.IsInRole("Admin"))
+            return Forbid();
+
         var post = await postService.CreateAsync(User.GetUserId(), request);
         if (post is null)
             return Unauthorized();
@@ -31,6 +36,13 @@ public class PostsController(PostService postService) : ControllerBase
     {
         var post = await postService.GetDetailAsync(User.GetUserId(), id);
         return post is null ? NotFound() : Ok(post);
+    }
+
+    [HttpGet("{id:int}/pdf")]
+    public async Task<IActionResult> GetPdf(int id)
+    {
+        var result = await postService.GenerateNotePdfAsync(User.GetUserId(), id);
+        return result is null ? NotFound() : File(result.Value.Bytes, "application/pdf", $"{result.Value.Title}.pdf");
     }
 
     [HttpPost("{id:int}/keywords")]
@@ -120,7 +132,23 @@ public class PostsController(PostService postService) : ControllerBase
     [HttpPost("{id:int}/share")]
     public async Task<IActionResult> Share(int id)
     {
+        if (User.IsInRole("Admin"))
+            return Forbid();
+
         var result = await postService.ShareAsync(User.GetUserId(), id);
+        return result switch
+        {
+            PostOpResult.Success => NoContent(),
+            PostOpResult.NotFound => NotFound(),
+            PostOpResult.Forbidden => Forbid(),
+            _ => BadRequest(),
+        };
+    }
+
+    [HttpDelete("{id:int}/share")]
+    public async Task<IActionResult> Unshare(int id)
+    {
+        var result = await postService.UnshareAsync(User.GetUserId(), id);
         return result switch
         {
             PostOpResult.Success => NoContent(),
@@ -158,10 +186,12 @@ public class PostsController(PostService postService) : ControllerBase
     }
 
     [HttpPost("{id:int}/like")]
-    public Task<ActionResult> ToggleLike(int id) => ToggleReactionAsync(postService.ToggleLikeAsync, id);
+    public Task<ActionResult> ToggleLike(int id) =>
+        User.IsInRole("Admin") ? Task.FromResult<ActionResult>(Forbid()) : ToggleReactionAsync(postService.ToggleLikeAsync, id);
 
     [HttpPost("{id:int}/favorite")]
-    public Task<ActionResult> ToggleFavorite(int id) => ToggleReactionAsync(postService.ToggleFavoriteAsync, id);
+    public Task<ActionResult> ToggleFavorite(int id) =>
+        User.IsInRole("Admin") ? Task.FromResult<ActionResult>(Forbid()) : ToggleReactionAsync(postService.ToggleFavoriteAsync, id);
 
     [HttpPost("{id:int}/repost")]
     public Task<ActionResult> ToggleRepost(int id) => ToggleReactionAsync(postService.ToggleRepostAsync, id);
@@ -169,6 +199,9 @@ public class PostsController(PostService postService) : ControllerBase
     [HttpPost("{id:int}/comments")]
     public async Task<ActionResult<PostCommentDto>> AddComment(int id, AddCommentRequest request)
     {
+        if (User.IsInRole("Admin"))
+            return Forbid();
+
         if (string.IsNullOrWhiteSpace(request.Text))
             return BadRequest(new { error = "Comment text is required." });
 

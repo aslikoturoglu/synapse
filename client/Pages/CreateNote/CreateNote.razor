@@ -6,6 +6,7 @@
 @using Client.Pages.CreateNote.BrainMap
 @using Client.Pages.CreateNote.Note
 @inject NotesStore Store
+@inject NavigationManager Navigation
 @inject UiStrings Strings
 
 <PageTitle>@Store.Draft.Title</PageTitle>
@@ -41,9 +42,14 @@
     <div class="home-feed">
         @if (Store.Draft.HasProgress && CurrentStep != Store.Draft.Step)
         {
-            <button type="button" class="wizard-resume-banner" @onclick="() => ResumeModalOpen = true">
-                @Strings.Get("resumeDraft") — @StageLabel(Store.Draft.Step)
-            </button>
+            <div class="wizard-resume-row">
+                <button type="button" class="wizard-resume-banner" @onclick="() => ResumeModalOpen = true">
+                    @Strings.Get("resumeDraft") — @StageLabel(Store.Draft.Step)
+                </button>
+                <button type="button" class="btn-secondary" @onclick='() => Navigation.NavigateTo("/notes/drafts")'>
+                    @Strings.Get("seeAllUnfinished") (@Store.AllUnfinishedDrafts.Count)
+                </button>
+            </div>
         }
 
         @if (CurrentStep == NoteDraftStep.Upload)
@@ -52,7 +58,7 @@
         }
         else if (CurrentStep == NoteDraftStep.Intake)
         {
-            <IntakeStep Draft="Store.Draft" OnContinue="() => GoTo(NoteDraftStep.BrainMap)" />
+            <IntakeStep Draft="Store.Draft" OnContinue="() => GoTo(NoteDraftStep.BrainMap)" OnBack="() => GoTo(NoteDraftStep.Upload)" />
         }
         else if (CurrentStep == NoteDraftStep.BrainMap)
         {
@@ -93,12 +99,12 @@
     private bool ResumeModalOpen { get; set; }
 
     // The previous draft already became a saved post — start this run from a blank one
-    // instead of silently reusing it (see NoteDraft.Reset). A draft that's merely in
-    // progress (never finished) is left alone so HasProgress's resume banner still works.
-    protected override void OnInitialized()
+    // instead of silently reusing it. A draft that's merely in progress (never finished) is
+    // left alone so HasProgress's resume banner still works.
+    protected override async Task OnInitializedAsync()
     {
         if (Store.Draft.IsCreated)
-            Store.Draft.Reset();
+            await Store.StartFreshDraftAsync();
     }
 
     private void StartEditTitle()
@@ -116,10 +122,11 @@
         EditingTitle = false;
     }
 
-    private void GoTo(NoteDraftStep step)
+    private async Task GoTo(NoteDraftStep step)
     {
         CurrentStep = step;
         Store.Draft.Step = step;
+        await Store.SaveDraftStateAsync();
     }
 
     private void ResumeDraft()

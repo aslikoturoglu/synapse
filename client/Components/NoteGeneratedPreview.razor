@@ -21,7 +21,7 @@
         </div>
 
         <div class="note-file-page">
-            <div class="note-file-page-surface note-file-page-surface-clickable" @onclick="OpenReader">
+            <div class="note-file-page-surface note-file-page-surface-clickable" data-tooltip="@Strings.Get("clickToSeeDetails")" @onclick="OpenReader">
                 @if (!string.IsNullOrWhiteSpace(Post.Pages[0].Heading))
                 {
                     <p class="note-file-page-title">@Post.Pages[0].Heading</p>

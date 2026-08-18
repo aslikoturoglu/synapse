@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Client.Pages.Home;
 using Client.Services;
 
@@ -17,15 +18,21 @@ public class UploadedFileDraft
     public required byte[] Bytes { get; init; }
 }
 
-// The in-progress wizard state lives here for the session (held by the NotesStore
-// singleton) so a partially-finished note survives navigating away and back — see
-// HasProgress/CreateNote.razor's resume-draft banner. Once IsCreated is set the wizard is
-// done with this draft; CreateNote.razor resets it back to blank before starting another.
+// The in-progress wizard state — held by NotesStore and mirrored to localStorage (see
+// NotesStore.SaveDraftStateAsync) so a partially-finished note survives a reload, not just
+// in-tab navigation. Once IsCreated is set the wizard is done with this draft.
+//
+// Files is deliberately excluded from persistence ([JsonIgnore]) — raw file bytes don't fit
+// localStorage's quota and, past the Intake step, aren't needed again anyway (StartAsync is
+// the only thing that ever reads them; every later step works off OrchestratorThreadId /
+// DocumentKnowledgeBase / Keywords / Pages instead). FileNames alone survives for display.
 public class NoteDraft
 {
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public string Title { get; set; } = "New Note";
     public List<string> FileNames { get; } = [];
-    public List<UploadedFileDraft> Files { get; } = [];
+    [JsonIgnore] public List<UploadedFileDraft> Files { get; } = [];
     public NoteDraftStep Step { get; set; } = NoteDraftStep.Upload;
     public List<BrainMapKeyword> Keywords { get; } = [];
     public List<NotePage> Pages { get; } = [];

@@ -3,7 +3,13 @@ namespace Server.Dtos;
 public class OrchestratorStartRequest
 {
     public required List<IFormFile> Files { get; set; }
-    public required string Description { get; set; }
+
+    // Genuinely optional — the wizard has no dedicated description step anymore (see
+    // NoteCreationAiService.DescribeSuffix), so the client always sends this empty. Must be
+    // nullable, not just non-required: ASP.NET Core implicitly treats any non-nullable
+    // reference-type property as [Required] for [FromForm] validation regardless of the C#
+    // `required` keyword, and rejects an empty string the same as a missing one.
+    public string? Description { get; set; }
 }
 
 // orchestrator-chat-agent-synapse's own quick read of the uploaded documents — candidate

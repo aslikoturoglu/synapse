@@ -10,6 +10,7 @@
 @inject NavigationManager Navigation
 @inject UiStrings Strings
 @inject UsersApiClient UsersApi
+@inject ProfileApiClient ProfileApi
 
 <PageTitle>@(IsOwnProfile ? Store.Profile.FullName : DisplayName)</PageTitle>
 
@@ -23,9 +24,12 @@
         {
             <nav class="profile-nav">
                 <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.Profile ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.Profile">@Strings.Get("profile")</button>
-                <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.MyPosts ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.MyPosts">@Strings.Get("myPosts")</button>
-                <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.MyFavorites ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.MyFavorites">@Strings.Get("myFavorites")</button>
-                <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.MyNotes ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.MyNotes">@Strings.Get("myNotes")</button>
+                @if (!AuthState.IsAdmin)
+                {
+                    <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.MyPosts ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.MyPosts">@Strings.Get("myPosts")</button>
+                    <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.MyFavorites ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.MyFavorites">@Strings.Get("myFavorites")</button>
+                    <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.MyNotes ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.MyNotes">@Strings.Get("myNotes")</button>
+                }
                 <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.Settings ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.Settings">@Strings.Get("settings")</button>
                 <button type="button" class="profile-nav-item" @onclick="HandleLogout">@Strings.Get("logOut")</button>
             </nav>
@@ -163,32 +167,51 @@
                             <span class="profile-deactivated-badge">@Strings.Get("deactivated")</span>
                         }
                     </h2>
-                    @if (!string.IsNullOrWhiteSpace(DisplayRole))
+                    @if (ProfileSummary is not null)
+                    {
+                        <p class="profile-role">@@@ProfileSummary.Username</p>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(DisplayRole))
                     {
                         <p class="profile-role">@DisplayRole</p>
                     }
                 </div>
 
-                @if (AuthState.IsAdmin && OtherUserDetail is not null)
+                @if (ProfileSummary is not null)
                 {
                     <div class="profile-header-details">
+                        @if (!string.IsNullOrWhiteSpace(ProfileSummary.JobTitle))
+                        {
+                            <div class="profile-header-detail-row">
+                                <span class="profile-info-label">@Strings.Get("jobTitle")</span>
+                                <span class="profile-info-value">@ProfileSummary.JobTitle</span>
+                            </div>
+                        }
                         <div class="profile-header-detail-row">
-                            <span class="profile-info-label">@Strings.Get("email")</span>
-                            <span class="profile-info-value">@OtherUserDetail.Email</span>
+                            <span class="profile-info-label">@Strings.Get("joined")</span>
+                            <span class="profile-info-value">@ProfileSummary.CreatedAt.ToLocalTime().ToString("MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture)</span>
                         </div>
-                        <div class="profile-header-detail-row">
-                            <span class="profile-info-label">@Strings.Get("phone")</span>
-                            <span class="profile-info-value">@OtherUserDetail.Phone</span>
-                        </div>
-                        <div class="profile-header-detail-row">
-                            <span class="profile-info-label">@Strings.Get("jobTitle")</span>
-                            <span class="profile-info-value">@OtherUserDetail.JobTitle</span>
-                        </div>
+                        @if (AuthState.IsAdmin && OtherUserDetail is not null)
+                        {
+                            <div class="profile-header-detail-row">
+                                <span class="profile-info-label">@Strings.Get("email")</span>
+                                <span class="profile-info-value">@OtherUserDetail.Email</span>
+                            </div>
+                            <div class="profile-header-detail-row">
+                                <span class="profile-info-label">@Strings.Get("phone")</span>
+                                <span class="profile-info-value">@OtherUserDetail.Phone</span>
+                            </div>
+                        }
                     </div>
 
                     <div class="profile-header-stats">
-                        <p><strong>@OtherPosts.Count</strong> @Strings.Get("postsCount")</p>
-                        <p><strong>@OtherPosts.Count</strong> @Strings.Get("notesCount")</p>
+                        <p><strong>@ProfileSummary.PostCount</strong> @Strings.Get("postsCount")</p>
+                        <button type="button" class="profile-header-stat-link" @onclick='() => Navigation.NavigateTo($"/profile/{Uri.EscapeDataString(DisplayName)}/followers?id={ProfileSummary.Id}")'>
+                            <strong>@ProfileSummary.FollowerCount</strong> @Strings.Get("followers")
+                        </button>
+                        <button type="button" class="profile-header-stat-link" @onclick='() => Navigation.NavigateTo($"/profile/{Uri.EscapeDataString(DisplayName)}/following?id={ProfileSummary.Id}")'>
+                            <strong>@ProfileSummary.FollowingCount</strong> @Strings.Get("following")
+                        </button>
                     </div>
                 }
             </div>
@@ -291,7 +314,36 @@
             }
             else
             {
-                @if (OtherPosts.Count == 0)
+                <nav class="profile-nav">
+                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Posts ? "profile-nav-item-active" : "")" @onclick="() => OtherTab = OtherProfileTab.Posts">@Strings.Get("postsTab")</button>
+                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Reposts ? "profile-nav-item-active" : "")" @onclick="SelectRepostsTab">@Strings.Get("repostsTab")</button>
+                    @if (ProfileSummary is not null)
+                    {
+                        <button type="button" class="profile-nav-item @(ProfileSummary.FollowedByMe ? "profile-nav-item-active" : "")" @onclick="ToggleFollowOnProfile">
+                            @(ProfileSummary.FollowedByMe ? Strings.Get("following") : Strings.Get("follow"))
+                        </button>
+                    }
+                </nav>
+
+                @if (OtherTab == OtherProfileTab.Reposts)
+                {
+                    @if (Reposts is null)
+                    {
+                        <p class="stub-text">@Strings.Get("loading")</p>
+                    }
+                    else if (Reposts.Count == 0)
+                    {
+                        <p class="stub-text">@Strings.Get("noPostsYet")</p>
+                    }
+                    else
+                    {
+                        @foreach (var post in Reposts)
+                        {
+                            <PostCard Post="post" />
+                        }
+                    }
+                }
+                else if (OtherPosts.Count == 0)
                 {
                     <p class="stub-text">@Strings.Get("noPostsYet")</p>
                 }
@@ -316,7 +368,7 @@
 
 @code {
     private enum ProfileTab { Profile, MyPosts, MyFavorites, MyNotes, Settings }
-    private enum OtherProfileTab { Posts, Notes, Favorites, Connections, Comments, Likes }
+    private enum OtherProfileTab { Posts, Reposts, Notes, Favorites, Connections, Comments, Likes }
 
     [Parameter] public string? AuthorName { get; set; }
 
@@ -341,8 +393,28 @@
     private string? OtherUserDetailLoadedFor { get; set; }
     private int? OtherUserId => OtherPosts.FirstOrDefault()?.AuthorId;
 
+    // Public header (avatar/username/job title/joined date/post/follower/following counts) for
+    // any signed-in viewer — separate from OtherUserDetail above, which is the admin-only
+    // email/phone lookup.
+    private ProfileSummaryDto? ProfileSummary { get; set; }
+    private string? ProfileSummaryLoadedFor { get; set; }
+    private List<Post>? Reposts { get; set; }
+
     protected override async Task OnParametersSetAsync()
     {
+        if (!IsOwnProfile && ProfileSummaryLoadedFor != DisplayName)
+        {
+            ProfileSummaryLoadedFor = DisplayName;
+            Reposts = null;
+            OtherTab = OtherProfileTab.Posts;
+            // Display name isn't unique (two accounts can share one) — go by id whenever one of
+            // this author's posts has already given us their real id, only falling back to the
+            // ambiguous name lookup when nothing's loaded yet (e.g. they have zero shared posts).
+            ProfileSummary = OtherUserId is int summaryId
+                ? await ProfileApi.GetSummaryByIdAsync(summaryId)
+                : await ProfileApi.GetSummaryAsync(DisplayName);
+        }
+
         if (!AuthState.IsAdmin || IsOwnProfile)
             return;
 
@@ -356,6 +428,27 @@
     private async Task RefreshOtherUserDetail()
     {
         OtherUserDetail = OtherUserId is int id ? await UsersApi.GetByIdAsync(id) : null;
+    }
+
+    private async Task SelectRepostsTab()
+    {
+        OtherTab = OtherProfileTab.Reposts;
+        Reposts ??= OtherUserId is int id
+            ? await Store.GetRepostsByAuthorIdAsync(id)
+            : await Store.GetRepostsByAuthorAsync(DisplayName);
+    }
+
+    private async Task ToggleFollowOnProfile()
+    {
+        if (ProfileSummary is null)
+            return;
+
+        var following = await Store.ToggleFollowByUserIdAsync(ProfileSummary.Id);
+        if (following is null)
+            return;
+
+        ProfileSummary.FollowedByMe = following.Value;
+        ProfileSummary.FollowerCount += following.Value ? 1 : -1;
     }
 
     private ProfileTab ActiveTab { get; set; } = ProfileTab.Profile;

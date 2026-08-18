@@ -1,0 +1,68 @@
+@page "/notes/drafts"
+@using Client.Pages.Home
+@inject NotesStore Store
+@inject NavigationManager Navigation
+@inject UiStrings Strings
+
+<PageTitle>@Strings.Get("unfinishedProjects")</PageTitle>
+
+<PrimaryHeader />
+
+<div class="home-body">
+    <Drawer UserName="@Store.Profile.Name" UserEmail="@Store.Profile.Email" />
+
+    <div class="home-feed">
+        <a class="notes-back-link" href="/notes/new">
+            <span aria-hidden="true">←</span> @Strings.Get("back")
+        </a>
+
+        <h1 class="notes-title">@Strings.Get("unfinishedProjects")</h1>
+
+        @if (Store.AllUnfinishedDrafts.Count == 0)
+        {
+            <p class="stub-text">@Strings.Get("noUnfinishedProjects")</p>
+        }
+        else
+        {
+            <div class="drafts-list">
+                @foreach (var draft in Store.AllUnfinishedDrafts)
+                {
+                    <div class="draft-row" @key="draft.Id">
+                        <div class="draft-row-info">
+                            <p class="draft-row-title">@draft.Title</p>
+                            <p class="draft-row-meta">@StageLabel(draft.Step) · @Strings.Get("lastEdited") @draft.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
+                            @if (draft.FileNames.Count > 0)
+                            {
+                                <p class="draft-row-files">@string.Join(", ", draft.FileNames)</p>
+                            }
+                        </div>
+                        <div class="draft-row-actions">
+                            <button type="button" class="btn-primary" @onclick="() => Resume(draft.Id)">@Strings.Get("resumeDraft")</button>
+                            <button type="button" class="btn-secondary" @onclick="() => Discard(draft.Id)">@Strings.Get("discard")</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private async Task Resume(Guid id)
+    {
+        await Store.SwapActiveDraftAsync(id);
+        Navigation.NavigateTo("/notes/new");
+    }
+
+    private async Task Discard(Guid id) => await Store.DiscardDraftAsync(id);
+
+    private string StageLabel(NoteDraftStep step) => step switch
+    {
+        NoteDraftStep.Upload => Strings.Get("stepUpload"),
+        NoteDraftStep.Intake => Strings.Get("stepIntake"),
+        NoteDraftStep.BrainMap => Strings.Get("stepBrainMap"),
+        NoteDraftStep.Processing => Strings.Get("stepProcessing"),
+        NoteDraftStep.Note => Strings.Get("stepNote"),
+        _ => "",
+    };
+}

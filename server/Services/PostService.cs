@@ -1,4 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 using Server.Data;
 using Server.Dtos;
 using Server.Models;
@@ -21,6 +24,23 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
         await QueryDto(userId).Where(p => p.AuthorId == userId)
             .OrderByDescending(p => p.CreatedDate).ThenByDescending(p => p.Id)
             .ToListAsync();
+
+    // Shared posts a given user has reposted — for the "Reposts" tab on their public profile,
+    // not to be confused with GetMineAsync (posts they authored). RepostedByUsers isn't
+    // projectable straight into QueryDto's PostDto shape, so the matching ids are resolved
+    // first and fed back in as a filter.
+    public async Task<List<PostDto>> GetRepostsByUserAsync(int viewerId, int targetUserId)
+    {
+        var repostedIds = await db.Posts
+            .Where(p => p.RepostedByUsers.Any(u => u.Id == targetUserId))
+            .Select(p => p.Id)
+            .ToListAsync();
+
+        return await QueryDto(viewerId)
+            .Where(p => p.IsShared && repostedIds.Contains(p.Id))
+            .OrderByDescending(p => p.CreatedDate).ThenByDescending(p => p.Id)
+            .ToListAsync();
+    }
 
     public async Task<PostDto?> CreateAsync(int userId, CreatePostRequest request)
     {
@@ -329,6 +349,68 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
         return string.Join("\n\n", pages.Select(p => $"## {p.Heading}\n{System.Text.RegularExpressions.Regex.Replace(p.Body, "<[^>]+>", "")}"));
     }
 
+    // Same visibility rule as GetDetailAsync: any signed-in viewer can download a shared post,
+    // only the author can download their own not-yet-shared draft.
+    public async Task<(string Title, byte[] Bytes)?> GenerateNotePdfAsync(int userId, int postId)
+    {
+        var post = await db.Posts.Include(p => p.Pages).FirstOrDefaultAsync(p => p.Id == postId);
+        if (post is null || (!post.IsShared && post.AuthorId != userId))
+            return null;
+
+        return (post.Title, BuildPdf(post.Title, post.Pages.OrderBy(p => p.Number).ToList()));
+    }
+
+    // One continuous flowing document — heading then body, page after page — mirroring the
+    // print stylesheet's layout (see .note-print-pages in app.css), not the on-screen page-card
+    // look. Body text is plain (same HTML-stripping FallbackDocumentFromPagesAsync already
+    // uses above): QuestPDF has no HTML renderer, and the note editor's markup is just
+    // <p>/highlight <span>s, not real rich-text formatting worth reproducing here.
+    private static byte[] BuildPdf(string title, List<Models.NotePage> pages)
+    {
+        var document = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(2, Unit.Centimetre);
+                page.DefaultTextStyle(x => x.FontSize(11));
+
+                page.Content().Column(column =>
+                {
+                    column.Item().PaddingBottom(15).Text(title).FontSize(20).Bold();
+
+                    foreach (var notePage in pages)
+                    {
+                        if (!string.IsNullOrWhiteSpace(notePage.Heading))
+                            column.Item().PaddingTop(10).Text(notePage.Heading).FontSize(14).Bold();
+
+                        column.Item().PaddingTop(4).Text(HtmlToPlainText(notePage.Body));
+                    }
+                });
+
+                page.Footer().AlignCenter().Text(x =>
+                {
+                    x.CurrentPageNumber();
+                    x.Span(" / ");
+                    x.TotalPages();
+                });
+            });
+        });
+
+        return document.GeneratePdf();
+    }
+
+    // Plain tag-stripping alone runs adjacent block elements together with no separator
+    // (</p><p> becomes just two sentences glued end to end) and leaves entities like &#39;
+    // literal — insert a line break at block boundaries first, then strip the rest and decode.
+    private static string HtmlToPlainText(string html)
+    {
+        var withBreaks = System.Text.RegularExpressions.Regex.Replace(
+            html, "</(p|li|div|h1|h2|h3|h4|h5|h6)>|<br\\s*/?>", "\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var stripped = System.Text.RegularExpressions.Regex.Replace(withBreaks, "<[^>]+>", "");
+        return System.Net.WebUtility.HtmlDecode(stripped).Trim();
+    }
+
     public async Task<PostOpResult> ShareAsync(int userId, int postId)
     {
         var post = await db.Posts.FindAsync(postId);
@@ -340,6 +422,26 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
         if (!post.IsShared)
         {
             post.IsShared = true;
+            await db.SaveChangesAsync();
+        }
+
+        return PostOpResult.Success;
+    }
+
+    // Only flips IsShared back off — likes/comments/CreatedDate are untouched, so pulling a
+    // post back from the public feed doesn't lose any of its history, and re-sharing later
+    // picks up right where it left off.
+    public async Task<PostOpResult> UnshareAsync(int userId, int postId)
+    {
+        var post = await db.Posts.FindAsync(postId);
+        if (post is null)
+            return PostOpResult.NotFound;
+        if (post.AuthorId != userId)
+            return PostOpResult.Forbidden;
+
+        if (post.IsShared)
+        {
+            post.IsShared = false;
             await db.SaveChangesAsync();
         }
 
@@ -480,6 +582,7 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
             LikedByMe = p.LikedByUsers.Any(u => u.Id == currentUserId),
             FavoritedByMe = p.FavoritedByUsers.Any(u => u.Id == currentUserId),
             RepostedByMe = p.RepostedByUsers.Any(u => u.Id == currentUserId),
+            FollowedByMe = p.Author.FollowerLinks.Any(f => f.FollowerId == currentUserId),
             Comments = p.Comments
                 .OrderBy(c => c.CreatedAt)
                 .Select(c => new PostCommentDto
@@ -517,6 +620,7 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
         LikedByMe = basic.LikedByMe,
         FavoritedByMe = basic.FavoritedByMe,
         RepostedByMe = basic.RepostedByMe,
+        FollowedByMe = basic.FollowedByMe,
         Comments = basic.Comments,
     };
 

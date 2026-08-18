@@ -1,17 +1,25 @@
 @using Client.Pages.Home
+@using Client.Services
 @inject NotesStore Store
+@inject AuthState AuthState
 @inject UiStrings Strings
 
 <div class="notes-actions-row">
-    <a class="notes-action-card" href="/notes/new">
-        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="12" y1="11" x2="12" y2="17" /><line x1="9" y1="14" x2="15" y2="14" /></svg>
-        <span>+ Create New</span>
-    </a>
+    @if (!AuthState.IsAdmin)
+    {
+        <a class="notes-action-card" href="/notes/new">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="12" y1="11" x2="12" y2="17" /><line x1="9" y1="14" x2="15" y2="14" /></svg>
+            <span>+ Create New</span>
+        </a>
+    }
 
-    <a class="notes-action-card" href="/favorites">
-        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
-        <span>@Strings.Get("favorites")</span>
-    </a>
+    @if (!AuthState.IsAdmin)
+    {
+        <a class="notes-action-card" href="/favorites">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+            <span>@Strings.Get("favorites")</span>
+        </a>
+    }
 
     <button type="button" class="notes-action-card" @onclick="() => CreateGroupModalOpen = true">
         <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /><line x1="12" y1="11" x2="12" y2="17" /><line x1="9" y1="14" x2="15" y2="14" /></svg>
@@ -20,14 +28,14 @@
 
     @foreach (var group in Store.Groups)
     {
-        <a class="notes-action-card notes-action-card-group" href="@($"/notes/group/{Uri.EscapeDataString(group)}")">
+        <a class="notes-action-card notes-action-card-group" href="@($"/notes/group/{group.Id}")" @key="group.Id">
             <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
-            <span>@group</span>
+            <span>@group.Name</span>
         </a>
     }
 </div>
 
-<NotesList Title="@(ShowTitle ? Strings.Get("allNotes") : "")" Posts="MyPosts" OnDelete="HandleDelete" OnAddToGroup="OpenAddToGroup" />
+<NotesList Title="@(ShowTitle ? Strings.Get("allNotes") : "")" Posts="MyPosts" OnDelete="HandleDelete" OnAddToGroup="OpenAddToGroup" OnShare="HandleShare" OnUnshare="HandleUnshare" />
 
 <Modal IsOpen="CreateGroupModalOpen" IsOpenChanged="@(open => CreateGroupModalOpen = open)" OnAccept="ConfirmCreateGroup" AcceptLabel="@Strings.Get("create")">
     <h3 class="modal-form-heading">@Strings.Get("createGroup")</h3>
@@ -45,7 +53,7 @@
         <div class="group-picker-list">
             @foreach (var group in Store.Groups)
             {
-                <button type="button" class="group-picker-item" @onclick="() => AssignGroup(group)">@group</button>
+                <button type="button" class="group-picker-item" @onclick="() => AssignGroup(group)" @key="group.Id">@group.Name</button>
             }
         </div>
     }
@@ -64,25 +72,29 @@
 
     private async Task HandleDelete(Post post) => await Store.DeletePostAsync(post);
 
+    private async Task HandleShare(Post post) => await Store.ShareAsync(post);
+
+    private async Task HandleUnshare(Post post) => await Store.UnshareAsync(post);
+
     private void OpenAddToGroup(Post post)
     {
         PostForGroupAssignment = post;
         AddToGroupModalOpen = true;
     }
 
-    private void AssignGroup(string groupName)
+    private async Task AssignGroup(GroupDto group)
     {
         if (PostForGroupAssignment is not null)
-            PostForGroupAssignment.GroupName = groupName;
+            await Store.SetPostGroupAsync(PostForGroupAssignment, group.Id);
 
         AddToGroupModalOpen = false;
     }
 
-    private void ConfirmCreateGroup()
+    private async Task ConfirmCreateGroup()
     {
         var name = NewGroupName.Trim();
-        if (name.Length > 0 && !Store.Groups.Contains(name))
-            Store.Groups.Add(name);
+        if (name.Length > 0 && !Store.Groups.Any(g => g.Name == name))
+            await Store.CreateGroupAsync(name);
 
         NewGroupName = "";
     }

@@ -41,6 +41,7 @@ public class PostDto
     public bool LikedByMe { get; set; }
     public bool FavoritedByMe { get; set; }
     public bool RepostedByMe { get; set; }
+    public bool FollowedByMe { get; set; }
 
     public List<PostCommentDto> Comments { get; set; } = [];
 }

@@ -3,7 +3,17 @@
 @inject AiApiClient AiApi
 @inject UiStrings Strings
 
-@if (Loading)
+@if (NoFiles)
+{
+    <h2 class="wizard-heading">@Strings.Get("noFilesToGenerate")</h2>
+    <button type="button" class="wizard-continue-btn" @onclick="() => OnBack.InvokeAsync()">@Strings.Get("backToUpload")</button>
+}
+else if (Failed)
+{
+    <h2 class="wizard-heading">@Strings.Get("generationFailed")</h2>
+    <button type="button" class="wizard-continue-btn" @onclick="Start">@Strings.Get("retry")</button>
+}
+else if (Loading)
 {
     <h2 class="wizard-heading">@Strings.Get("creatingSynapses")</h2>
     <div class="wizard-spinner" aria-hidden="true"></div>
@@ -45,29 +55,56 @@ else
 
     [Parameter, EditorRequired] public NoteDraft Draft { get; set; } = null!;
     [Parameter] public EventCallback OnContinue { get; set; }
+    [Parameter] public EventCallback OnBack { get; set; }
 
     private bool Loading = true;
+    private bool Failed;
+    private bool NoFiles;
 
     protected override async Task OnInitializedAsync()
     {
         // Already started (e.g. resuming a draft) — don't re-upload the files or restart the
         // conversation, just show what's already there.
         if (Draft.OrchestratorThreadId is null)
+            await Start();
+        else
+            Loading = false;
+    }
+
+    private async Task Start()
+    {
+        Loading = true;
+        Failed = false;
+        NoFiles = false;
+
+        // A draft can reach here with no files attached — most often a stuck earlier attempt
+        // (Retry would otherwise just resend the same empty request forever, since nothing
+        // here re-uploads). Route back to Upload instead of wasting a round-trip on a request
+        // the server always rejects with 400.
+        if (Draft.Files.Count == 0)
         {
-            var files = Draft.Files.Select(f => (f.Name, f.Bytes)).ToList();
-            var response = await AiApi.StartAsync(files, description: "");
-            if (response is not null)
-            {
-                Draft.OrchestratorThreadId = response.ThreadId;
-                Draft.FoundryFileIds.Clear();
-                Draft.FoundryFileIds.AddRange(response.FileIds);
-                Draft.PreliminaryKeywords.Clear();
-                Draft.PreliminaryKeywords.AddRange(response.PreliminaryScan.SeedKeywords);
-                Draft.PreliminaryClassification = response.PreliminaryScan;
-                Draft.DocumentKnowledgeBase = response.DocumentKnowledgeBase;
-                Draft.DraftGraph = response.DraftGraph;
-            }
+            NoFiles = true;
+            Loading = false;
+            return;
         }
+
+        var files = Draft.Files.Select(f => (f.Name, f.Bytes)).ToList();
+        var response = await AiApi.StartAsync(files, description: "");
+        if (response is null)
+        {
+            Failed = true;
+            Loading = false;
+            return;
+        }
+
+        Draft.OrchestratorThreadId = response.ThreadId;
+        Draft.FoundryFileIds.Clear();
+        Draft.FoundryFileIds.AddRange(response.FileIds);
+        Draft.PreliminaryKeywords.Clear();
+        Draft.PreliminaryKeywords.AddRange(response.PreliminaryScan.SeedKeywords);
+        Draft.PreliminaryClassification = response.PreliminaryScan;
+        Draft.DocumentKnowledgeBase = response.DocumentKnowledgeBase;
+        Draft.DraftGraph = response.DraftGraph;
 
         Loading = false;
     }

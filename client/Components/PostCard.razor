@@ -51,7 +51,7 @@
                 <p class="post-author-role">@Post.AuthorRole</p>
             </div>
         </a>
-        @if (ShowFollowButton)
+        @if (ShowFollowButton && Post.AuthorId != AuthState.CurrentUser?.Id)
         {
             <button type="button" class="@(Post.IsFollowing ? "btn-secondary" : "btn-primary")" @onclick="ToggleFollow" @onclick:stopPropagation="true">
                 @(Post.IsFollowing ? Strings.Get("following") : Strings.Get("follow"))
@@ -73,14 +73,14 @@
                     @Post.Comments.Count Comments
                 </span>
 
-                <button type="button" class="post-action post-action-toggle @(Post.LikedByMe ? "post-action-liked" : "")" @onclick="ToggleLike" @onclick:stopPropagation="true">
+                <button type="button" class="post-action post-action-toggle @(Post.LikedByMe ? "post-action-liked" : "")" disabled="@IsAdmin" title="@(IsAdmin ? Strings.Get("adminCannotInteract") : null)" @onclick="ToggleLike" @onclick:stopPropagation="true">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="@(Post.LikedByMe ? "currentColor" : "none")" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>
                     @Post.LikeCount Likes
                 </button>
 
                 <span class="post-action-spacer"></span>
 
-                <button type="button" class="post-action-icon post-action-toggle @(Post.FavoritedByMe ? "post-action-favorited" : "")" title="Favorite" @onclick="ToggleFavorite" @onclick:stopPropagation="true">
+                <button type="button" class="post-action-icon post-action-toggle @(Post.FavoritedByMe ? "post-action-favorited" : "")" title="@(IsAdmin ? Strings.Get("adminCannotInteract") : "Favorite")" disabled="@IsAdmin" @onclick="ToggleFavorite" @onclick:stopPropagation="true">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="@(Post.FavoritedByMe ? "currentColor" : "none")" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
                 </button>
 
@@ -118,10 +118,13 @@
                 </div>
             }
 
-            <div class="post-comment-form">
-                <input class="form-input" placeholder="Write a comment..." @bind="NewCommentText" @onkeydown="HandleCommentKeydown" />
-                <button type="button" class="btn-primary" @onclick="AddComment">@Strings.Get("post")</button>
-            </div>
+            @if (!IsAdmin)
+            {
+                <div class="post-comment-form">
+                    <input class="form-input" placeholder="Write a comment..." @bind="NewCommentText" @onkeydown="HandleCommentKeydown" />
+                    <button type="button" class="btn-primary" @onclick="AddComment">@Strings.Get("post")</button>
+                </div>
+            }
         </div>
     }
 </div>
@@ -153,7 +156,7 @@
 
     private void ToggleFilePreview() => Post.ShowFiles = !Post.ShowFiles;
 
-    private void ToggleFollow() => Post.IsFollowing = !Post.IsFollowing;
+    private async Task ToggleFollow() => await Store.ToggleFollowAsync(Post);
 
     private async Task ToggleLike() => await Store.ToggleLikeAsync(Post);
 

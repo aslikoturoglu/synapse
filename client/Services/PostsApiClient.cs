@@ -19,8 +19,17 @@ public class PostsApiClient(HttpClient http)
     public async Task<PostDetailDto?> GetDetailAsync(int postId) =>
         await http.GetFromJsonAsync<PostDetailDto>($"api/posts/{postId}");
 
+    public async Task<byte[]?> GetPdfAsync(int postId)
+    {
+        var response = await http.GetAsync($"api/posts/{postId}/pdf");
+        return response.IsSuccessStatusCode ? await response.Content.ReadAsByteArrayAsync() : null;
+    }
+
     public async Task<bool> ShareAsync(int postId) =>
         (await http.PostAsync($"api/posts/{postId}/share", null)).IsSuccessStatusCode;
+
+    public async Task<bool> UnshareAsync(int postId) =>
+        (await http.DeleteAsync($"api/posts/{postId}/share")).IsSuccessStatusCode;
 
     public async Task<BrainMapKeywordDto?> AddKeywordAsync(int postId, string text)
     {
@@ -69,6 +78,9 @@ public class PostsApiClient(HttpClient http)
 
     public async Task<bool> DeleteAsync(int postId) =>
         (await http.DeleteAsync($"api/posts/{postId}")).IsSuccessStatusCode;
+
+    public async Task<bool> SetGroupAsync(int postId, int? groupId) =>
+        (await http.PatchAsJsonAsync($"api/posts/{postId}/group", new UpdatePostGroupRequest { GroupId = groupId })).IsSuccessStatusCode;
 
     public Task<ReactionResponse?> ToggleLikeAsync(int postId) => PostForReactionAsync($"api/posts/{postId}/like");
 

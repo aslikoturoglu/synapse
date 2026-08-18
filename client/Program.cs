@@ -30,6 +30,9 @@ builder.Services.AddSingleton<AuthApiClient>();
 builder.Services.AddSingleton<PostsApiClient>();
 builder.Services.AddSingleton<AiApiClient>();
 builder.Services.AddSingleton<UsersApiClient>();
+builder.Services.AddSingleton<ConnectionsApiClient>();
+builder.Services.AddSingleton<GroupsApiClient>();
+builder.Services.AddSingleton<ProfileApiClient>();
 builder.Services.AddSingleton<DashboardApiClient>();
 builder.Services.AddSingleton<AdminChatApiClient>();
 builder.Services.AddSingleton<AuthState>();
@@ -47,6 +50,8 @@ if (authState.CurrentUser is { } currentUser)
     try
     {
         await notesStore.LoadFeedAsync();
+        await notesStore.LoadGroupsAsync();
+        await notesStore.LoadDraftStateAsync();
     }
     catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
     {

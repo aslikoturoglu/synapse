@@ -47,6 +47,7 @@ public class PostDto
     public bool LikedByMe { get; set; }
     public bool FavoritedByMe { get; set; }
     public bool RepostedByMe { get; set; }
+    public bool FollowedByMe { get; set; }
 
     public List<PostCommentDto> Comments { get; set; } = [];
 }
@@ -155,6 +156,11 @@ public class GraphDto
 public class AddCommentRequest
 {
     public required string Text { get; set; }
+}
+
+public class UpdatePostGroupRequest
+{
+    public int? GroupId { get; set; }
 }
 
 public class ReactionResponse

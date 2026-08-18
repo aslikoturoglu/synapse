@@ -30,7 +30,7 @@ public class AiController(NoteCreationAiService aiService, NoteMapAiService mapA
             fileData.Add((file.FileName, stream.ToArray()));
         }
 
-        var (threadId, scan, knowledgeBase, draftGraph, fileIds) = await aiService.StartAsync(fileData, request.Description);
+        var (threadId, scan, knowledgeBase, draftGraph, fileIds) = await aiService.StartAsync(fileData, request.Description ?? "");
 
         return Ok(new OrchestratorStartResponse
         {

@@ -7,6 +7,10 @@ using Server.Data;
 using Server.Services;
 using Server.Services.AiFoundry;
 
+// Community license (free for individuals/small teams under $1M annual revenue) — required
+// by QuestPDF before generating any document, see PostService.GenerateNotePdfAsync.
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -24,6 +28,8 @@ builder.Services.AddScoped<PostService>();
 builder.Services.AddScoped<GroupService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<DashboardService>();
+builder.Services.AddScoped<ConnectionService>();
+builder.Services.AddScoped<ProfileService>();
 builder.Services.AddSingleton<EmailService>();
 
 // FoundryAgentClient wraps a PersistentAgentsClient (thread-safe, reused like any other Azure

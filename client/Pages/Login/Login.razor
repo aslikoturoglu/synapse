@@ -20,7 +20,10 @@
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="login-password">@Strings.Get("password")</label>
+                <div class="form-label-row">
+                    <label class="form-label" for="login-password">@Strings.Get("password")</label>
+                    <button type="button" class="link-inline" @onclick="OpenForgotPassword">@Strings.Get("forgotPassword")</button>
+                </div>
                 <InputText id="login-password" type="password" class="form-input" placeholder="@Strings.Get("passwordPlaceholder")" @bind-Value="Password" />
             </div>
 
@@ -33,8 +36,15 @@
         </EditForm>
     </div>
 
-    <div class="auth-card">
-        <p class="card-heading">@Strings.Get("forgotPassword")</p>
+    <BackLink />
+</div>
+
+<Modal IsOpen="ForgotPasswordModalOpen" IsOpenChanged="@(open => ForgotPasswordModalOpen = open)" ShowAcceptButton="false">
+    <h3 class="modal-form-heading">@Strings.Get("forgotPassword")</h3>
+
+    @if (!ResetLinkSent)
+    {
+        <p class="stub-text">@Strings.Get("resetPasswordIntro")</p>
 
         <EditForm Model="this" OnValidSubmit="HandleResetPassword">
             <div class="form-group">
@@ -44,10 +54,12 @@
 
             <button type="submit" class="btn-primary btn-block">@Strings.Get("resetPassword")</button>
         </EditForm>
-    </div>
-
-    <BackLink />
-</div>
+    }
+    else
+    {
+        <p class="stub-text">@Strings.Get("resetLinkSentNote") <strong>@ResetEmail</strong></p>
+    }
+</Modal>
 
 @code {
     private string UsernameOrEmail { get; set; } = "";
@@ -56,6 +68,9 @@
 
     private string? ErrorMessage { get; set; }
     private bool IsSubmitting { get; set; }
+
+    private bool ForgotPasswordModalOpen { get; set; }
+    private bool ResetLinkSent { get; set; }
 
     private async Task HandleLogin()
     {
@@ -79,11 +94,20 @@
         await AuthState.SetSessionAsync(result.Response);
         Store.ApplyAuthUser(result.Response.User);
         await Store.LoadFeedAsync();
+        await Store.LoadGroupsAsync();
 
         Navigation.NavigateTo("/home");
     }
 
+    private void OpenForgotPassword()
+    {
+        ResetEmail = "";
+        ResetLinkSent = false;
+        ForgotPasswordModalOpen = true;
+    }
+
     private void HandleResetPassword()
     {
+        ResetLinkSent = true;
     }
 }

@@ -1,0 +1,80 @@
+@page "/profile/{AuthorName}/followers"
+@page "/profile/{AuthorName}/following"
+@using Client.Pages.Home
+@using Client.Services
+@inject NotesStore Store
+@inject ProfileApiClient ProfileApi
+@inject NavigationManager Navigation
+@inject UiStrings Strings
+
+<PageTitle>@AuthorName</PageTitle>
+
+<PrimaryHeader />
+
+<div class="home-body">
+    <Drawer UserName="@Store.Profile.Name" UserEmail="@Store.Profile.Email" />
+
+    <div class="home-feed">
+        <a class="notes-back-link" href="@($"/profile/{Uri.EscapeDataString(AuthorName ?? "")}")">
+            <span aria-hidden="true">←</span> @Strings.Get("goBackToProfile")
+        </a>
+
+        @if (Loading)
+        {
+            <div class="wizard-spinner" aria-hidden="true"></div>
+        }
+        else if (Connections.Count == 0)
+        {
+            <p class="stub-text">@(IsFollowers ? Strings.Get("noFollowersYet") : Strings.Get("noFollowingYet"))</p>
+        }
+        else
+        {
+            <p class="connections-count">@Strings.Get("thereAre") <strong>@Connections.Count @(IsFollowers ? Strings.Get("followers") : Strings.Get("following"))</strong></p>
+
+            <div class="connections-grid">
+                @foreach (var connection in Connections)
+                {
+                    <a class="connection-card" href="@($"/profile/{Uri.EscapeDataString(connection.FullName)}")" @key="connection.Id">
+                        <span class="avatar-circle" aria-hidden="true">@connection.Name.Substring(0, 1)</span>
+                        <div class="connection-info">
+                            <p class="connection-name">@connection.FullName</p>
+                            <p class="connection-role">@connection.JobTitle</p>
+                        </div>
+                        <span class="connection-arrow" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="7" y1="17" x2="17" y2="7" />
+                                <polyline points="7 7 17 7 17 17" />
+                            </svg>
+                        </span>
+                    </a>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string? AuthorName { get; set; }
+
+    // Set by the profile header's stat links, which already know the real id — display name
+    // isn't unique, so this avoids the ambiguous name lookup whenever it's available.
+    [SupplyParameterFromQuery(Name = "id")]
+    [Parameter]
+    public int? UserId { get; set; }
+
+    private List<ConnectionDto> Connections { get; set; } = [];
+    private bool Loading = true;
+
+    // Same component handles both routes — which one matched is read off the actual URL
+    // rather than doubled up as a second route parameter.
+    private bool IsFollowers => Navigation.Uri.Contains("/followers", StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Loading = true;
+        Connections = UserId is int id
+            ? (IsFollowers ? await ProfileApi.GetFollowersByIdAsync(id) : await ProfileApi.GetFollowingByIdAsync(id))
+            : (IsFollowers ? await ProfileApi.GetFollowersAsync(AuthorName ?? "") : await ProfileApi.GetFollowingAsync(AuthorName ?? ""));
+        Loading = false;
+    }
+}

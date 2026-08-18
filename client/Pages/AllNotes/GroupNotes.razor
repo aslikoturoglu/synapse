@@ -1,5 +1,6 @@
-@page "/notes/group/{GroupName}"
+@page "/notes/group/{GroupId:int}"
 @using Client.Pages.Home
+@using Client.Services
 @inject NotesStore Store
 @inject UiStrings Strings
 
@@ -22,7 +23,7 @@
         }
         else
         {
-            <NotesList Title="@GroupName" Posts="GroupPosts" OnDelete="HandleDelete" OnAddToGroup="OpenAddToGroup" />
+            <NotesList Title="@GroupName" Posts="GroupPosts" OnDelete="HandleDelete" OnAddToGroup="OpenAddToGroup" OnShare="HandleShare" OnUnshare="HandleUnshare" />
         }
     </div>
 </div>
@@ -32,20 +33,25 @@
     <div class="group-picker-list">
         @foreach (var group in Store.Groups)
         {
-            <button type="button" class="group-picker-item" @onclick="() => AssignGroup(group)">@group</button>
+            <button type="button" class="group-picker-item" @onclick="() => AssignGroup(group)" @key="group.Id">@group.Name</button>
         }
     </div>
 </Modal>
 
 @code {
-    [Parameter] public string GroupName { get; set; } = "";
+    [Parameter] public int GroupId { get; set; }
 
-    private List<Post> GroupPosts => Store.Posts.Where(p => p.GroupName == GroupName).ToList();
+    private string GroupName => Store.Groups.FirstOrDefault(g => g.Id == GroupId)?.Name ?? "";
+    private List<Post> GroupPosts => Store.Posts.Where(p => p.GroupId == GroupId).ToList();
 
     private bool AddToGroupModalOpen { get; set; }
     private Post? PostForGroupAssignment { get; set; }
 
     private async Task HandleDelete(Post post) => await Store.DeletePostAsync(post);
+
+    private async Task HandleShare(Post post) => await Store.ShareAsync(post);
+
+    private async Task HandleUnshare(Post post) => await Store.UnshareAsync(post);
 
     private void OpenAddToGroup(Post post)
     {
@@ -53,10 +59,10 @@
         AddToGroupModalOpen = true;
     }
 
-    private void AssignGroup(string groupName)
+    private async Task AssignGroup(GroupDto group)
     {
         if (PostForGroupAssignment is not null)
-            PostForGroupAssignment.GroupName = groupName;
+            await Store.SetPostGroupAsync(PostForGroupAssignment, group.Id);
 
         AddToGroupModalOpen = false;
     }

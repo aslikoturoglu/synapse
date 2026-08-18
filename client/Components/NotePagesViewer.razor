@@ -5,6 +5,7 @@
 @using Client.Services
 @inject PostsApiClient PostsApi
 @inject UiStrings Strings
+@inject IJSRuntime JS
 
 @if (!AskAiMode)
 {
@@ -32,13 +33,14 @@
        just opens the browser's print dialog) produces every page of the note, not just the
        two currently on screen. *@
     <div class="note-print-pages">
+        <h1 class="note-print-title">@Title</h1>
         @foreach (var page in Pages)
         {
             <NotePageView Page="page" EditMode="false" DocumentTitle="@Title" />
         }
     </div>
 
-    <NoteToolbar EditMode="EditMode" Posted="Posted" OnToggleEdit="() => EditMode = true" OnDone="SaveAndExitEditMode" OnShowToc="() => TocOpen = true" OnAskAi="HandleAskAiClick" OnShare="OnShare" />
+    <NoteToolbar EditMode="EditMode" Posted="Posted" OnToggleEdit="() => EditMode = true" OnDone="SaveAndExitEditMode" OnShowToc="() => TocOpen = true" OnAskAi="HandleAskAiClick" OnShare="OnShare" OnDownload="OpenPdfPreview" />
 
     <NoteTableOfContents IsOpen="TocOpen" IsOpenChanged="@(open => TocOpen = open)" Pages="Pages" OnSelectPage="GoToPage" />
 }
@@ -136,6 +138,38 @@ else
     </div>
 }
 
+@if (PdfPreviewOpen)
+{
+    <div class="pdf-preview-overlay">
+        <div class="pdf-preview-box">
+            <div class="pdf-preview-header">
+                <span>@($"{Title}.pdf")</span>
+                <button type="button" class="modal-close" @onclick="ClosePdfPreview" aria-label="Close">&times;</button>
+            </div>
+
+            @if (PdfLoading)
+            {
+                <div class="pdf-preview-loading">
+                    <div class="wizard-spinner" aria-hidden="true"></div>
+                </div>
+            }
+            else if (PdfBytes is null)
+            {
+                <p class="stub-text pdf-preview-loading">@Strings.Get("generationFailed")</p>
+            }
+            else
+            {
+                <iframe id="pdf-preview-frame" class="pdf-preview-frame" title="@Title"></iframe>
+            }
+
+            <div class="pdf-preview-actions">
+                <button type="button" class="btn-secondary" @onclick="ClosePdfPreview">@Strings.Get("back")</button>
+                <button type="button" class="btn-primary" disabled="@(PdfBytes is null)" @onclick="DownloadPdf">@Strings.Get("download")</button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter, EditorRequired] public List<NotePage> Pages { get; set; } = [];
     [Parameter, EditorRequired] public string Title { get; set; } = "";
@@ -158,6 +192,9 @@ else
 
     private bool EditMode { get; set; }
     private bool TocOpen { get; set; }
+    private bool PdfPreviewOpen { get; set; }
+    private bool PdfLoading { get; set; }
+    private byte[]? PdfBytes { get; set; }
     private bool AskAiMode { get; set; }
     private int CurrentLeftPage { get; set; } = 1;
 
@@ -319,4 +356,45 @@ else
 
     private void SetDraft(Guid id, string value) => _bubbleDrafts[id] = value;
 
+    // The iframe only exists in the DOM once PdfBytes is non-null and PdfLoading is false —
+    // pointing it at the blob URL has to wait for OnAfterRenderAsync (guaranteed to run after
+    // that DOM update lands) rather than firing right after the await in OpenPdfPreview, which
+    // would race the render and could find no <iframe> there yet.
+    private bool _pdfReadyForJs;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_pdfReadyForJs)
+        {
+            _pdfReadyForJs = false;
+            await JS.InvokeVoidAsync("pdfPreview.show", PdfBytes, "pdf-preview-frame");
+        }
+    }
+
+    private async Task OpenPdfPreview()
+    {
+        if (PostId is null)
+            return;
+
+        PdfPreviewOpen = true;
+        PdfLoading = true;
+        PdfBytes = null;
+
+        PdfBytes = await PostsApi.GetPdfAsync(PostId.Value);
+        PdfLoading = false;
+        _pdfReadyForJs = PdfBytes is not null;
+    }
+
+    private async Task ClosePdfPreview()
+    {
+        PdfPreviewOpen = false;
+        PdfBytes = null;
+        await JS.InvokeVoidAsync("pdfPreview.revoke", "pdf-preview-frame");
+    }
+
+    private async Task DownloadPdf()
+    {
+        if (PdfBytes is not null)
+            await JS.InvokeVoidAsync("pdfPreview.download", PdfBytes, $"{Title}.pdf");
+    }
 }

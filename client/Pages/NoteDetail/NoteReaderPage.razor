@@ -14,7 +14,7 @@
 else if (ShowAllPages)
 {
     <NoteDetailLayout Post="Post" ShowBackActions="false">
-        <button type="button" class="back-link" @onclick="() => ShowAllPages = false">
+        <button type="button" class="back-link back-link-right" @onclick="() => ShowAllPages = false">
             <span aria-hidden="true">←</span>
             <span>@Strings.Get("back")</span>
         </button>
@@ -33,20 +33,10 @@ else
         }
         else
         {
-            <div class="note-reader-cover" @onclick="() => ShowAllPages = true">
-                <span class="note-reader-cover-tooltip">@Strings.Get("tapToSeeAllPages")</span>
+            <div class="note-reader-cover" data-tooltip="@Strings.Get("tapToSeeAllPages")" aria-label="@Strings.Get("tapToSeeAllPages")" @onclick="() => ShowAllPages = true">
                 <div class="note-reader-cover-card">
-                    <div class="note-reader-cover-pages">
-                        @foreach (var page in Post.Pages.Take(2))
-                        {
-                            <div class="note-reader-cover-page">
-                                <NotePageView Page="page" EditMode="false" DocumentTitle="@Post.Title" />
-                            </div>
-                        }
-                        @if (Post.Pages.Count > 2)
-                        {
-                            <span class="note-reader-cover-more" aria-hidden="true">…</span>
-                        }
+                    <div class="note-reader-cover-page">
+                        <NotePageView Page="Post.Pages[0]" EditMode="false" DocumentTitle="@Post.Title" />
                     </div>
                 </div>
             </div>

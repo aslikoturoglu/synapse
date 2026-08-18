@@ -98,11 +98,13 @@ public class UserService(AppDbContext db, EmailService email)
         if (user is null)
             return false;
 
-        // These two relations are Restrict (not Cascade) in AppDbContext — a comment/highlight
-        // this user made on someone else's post won't cascade away just because the post isn't
-        // being deleted, so they have to be cleared explicitly before the user row can go.
+        // These relations are Restrict (not Cascade) in AppDbContext — a comment/highlight this
+        // user made on someone else's post, or a follow row on either side, won't cascade away
+        // just because the post/other user isn't being deleted, so they have to be cleared
+        // explicitly before the user row can go.
         await db.Comments.Where(c => c.AuthorId == id).ExecuteDeleteAsync();
         await db.NoteHighlights.Where(h => h.UserId == id).ExecuteDeleteAsync();
+        await db.Follows.Where(f => f.FollowerId == id || f.FollowingId == id).ExecuteDeleteAsync();
 
         await email.SendAsync(user.Email, "Your Synapse account has been deleted",
             $"Hi {user.Name},\n\nYour account and all associated content have been permanently deleted by an administrator.");

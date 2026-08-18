@@ -15,6 +15,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<BrainMapKeyword> BrainMapKeywords => Set<BrainMapKeyword>();
     public DbSet<NoteHighlight> NoteHighlights => Set<NoteHighlight>();
     public DbSet<AiChatMessage> AiChatMessages => Set<AiChatMessage>();
+    public DbSet<Follow> Follows => Set<Follow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -125,6 +126,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasOne(c => c.Author)
                 .WithMany(u => u.Comments)
                 .HasForeignKey(c => c.AuthorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Follow>(entity =>
+        {
+            entity.HasIndex(f => new { f.FollowerId, f.FollowingId }).IsUnique();
+
+            // Both FKs point at User, so both must be Restrict — MySQL rejects two cascade
+            // paths into the same table from one delete. UserService.DeleteAsync clears
+            // Follow rows explicitly before removing the User, same as Comments/Highlights.
+            entity.HasOne(f => f.Follower)
+                .WithMany(u => u.FollowingLinks)
+                .HasForeignKey(f => f.FollowerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(f => f.Following)
+                .WithMany(u => u.FollowerLinks)
+                .HasForeignKey(f => f.FollowingId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

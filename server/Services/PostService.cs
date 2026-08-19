@@ -25,6 +25,15 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
             .OrderByDescending(p => p.CreatedDate).ThenByDescending(p => p.Id)
             .ToListAsync();
 
+    // Admin-only: same shape as GetMineAsync, but for a target author distinct from the
+    // viewer — lets an admin see another user's full note collection (shared and unshared),
+    // mirroring what that user sees on their own All Notes page. Gated to Admin by
+    // UsersController's class-level [Authorize(Roles = "Admin")], not here.
+    public async Task<List<PostDto>> GetAllByAuthorIdAsync(int viewerId, int authorId) =>
+        await QueryDto(viewerId).Where(p => p.AuthorId == authorId)
+            .OrderByDescending(p => p.CreatedDate).ThenByDescending(p => p.Id)
+            .ToListAsync();
+
     // Shared posts a given user has reposted — for the "Reposts" tab on their public profile,
     // not to be confused with GetMineAsync (posts they authored). RepostedByUsers isn't
     // projectable straight into QueryDto's PostDto shape, so the matching ids are resolved
@@ -113,8 +122,9 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
                 Id = h.Id,
                 PageNumber = h.PageNumber,
                 SelectedText = h.SelectedText,
+                TargetsHeading = h.TargetsHeading,
                 Messages = h.Messages.OrderBy(m => m.CreatedAt)
-                    .Select(m => new AiChatMessageDto { Id = m.Id, Question = m.Question, Answer = m.Answer, CreatedAt = m.CreatedAt })
+                    .Select(m => new AiChatMessageDto { Id = m.Id, Question = m.Question, Answer = m.Answer, CreatedAt = m.CreatedAt, AddedToDocument = m.AddedToDocument })
                     .ToList(),
             })
             .ToList();
@@ -176,6 +186,65 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
         return PostOpResult.Success;
     }
 
+    public async Task<PostOpResult> UpdateTitleAsync(int userId, int postId, string title)
+    {
+        var post = await db.Posts.FindAsync(postId);
+        if (post is null)
+            return PostOpResult.NotFound;
+        if (post.AuthorId != userId)
+            return PostOpResult.Forbidden;
+
+        post.Title = title;
+        await db.SaveChangesAsync();
+        return PostOpResult.Success;
+    }
+
+    public async Task<PostOpResult> UpdateDescriptionAsync(int userId, int postId, string description)
+    {
+        var post = await db.Posts.FindAsync(postId);
+        if (post is null)
+            return PostOpResult.NotFound;
+        if (post.AuthorId != userId)
+            return PostOpResult.Forbidden;
+
+        post.Description = description;
+        await db.SaveChangesAsync();
+        return PostOpResult.Success;
+    }
+
+    // Set from the share confirmation popup, before the post is actually marked shared — see
+    // Post.ShareBrainMap.
+    public async Task<PostOpResult> UpdateShareSettingsAsync(int userId, int postId, bool showBrainMap, bool showProcess)
+    {
+        var post = await db.Posts.FindAsync(postId);
+        if (post is null)
+            return PostOpResult.NotFound;
+        if (post.AuthorId != userId)
+            return PostOpResult.Forbidden;
+
+        post.ShareBrainMap = showBrainMap;
+        post.ShareProcess = showProcess;
+        await db.SaveChangesAsync();
+        return PostOpResult.Success;
+    }
+
+    public async Task<PostOpResult> UpdatePageHeadingAsync(int userId, int postId, int pageNumber, string heading)
+    {
+        var post = await db.Posts.FindAsync(postId);
+        if (post is null)
+            return PostOpResult.NotFound;
+        if (post.AuthorId != userId)
+            return PostOpResult.Forbidden;
+
+        var page = await db.NotePages.FirstOrDefaultAsync(p => p.PostId == postId && p.Number == pageNumber);
+        if (page is null)
+            return PostOpResult.NotFound;
+
+        page.Heading = heading;
+        await db.SaveChangesAsync();
+        return PostOpResult.Success;
+    }
+
     public async Task<PostOpResult> IncrementDocumentChangeAsync(int userId, int postId)
     {
         var post = await db.Posts.FindAsync(postId);
@@ -183,6 +252,26 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
             return PostOpResult.NotFound;
         if (post.AuthorId != userId)
             return PostOpResult.Forbidden;
+
+        post.DocumentChangeCount++;
+        await db.SaveChangesAsync();
+        return PostOpResult.Success;
+    }
+
+    // Same "Add to Document" event as IncrementDocumentChangeAsync above, but also tags the
+    // specific message that produced the edit — lets the Process view group/tag document
+    // changes distinctly instead of lumping every "Add to Document" click into one bare count.
+    public async Task<PostOpResult> MarkAddedToDocumentAsync(int userId, int postId, Guid highlightId, int messageId)
+    {
+        var post = await db.Posts.FindAsync(postId);
+        if (post is null)
+            return PostOpResult.NotFound;
+        if (post.AuthorId != userId)
+            return PostOpResult.Forbidden;
+
+        var message = await db.AiChatMessages.FirstOrDefaultAsync(m => m.Id == messageId && m.HighlightId == highlightId);
+        if (message is not null)
+            message.AddedToDocument = true;
 
         post.DocumentChangeCount++;
         await db.SaveChangesAsync();
@@ -209,6 +298,7 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
             UserId = userId,
             PageNumber = request.PageNumber,
             SelectedText = request.SelectedText,
+            TargetsHeading = request.TargetsHeading,
             AgentThreadId = threadId,
         };
         var message = new AiChatMessage { HighlightId = request.Id, Question = request.Question, Answer = answer };
@@ -222,6 +312,7 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
             Id = highlight.Id,
             PageNumber = highlight.PageNumber,
             SelectedText = highlight.SelectedText,
+            TargetsHeading = highlight.TargetsHeading,
             Messages = [new AiChatMessageDto { Id = message.Id, Question = message.Question, Answer = message.Answer, CreatedAt = message.CreatedAt }],
         };
     }
@@ -305,10 +396,14 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
         return await RegenerateMapAsync(post);
     }
 
+    // Author-only, unlike GetOrGenerateMapAsync above: this always re-calls brain-map-agent and
+    // overwrites the cached graph every other viewer sees, so only the post's own author can
+    // trigger it — any shared-post viewer being able to blow away the author's Map for everyone
+    // would be a real correctness bug, not just a permissions nicety.
     public async Task<GraphDto?> RegenerateMapAsync(int userId, int postId)
     {
         var post = await db.Posts.FindAsync(postId);
-        if (post is null || (!post.IsShared && post.AuthorId != userId))
+        if (post is null || post.AuthorId != userId)
             return null;
 
         return await RegenerateMapAsync(post);
@@ -564,6 +659,11 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
             MiniDescription = p.MiniDescription,
             CreatedDate = p.CreatedDate,
             IsShared = p.IsShared,
+            ShareBrainMap = p.ShareBrainMap,
+            ShareProcess = p.ShareProcess,
+            FirstPage = p.Pages.OrderBy(pg => pg.Number)
+                .Select(pg => new NotePageDto { Number = pg.Number, Heading = pg.Heading, Body = pg.Body })
+                .FirstOrDefault(),
             AuthorId = p.AuthorId,
             AuthorName = p.Author.Name + " " + p.Author.Surname,
             AuthorRole = p.Author.JobTitle,

@@ -2,7 +2,9 @@
 @using Client.Pages.Home
 @using Client.Pages.NoteDetail.Process
 @using Client.Pages.CreateNote.Note.PageView
+@using Client.Services
 @inject NotesStore Store
+@inject AuthState AuthState
 @inject UiStrings Strings
 
 <PageTitle>@(Post?.Title ?? Strings.Get("allNotes"))</PageTitle>
@@ -22,7 +24,7 @@ else
         {
             <div class="process-columns">
                 <ProcessSummaryPanel Post="Post" SelectedHighlightId="SelectedHighlightId" OnSelect="SelectHighlight" />
-                <ProcessChatPanel Post="Post" SelectedHighlightId="SelectedHighlightId" OnFollowUpAsked="HandleFollowUpAsked" />
+                <ProcessChatPanel Post="Post" SelectedHighlightId="SelectedHighlightId" ReadOnly="@(!IsAuthor)" OnFollowUpAsked="HandleFollowUpAsked" />
 
                 <div class="process-document-column">
                     <NotePageView @ref="PageView" Page="CurrentPage" EditMode="false" DocumentTitle="@Post.Title" />
@@ -44,6 +46,8 @@ else
     private Guid? PendingScrollHighlightId;
 
     private NotePageView? PageView;
+
+    private bool IsAuthor => Post?.AuthorId == AuthState.CurrentUser?.Id;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -79,7 +83,8 @@ else
         if (PendingScrollHighlightId is { } id && PageView is not null)
         {
             PendingScrollHighlightId = null;
-            await PageView.ScrollToHighlightAsync(id);
+            var targetsHeading = Post!.Highlights.FirstOrDefault(h => h.Id == id)?.TargetsHeading ?? false;
+            await PageView.ScrollToHighlightAsync(id, targetsHeading);
         }
     }
 }

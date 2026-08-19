@@ -35,7 +35,10 @@ builder.Services.AddSingleton<GroupsApiClient>();
 builder.Services.AddSingleton<ProfileApiClient>();
 builder.Services.AddSingleton<DashboardApiClient>();
 builder.Services.AddSingleton<AdminChatApiClient>();
+builder.Services.AddSingleton<RequestsApiClient>();
+builder.Services.AddSingleton<AssistantApiClient>();
 builder.Services.AddSingleton<AuthState>();
+builder.Services.AddSingleton<TourState>();
 
 var host = builder.Build();
 

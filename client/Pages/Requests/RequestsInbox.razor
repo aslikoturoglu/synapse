@@ -1,0 +1,195 @@
+@page "/requests"
+@using Client.Pages.Home
+@using Client.Services
+@inject NotesStore Store
+@inject AuthState AuthState
+@inject NavigationManager Navigation
+@inject RequestsApiClient RequestsApi
+@inject UiStrings Strings
+
+<PageTitle>@Strings.Get("requests")</PageTitle>
+
+<PrimaryHeader />
+
+<div class="home-body">
+    <Drawer UserName="@Store.Profile.Name" UserEmail="@Store.Profile.Email" />
+
+    <div class="home-feed">
+        <div class="requests-header-row">
+            <h1 class="notes-title">@Strings.Get("requests")</h1>
+            <div class="requests-header-actions">
+                <SearchBar Placeholder="@Strings.Get("searchRequestsPlaceholder")" @bind-Value="SearchTerm" />
+                <button type="button" class="btn-secondary" @onclick="() => ShowHistory = !ShowHistory">
+                    @(ShowHistory ? Strings.Get("hideOldRequests") : Strings.Get("showOldRequests"))
+                </button>
+            </div>
+        </div>
+
+        @if (FilterUserIds.Count > 0)
+        {
+            <div class="requests-filter-banner">
+                <span>@Strings.Get("filteredByUsersLabel") <strong>@FilterDisplayText</strong></span>
+                <button type="button" class="link-inline" @onclick='() => Navigation.NavigateTo("/requests")'>@Strings.Get("clearFilter")</button>
+            </div>
+        }
+
+        @if (Requests is null)
+        {
+            <p class="stub-text">@Strings.Get("loading")</p>
+        }
+        else if (VisibleRequests.Count == 0)
+        {
+            <p class="stub-text">@Strings.Get("noRequestsYet")</p>
+        }
+        else
+        {
+            @foreach (var request in VisibleRequests)
+            {
+                <div class="request-row" @key="request.Id">
+                    <button type="button" class="request-row-summary" @onclick="() => ToggleExpand(request)">
+                        <span class="request-status-dot request-status-@(request.Status.ToLowerInvariant())" aria-hidden="true"></span>
+                        <span class="request-row-main">
+                            <span class="request-row-subject">@request.Subject</span>
+                            <span class="request-row-meta">@request.RequesterName (@@@request.Username) · @request.UserEmail · @request.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                        </span>
+                        @if (request.Decision != "Pending")
+                        {
+                            <span class="request-decision-badge request-decision-@(request.Decision.ToLowerInvariant())">@request.Decision</span>
+                        }
+                        <span class="request-row-caret" aria-hidden="true">@(ExpandedId == request.Id ? "▲" : "▼")</span>
+                    </button>
+
+                    @if (ExpandedId == request.Id)
+                    {
+                        <div class="request-row-detail">
+                            <p class="request-detail-content">@request.Content</p>
+
+                            @if (!string.IsNullOrWhiteSpace(request.Reply))
+                            {
+                                <div class="request-reply-existing">
+                                    <p class="request-reply-existing-label">@Strings.Get("adminReply")</p>
+                                    <p>@request.Reply</p>
+                                </div>
+                            }
+
+                            <textarea class="form-input request-reply-input" placeholder="@Strings.Get("writeReplyPlaceholder")" @bind="ReplyDraft" @bind:event="oninput"></textarea>
+
+                            <div class="request-detail-actions">
+                                <button type="button" class="btn-secondary" disabled="@string.IsNullOrWhiteSpace(ReplyDraft)" @onclick="() => SendReply(request)">@Strings.Get("sendReply")</button>
+
+                                @if (request.RequestedRole is not null)
+                                {
+                                    <button type="button" class="btn-primary" disabled="@(request.Decision != "Pending")" @onclick="() => Decide(request, true)">@Strings.Get("approve")</button>
+                                    <button type="button" class="btn-danger" disabled="@(request.Decision != "Pending")" @onclick="() => Decide(request, false)">@Strings.Get("reject")</button>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn-primary" disabled="@(request.Decision != "Pending")" @onclick="() => Decide(request, true)">@Strings.Get("yes")</button>
+                                    <button type="button" class="btn-danger" disabled="@(request.Decision != "Pending")" @onclick="() => Decide(request, false)">@Strings.Get("no")</button>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    // Set from All Users' per-row/bulk "View Requests" action (?userIds=4 or ?userIds=4,155)
+    // — a plain filter layered on top of the usual Unseen/Seen/Actioned view, not a separate mode.
+    [SupplyParameterFromQuery(Name = "userIds")]
+    [Parameter]
+    public string? UserIdsQuery { get; set; }
+
+    private List<UserRequestDto>? Requests;
+    private bool ShowHistory;
+    private int? ExpandedId;
+    private string ReplyDraft = "";
+    private string SearchTerm = "";
+
+    private HashSet<int> FilterUserIds =>
+        string.IsNullOrWhiteSpace(UserIdsQuery)
+            ? []
+            : UserIdsQuery.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => int.TryParse(s, out var id) ? id : (int?)null)
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .ToHashSet();
+
+    // Prefers the requester's real name (read off any of their own requests already loaded)
+    // over a bare id list — falls back to a count for a selected user with no requests yet.
+    private string FilterDisplayText
+    {
+        get
+        {
+            var names = (Requests ?? [])
+                .Where(r => FilterUserIds.Contains(r.UserId))
+                .Select(r => r.RequesterName)
+                .Distinct()
+                .ToList();
+            return names.Count > 0 ? string.Join(", ", names) : $"{FilterUserIds.Count} user(s)";
+        }
+    }
+
+    // Default view: only what the moderator/admin hasn't acted on yet (Unseen or Seen).
+    // ShowHistory reveals everything, including already-Actioned requests. Search is scoped to
+    // this screen's own requests only (subject/content/requester) — not a site-wide search.
+    private List<UserRequestDto> VisibleRequests =>
+        (Requests ?? [])
+            .Where(r => ShowHistory || r.Status != "Actioned")
+            .Where(r => FilterUserIds.Count == 0 || FilterUserIds.Contains(r.UserId))
+            .Where(r => SearchTerm.Length == 0 ||
+                        r.Subject.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                        r.Content.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                        r.RequesterName.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+    protected override async Task OnInitializedAsync() => await Reload();
+
+    private async Task Reload() => Requests = await RequestsApi.GetAllAsync();
+
+    // Opening a still-unseen request marks it Seen — it stays visible in the default view
+    // either way (that only hides Actioned), so nothing jarring disappears mid-click.
+    private async Task ToggleExpand(UserRequestDto request)
+    {
+        if (ExpandedId == request.Id)
+        {
+            ExpandedId = null;
+            return;
+        }
+
+        ExpandedId = request.Id;
+        ReplyDraft = "";
+
+        if (request.Status == "Unseen")
+        {
+            await RequestsApi.MarkSeenAsync(request.Id);
+            request.Status = "Seen";
+        }
+    }
+
+    private async Task SendReply(UserRequestDto request)
+    {
+        if (string.IsNullOrWhiteSpace(ReplyDraft))
+            return;
+
+        if (await RequestsApi.RespondAsync(request.Id, ReplyDraft.Trim(), null))
+        {
+            request.Reply = ReplyDraft.Trim();
+            request.Status = "Actioned";
+            ReplyDraft = "";
+        }
+    }
+
+    private async Task Decide(UserRequestDto request, bool approve)
+    {
+        var decision = approve ? "Approved" : "Rejected";
+        if (await RequestsApi.RespondAsync(request.Id, null, decision))
+        {
+            request.Decision = decision;
+            request.Status = "Actioned";
+        }
+    }
+}

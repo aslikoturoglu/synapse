@@ -1,7 +1,9 @@
 @page "/notes/{PostId:int}"
 @using Client.Pages.Home
 @using Client.Pages.CreateNote.Note.PageView
+@using Client.Services
 @inject NotesStore Store
+@inject AuthState AuthState
 @inject NavigationManager Navigation
 @inject UiStrings Strings
 
@@ -14,14 +16,15 @@
 else if (ShowAllPages)
 {
     <NoteDetailLayout Post="Post" ShowBackActions="false">
-        <button type="button" class="back-link back-link-right" @onclick="() => ShowAllPages = false">
+        <button type="button" class="back-link back-link-right" data-floating-widget @onclick="() => ShowAllPages = false">
             <span aria-hidden="true">←</span>
             <span>@Strings.Get("back")</span>
         </button>
-        <NotePagesViewer Pages="Post.Pages" Title="@Post.Title" PostId="Post.Id" Highlights="Post.Highlights" Posted="Post.IsShared"
-                         OnShare="ShareCurrentPost" OnDocumentChanged="HandleDocumentChanged"
-                         OnPageBodyChanged="HandlePageBodyChanged" OnHighlightCreated="HandleHighlightCreated"
-                         OnHighlightMessageAdded="HandleHighlightMessageAdded" />
+        <NotePagesViewer Pages="Post.Pages" Title="@Post.Title" PostId="Post.Id" Highlights="Post.Highlights" Posted="Post.IsShared" IsAuthor="IsAuthor"
+                         OnShare="() => ShareModalOpen = true" OnDocumentChanged="HandleDocumentChanged"
+                         OnPageBodyChanged="HandlePageBodyChanged" OnPageHeadingChanged="HandlePageHeadingChanged"
+                         OnHighlightCreated="HandleHighlightCreated" OnHighlightMessageAdded="HandleHighlightMessageAdded"
+                         OnHighlightAddedToDocument="HandleHighlightAddedToDocument" />
     </NoteDetailLayout>
 }
 else
@@ -43,19 +46,41 @@ else
         }
 
         <div class="note-reader-actions-row">
-            <button type="button" class="btn-primary note-reader-nav-btn" @onclick='() => Navigation.NavigateTo($"/notes/{Post.Id}/brain-map")'>@Strings.Get("brainMapButton")</button>
-            <button type="button" class="btn-primary note-reader-nav-btn" @onclick='() => Navigation.NavigateTo($"/notes/{Post.Id}/process")'>@Strings.Get("process")</button>
+            @if (IsAuthor || Post.ShareBrainMap)
+            {
+                <button type="button" class="btn-primary note-reader-nav-btn" @onclick='() => Navigation.NavigateTo($"/notes/{Post.Id}/brain-map")'>@Strings.Get("brainMapButton")</button>
+            }
+            @if (IsAuthor || Post.ShareProcess)
+            {
+                <button type="button" class="btn-primary note-reader-nav-btn" @onclick='() => Navigation.NavigateTo($"/notes/{Post.Id}/process")'>@Strings.Get("process")</button>
+            }
+            @* Map has no share toggle — always open to any viewer of a shared post. *@
             <button type="button" class="btn-primary note-reader-nav-btn" @onclick='() => Navigation.NavigateTo($"/notes/{Post.Id}/map")'>@Strings.Get("mapButton")</button>
         </div>
     </NoteDetailLayout>
 }
 
+@if (Post is not null)
+{
+    <ShareSettingsModal Post="Post" IsOpen="ShareModalOpen" IsOpenChanged="@(open => ShareModalOpen = open)" />
+}
+
 @code {
     [Parameter] public int PostId { get; set; }
 
+    // "?view=pages" opens straight into the full Table-of-Contents/reading view instead of the
+    // cover card — used by the Edit button on the Process/Brain Map/Map screens so it lands
+    // exactly on the screen it looks like it should, not one extra click away from it.
+    [SupplyParameterFromQuery(Name = "view")]
+    [Parameter]
+    public string? View { get; set; }
+
     private Post? Post;
     private bool ShowAllPages;
+    private bool ShareModalOpen;
     private int? LoadedPostId;
+
+    private bool IsAuthor => Post?.AuthorId == AuthState.CurrentUser?.Id;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -64,12 +89,7 @@ else
 
         LoadedPostId = PostId;
         Post = await Store.LoadPostDetailAsync(PostId);
-    }
-
-    private async Task ShareCurrentPost()
-    {
-        if (Post is not null)
-            await Store.ShareAsync(Post);
+        ShowAllPages = View == "pages";
     }
 
     private async Task HandleDocumentChanged()
@@ -84,6 +104,12 @@ else
             await Store.UpdatePageBodyAsync(Post, page.Number, page.Body);
     }
 
+    private async Task HandlePageHeadingChanged(NotePage page)
+    {
+        if (Post is not null && page.Heading is not null)
+            await Store.UpdatePageHeadingAsync(Post, page.Number, page.Heading);
+    }
+
     private async Task HandleHighlightCreated(NoteHighlight highlight)
     {
         if (Post is not null)
@@ -94,5 +120,11 @@ else
     {
         if (Post is not null)
             await Store.AddHighlightMessageAsync(Post, args.HighlightId, args.Message);
+    }
+
+    private async Task HandleHighlightAddedToDocument((Guid HighlightId, int MessageId) args)
+    {
+        if (Post is not null)
+            await Store.MarkAddedToDocumentAsync(Post, args.HighlightId, args.MessageId);
     }
 }

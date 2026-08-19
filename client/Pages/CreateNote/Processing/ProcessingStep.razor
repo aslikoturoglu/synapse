@@ -1,6 +1,7 @@
 @using Client.Pages.Home
 @using Client.Services
 @inject AiApiClient AiApi
+@inject NotesStore Store
 @inject UiStrings Strings
 
 @if (Failed)
@@ -11,7 +12,13 @@
 else
 {
     <h2 class="wizard-heading">@Strings.Get("creatingSynapses")</h2>
-    <div class="wizard-spinner" aria-hidden="true"></div>
+    <div class="synapse-loader" aria-hidden="true">
+        <span class="synapse-loader-node"></span>
+        <span class="synapse-loader-node"></span>
+        <span class="synapse-loader-node"></span>
+        <span class="synapse-loader-node"></span>
+    </div>
+    <p class="wizard-loading-note">@Strings.Get("noteReadyEmailNotice").Replace("{email}", Store.Profile.Email)</p>
 }
 
 @code {

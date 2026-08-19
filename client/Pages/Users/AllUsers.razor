@@ -2,6 +2,8 @@
 @using Client.Pages.Home
 @using Client.Services
 @inject NotesStore Store
+@inject AuthState AuthState
+@inject NavigationManager Navigation
 @inject UiStrings Strings
 @inject UsersApiClient UsersApi
 
@@ -39,6 +41,7 @@
                 <select class="users-filter-select" @bind="RoleFilter">
                     <option value="">@Strings.Get("allRoles")</option>
                     <option value="User">@Strings.Get("user")</option>
+                    <option value="Moderator">Moderator</option>
                     <option value="Admin">Admin</option>
                 </select>
             </div>
@@ -47,6 +50,7 @@
             {
                 <div class="users-bulk-bar">
                     <span class="users-bulk-count">@SelectedIds.Count @Strings.Get("selected")</span>
+                    <button type="button" class="btn-secondary" @onclick="ViewSelectedRequests">@Strings.Get("viewRequests")</button>
                     <button type="button" class="btn-secondary" @onclick="() => BulkDeactivateModalOpen = true">@Strings.Get("deactivateAccount")</button>
                     <button type="button" class="btn-danger" @onclick="() => BulkDeleteModalOpen = true">@Strings.Get("deleteAccount")</button>
                     <button type="button" class="link-inline" @onclick="ClearSelection">@Strings.Get("clearSelection")</button>
@@ -90,7 +94,17 @@
                                         </div>
                                     </td>
                                     <td>
-                                        <button type="button" class="users-table-role-badge @(user.Role == "Admin" ? "users-table-role-badge-admin" : "")" @onclick="() => OpenToggleRole(user)">@user.Role</button>
+                                        @if (AuthState.IsAdmin && user.Role != "Admin")
+                                        {
+                                            <button type="button" class="users-table-role-badge @RoleBadgeClass(user.Role)" @onclick="() => OpenToggleRole(user)">@user.Role</button>
+                                        }
+                                        else
+                                        {
+                                            @* Admin's own role is protected (can't be changed here at all), and a
+                                               Moderator viewer can't grant/revoke Moderator status on anyone —
+                                               both render as a plain, non-interactive badge instead of a button. *@
+                                            <span class="users-table-role-badge @RoleBadgeClass(user.Role)">@user.Role</span>
+                                        }
                                     </td>
                                     <td>@user.Email</td>
                                     <td>@user.Phone</td>
@@ -102,6 +116,9 @@
                                         <div class="users-table-actions">
                                             <a class="users-table-action users-table-action-go" aria-label="@Strings.Get("goToProfile")" data-tooltip="@Strings.Get("goToProfile")" href="@($"/profile/{Uri.EscapeDataString(user.FullName)}")">
                                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7" /><polyline points="7 7 17 7 17 17" /></svg>
+                                            </a>
+                                            <a class="users-table-action users-table-action-go" aria-label="@Strings.Get("viewRequests")" data-tooltip="@Strings.Get("viewRequests")" href="@($"/requests?userIds={user.Id}")">
+                                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22 6 12 13 2 6" /></svg>
                                             </a>
                                             <button type="button" class="users-table-action users-table-action-warn" aria-label="@Strings.Get("getNewPassword")" data-tooltip="@Strings.Get("getNewPassword")" @onclick="() => OpenResetPassword(user)">
                                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
@@ -205,7 +222,16 @@
     private bool BulkDeleteModalOpen;
     private string? BulkReason;
 
-    private static string OtherRole(string role) => role == "Admin" ? "User" : "Admin";
+    // This toggle only ever moves a user between User and Moderator — Admin is a protected,
+    // separate status not changeable through this button (see UserService.ToggleRoleAsync).
+    private static string OtherRole(string role) => role == "Moderator" ? "User" : "Moderator";
+
+    private static string RoleBadgeClass(string role) => role switch
+    {
+        "Admin" => "users-table-role-badge-admin",
+        "Moderator" => "users-table-role-badge-moderator",
+        _ => "",
+    };
 
     private List<string> JobTitleOptions => (Users ?? [])
         .Select(u => u.JobTitle)
@@ -248,6 +274,8 @@
     }
 
     private void ClearSelection() => SelectedIds.Clear();
+
+    private void ViewSelectedRequests() => Navigation.NavigateTo($"/requests?userIds={string.Join(",", SelectedIds)}");
 
     private void OpenDeactivate(AdminUserDto user)
     {

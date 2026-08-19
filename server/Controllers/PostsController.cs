@@ -68,6 +68,48 @@ public class PostsController(PostService postService) : ControllerBase
         };
     }
 
+    [HttpPut("{id:int}/title")]
+    public async Task<IActionResult> UpdateTitle(int id, UpdatePostTitleRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Title))
+            return BadRequest(new { error = "Title is required." });
+
+        var result = await postService.UpdateTitleAsync(User.GetUserId(), id, request.Title.Trim());
+        return result switch
+        {
+            PostOpResult.Success => NoContent(),
+            PostOpResult.NotFound => NotFound(),
+            PostOpResult.Forbidden => Forbid(),
+            _ => BadRequest(),
+        };
+    }
+
+    [HttpPut("{id:int}/description")]
+    public async Task<IActionResult> UpdateDescription(int id, UpdatePostDescriptionRequest request)
+    {
+        var result = await postService.UpdateDescriptionAsync(User.GetUserId(), id, request.Description.Trim());
+        return result switch
+        {
+            PostOpResult.Success => NoContent(),
+            PostOpResult.NotFound => NotFound(),
+            PostOpResult.Forbidden => Forbid(),
+            _ => BadRequest(),
+        };
+    }
+
+    [HttpPut("{id:int}/share-settings")]
+    public async Task<IActionResult> UpdateShareSettings(int id, UpdateShareSettingsRequest request)
+    {
+        var result = await postService.UpdateShareSettingsAsync(User.GetUserId(), id, request.ShareBrainMap, request.ShareProcess);
+        return result switch
+        {
+            PostOpResult.Success => NoContent(),
+            PostOpResult.NotFound => NotFound(),
+            PostOpResult.Forbidden => Forbid(),
+            _ => BadRequest(),
+        };
+    }
+
     [HttpPut("{id:int}/pages/{pageNumber:int}")]
     public async Task<IActionResult> UpdatePageBody(int id, int pageNumber, UpdatePageBodyRequest request)
     {
@@ -81,10 +123,36 @@ public class PostsController(PostService postService) : ControllerBase
         };
     }
 
+    [HttpPut("{id:int}/pages/{pageNumber:int}/heading")]
+    public async Task<IActionResult> UpdatePageHeading(int id, int pageNumber, UpdatePageHeadingRequest request)
+    {
+        var result = await postService.UpdatePageHeadingAsync(User.GetUserId(), id, pageNumber, request.Heading);
+        return result switch
+        {
+            PostOpResult.Success => NoContent(),
+            PostOpResult.NotFound => NotFound(),
+            PostOpResult.Forbidden => Forbid(),
+            _ => BadRequest(),
+        };
+    }
+
     [HttpPost("{id:int}/document-change")]
     public async Task<IActionResult> IncrementDocumentChange(int id)
     {
         var result = await postService.IncrementDocumentChangeAsync(User.GetUserId(), id);
+        return result switch
+        {
+            PostOpResult.Success => NoContent(),
+            PostOpResult.NotFound => NotFound(),
+            PostOpResult.Forbidden => Forbid(),
+            _ => BadRequest(),
+        };
+    }
+
+    [HttpPost("{id:int}/highlights/{highlightId:guid}/messages/{messageId:int}/add-to-document")]
+    public async Task<IActionResult> MarkAddedToDocument(int id, Guid highlightId, int messageId)
+    {
+        var result = await postService.MarkAddedToDocumentAsync(User.GetUserId(), id, highlightId, messageId);
         return result switch
         {
             PostOpResult.Success => NoContent(),

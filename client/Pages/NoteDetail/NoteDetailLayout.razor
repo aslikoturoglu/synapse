@@ -1,5 +1,7 @@
 @using Client.Pages.Home
+@using Client.Services
 @inject NotesStore Store
+@inject AuthState AuthState
 @inject NavigationManager Navigation
 @inject UiStrings Strings
 
@@ -7,7 +9,26 @@
     <div class="header-user-name note-detail-breadcrumb">
         <span class="note-detail-breadcrumb-author">@Post.AuthorName</span>
         <span class="note-detail-breadcrumb-sep">/</span>
-        <span>@Post.Title</span>
+        @if (EditingTitle)
+        {
+            <input class="form-input note-detail-title-input" @bind="TitleDraft" @bind:event="oninput" @onkeydown="HandleTitleKeydown" />
+            <button type="button" class="field-confirm-icon" disabled="@string.IsNullOrWhiteSpace(TitleDraft)" @onclick="SaveTitle" aria-label="Save title">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+            </button>
+            <button type="button" class="field-cancel-icon" @onclick="() => EditingTitle = false" aria-label="Cancel">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+        }
+        else
+        {
+            <span>@Post.Title</span>
+            @if (IsAuthor)
+            {
+                <button type="button" class="profile-edit-icon" @onclick="StartEditTitle" aria-label="Edit title">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
+                </button>
+            }
+        }
     </div>
     <h1 class="brand-title header-brand-right">synapse.</h1>
 </div>
@@ -21,6 +42,13 @@
             <div class="note-detail-actions-row">
                 <button type="button" class="btn-secondary" @onclick='() => Navigation.NavigateTo("/notes")'>@Strings.Get("backToNotes")</button>
                 <button type="button" class="btn-secondary" @onclick='() => Navigation.NavigateTo($"/notes/{Post.Id}")'>@Strings.Get("goToNote")</button>
+                @if (IsAuthor)
+                {
+                    <button type="button" class="btn-secondary note-detail-edit-btn" @onclick='() => Navigation.NavigateTo($"/notes/{Post.Id}?view=pages")'>
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" /></svg>
+                        @Strings.Get("edit")
+                    </button>
+                }
             </div>
         }
 
@@ -32,4 +60,32 @@
     [Parameter, EditorRequired] public Post Post { get; set; } = null!;
     [Parameter] public bool ShowBackActions { get; set; } = true;
     [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool IsAuthor => Post.AuthorId == AuthState.CurrentUser?.Id;
+
+    private bool EditingTitle { get; set; }
+    private string TitleDraft { get; set; } = "";
+
+    private void StartEditTitle()
+    {
+        TitleDraft = Post.Title;
+        EditingTitle = true;
+    }
+
+    private async Task SaveTitle()
+    {
+        if (string.IsNullOrWhiteSpace(TitleDraft))
+            return;
+
+        await Store.UpdateTitleAsync(Post, TitleDraft.Trim());
+        EditingTitle = false;
+    }
+
+    private async Task HandleTitleKeydown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await SaveTitle();
+        else if (e.Key == "Escape")
+            EditingTitle = false;
+    }
 }

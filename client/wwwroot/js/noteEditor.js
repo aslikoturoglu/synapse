@@ -40,6 +40,20 @@ window.noteEditor = {
         const el = element && element.querySelector('[data-highlight-id="' + highlightId + '"]');
         if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
     },
+    // Dismissing a bubble: unwraps the <mark data-highlight-id> back into plain content,
+    // keeping the text itself (including anything Add to Document already inserted) but
+    // dropping the highlight styling/marker for good, so it doesn't linger in the persisted
+    // page HTML forever.
+    removeHighlight: function (element, highlightId) {
+        if (!element) return "";
+        const mark = element.querySelector('[data-highlight-id="' + highlightId + '"]');
+        if (mark) {
+            const parent = mark.parentNode;
+            while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+            parent.removeChild(mark);
+        }
+        return element.innerHTML;
+    },
     // "Add to Document": inserts the given html right after the highlighted mark, or
     // (replace=true) swaps the mark out for it entirely. If the mark isn't found (e.g. the
     // page was re-rendered since), the document is left untouched.
@@ -69,7 +83,7 @@ window.noteEditor = {
     // node (NotePageView calls it on every render, not just the first), and the
     // dataset.selectionListenerAttached guard just stops us from double-attaching if it's
     // called again for a node that already has a listener.
-    onSelectionMade: function (element, dotNetRef) {
+    onSelectionMade: function (element, dotNetRef, methodName) {
         if (!element || element.dataset.selectionListenerAttached) return;
         element.dataset.selectionListenerAttached = "1";
 
@@ -101,7 +115,7 @@ window.noteEditor = {
             // element outside the selection collapses it before the click handler runs.
             floatBtn.addEventListener("mousedown", e => e.preventDefault());
             floatBtn.addEventListener("click", () => {
-                dotNetRef.invokeMethodAsync("NotifyTextSelected");
+                dotNetRef.invokeMethodAsync(methodName || "NotifyTextSelected");
                 removeFloatBtn();
             });
             document.body.appendChild(floatBtn);

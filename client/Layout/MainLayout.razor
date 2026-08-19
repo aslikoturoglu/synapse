@@ -1,3 +1,10 @@
 ﻿@inherits LayoutComponentBase
+@using Client.Services
+@inject AuthState AuthState
 
 @Body
+
+@if (AuthState.IsAuthenticated)
+{
+    <AssistantWidget />
+}

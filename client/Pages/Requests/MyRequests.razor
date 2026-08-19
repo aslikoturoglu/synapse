@@ -1,0 +1,127 @@
+@page "/my-requests"
+@using Client.Pages.Home
+@using Client.Services
+@inject NotesStore Store
+@inject RequestsApiClient RequestsApi
+@inject UiStrings Strings
+
+<PageTitle>@Strings.Get("myRequests")</PageTitle>
+
+<PrimaryHeader />
+
+<div class="home-body">
+    <Drawer UserName="@Store.Profile.Name" UserEmail="@Store.Profile.Email" />
+
+    <div class="home-feed">
+        <div class="requests-header-row">
+            <h1 class="notes-title">@Strings.Get("myRequests")</h1>
+            <div class="requests-header-actions">
+                <SearchBar Placeholder="@Strings.Get("searchRequestsPlaceholder")" @bind-Value="SearchTerm" />
+                <div class="requests-status-filter">
+                    @foreach (var option in StatusOptions)
+                    {
+                        <button type="button" class="requests-status-pill @(StatusFilter == option ? "requests-status-pill-active" : "")" @onclick="() => StatusFilter = option">
+                            @(option == "All" ? Strings.Get("allStatuses") : option)
+                        </button>
+                    }
+                </div>
+                <button type="button" class="btn-primary" data-tour="my-requests-new" @onclick="OpenNewRequest">@Strings.Get("newRequest")</button>
+            </div>
+        </div>
+
+        <TourGuide TourId="my-requests" />
+
+        @if (Requests is null)
+        {
+            <p class="stub-text">@Strings.Get("loading")</p>
+        }
+        else if (VisibleRequests.Count == 0)
+        {
+            <p class="stub-text">@Strings.Get("noRequestsYet")</p>
+        }
+        else
+        {
+            @foreach (var request in VisibleRequests)
+            {
+                <div class="request-row" @key="request.Id">
+                    <div class="request-row-summary request-row-summary-static">
+                        <span class="request-row-main">
+                            <span class="request-row-subject">@request.Subject</span>
+                            <span class="request-row-meta">@request.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                        </span>
+                        <span class="request-decision-badge request-decision-@(request.Decision.ToLowerInvariant())">@request.Decision</span>
+                    </div>
+
+                    <div class="request-row-detail request-row-detail-static">
+                        <p class="request-detail-content">@request.Content</p>
+
+                        @if (!string.IsNullOrWhiteSpace(request.Reply))
+                        {
+                            <div class="request-reply-existing">
+                                <p class="request-reply-existing-label">@Strings.Get("adminReply")</p>
+                                <p>@request.Reply</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+<Modal IsOpen="NewRequestModalOpen" IsOpenChanged="@(open => NewRequestModalOpen = open)" ShowAcceptButton="false">
+    <h3 class="modal-form-heading">@Strings.Get("newRequest")</h3>
+
+    <div class="form-group">
+        <label class="form-label">@Strings.Get("subjectLabel")</label>
+        <input class="form-input" @bind="SubjectDraft" @bind:event="oninput" />
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">@Strings.Get("contentLabel")</label>
+        <textarea class="form-input" @bind="ContentDraft" @bind:event="oninput"></textarea>
+    </div>
+
+    <button type="button" class="btn-primary btn-block" disabled="@(string.IsNullOrWhiteSpace(SubjectDraft) || string.IsNullOrWhiteSpace(ContentDraft))" @onclick="SubmitNewRequest">@Strings.Get("submit")</button>
+</Modal>
+
+@code {
+    private List<UserRequestDto>? Requests;
+    private bool NewRequestModalOpen;
+    private string SubjectDraft = "";
+    private string ContentDraft = "";
+    private string SearchTerm = "";
+    private string StatusFilter = "All";
+    private static readonly string[] StatusOptions = ["All", "Pending", "Approved", "Rejected"];
+
+    private List<UserRequestDto> VisibleRequests =>
+        (Requests ?? []).Where(r =>
+            (StatusFilter == "All" || r.Decision == StatusFilter) &&
+            (SearchTerm.Length == 0 ||
+             r.Subject.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ||
+             r.Content.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase))).ToList();
+
+    protected override async Task OnInitializedAsync() => await Reload();
+
+    private async Task Reload() => Requests = await RequestsApi.GetMineAsync();
+
+    private void OpenNewRequest()
+    {
+        SubjectDraft = "";
+        ContentDraft = "";
+        NewRequestModalOpen = true;
+    }
+
+    private async Task SubmitNewRequest()
+    {
+        if (string.IsNullOrWhiteSpace(SubjectDraft) || string.IsNullOrWhiteSpace(ContentDraft))
+            return;
+
+        var created = await RequestsApi.CreateAsync(SubjectDraft.Trim(), ContentDraft.Trim());
+        if (created is not null)
+        {
+            NewRequestModalOpen = false;
+            await Reload();
+        }
+    }
+}

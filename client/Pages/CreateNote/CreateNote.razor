@@ -75,6 +75,8 @@
     </div>
 </div>
 
+<TourGuide TourId="create-note" />
+
 <Modal IsOpen="ResumeModalOpen" IsOpenChanged="@(open => ResumeModalOpen = open)" OnAccept="ResumeDraft" AcceptLabel="@Strings.Get("continueDraft")">
     <h3 class="modal-form-heading">@Strings.Get("resumeDraft")</h3>
     <p class="stub-text">@Strings.Get("draftCurrentStep") @StageLabel(Store.Draft.Step)</p>

@@ -1,8 +1,10 @@
 @using Client.Pages.Home
+@using Client.Pages.CreateNote.Note.PageView
 @using Client.Services
 @inject UiStrings Strings
 @inject NotesStore Store
 @inject AuthState AuthState
+@inject NavigationManager Navigation
 
 <div class="post-card @(IsAdmin ? "post-card-admin" : "")" @onclick="Toggle">
     <h2 class="post-title">
@@ -13,12 +15,20 @@
         }
     </h2>
 
-    @if (!Post.ShowFiles)
+    <div class="post-preview-divider" @onclick:stopPropagation="true">
+        <button type="button" class="post-preview-toggle" @onclick="() => Post.ShowNotePreview = !Post.ShowNotePreview" aria-label="Toggle note preview">
+            @(Post.ShowNotePreview ? "▲" : "▼")
+        </button>
+    </div>
+
+    @if (!Post.ShowNotePreview)
     {
+        @* Shows the actual generated note's first page (not a raw-file preview — the uploaded
+           files are just the note's source material) plus quick links to its other views. *@
         <div class="post-pages">
             @foreach (var (_, pageNumber) in FlattenedPages.Take(3))
             {
-                <button type="button" class="post-page-thumb" @onclick="ToggleFilePreview" @onclick:stopPropagation="true">
+                <button type="button" class="post-page-thumb" @onclick="() => Post.ShowNotePreview = true" @onclick:stopPropagation="true">
                     <span class="post-page-thumb-line" style="width: 70%"></span>
                     <span class="post-page-thumb-line" style="width: 90%"></span>
                     <span class="post-page-thumb-line" style="width: 60%"></span>
@@ -28,14 +38,43 @@
             }
             @if (Post.TotalPageCount > 3)
             {
-                <button type="button" class="post-page-more" @onclick="ToggleFilePreview" @onclick:stopPropagation="true">…</button>
+                <button type="button" class="post-page-more" @onclick="() => Post.ShowNotePreview = true" @onclick:stopPropagation="true">…</button>
             }
         </div>
     }
-
-    @if (Post.ShowFiles)
+    else
     {
-        <NoteFilePreview Post="Post" ShowFileList="false" />
+        <div class="post-note-preview" @onclick:stopPropagation="true">
+            <div class="post-note-preview-actions">
+                @* Unlike NoteReaderPage's own dashboard, this feed card mirrors exactly what
+                   any other viewer would see — no author bypass — so the share toggles
+                   actually look like they did something when you're looking at your own
+                   post in your own feed. The full dashboard (via "Note") still always has
+                   all three for the author. *@
+                <button type="button" class="post-note-preview-btn" @onclick="GoToNote">@Strings.Get("noteButton")</button>
+                @if (Post.ShareBrainMap)
+                {
+                    <button type="button" class="post-note-preview-btn" @onclick="GoToBrainMap">@Strings.Get("brainMapButton")</button>
+                }
+                @if (Post.ShareProcess)
+                {
+                    <button type="button" class="post-note-preview-btn" @onclick="GoToProcess">@Strings.Get("process")</button>
+                }
+                <button type="button" class="post-note-preview-btn" @onclick="GoToMap">@Strings.Get("mapButton")</button>
+            </div>
+            <div class="post-note-preview-page-wrap">
+                <div class="post-note-preview-page">
+                    @if (Post.FirstPage is not null)
+                    {
+                        <NotePageView Page="Post.FirstPage" EditMode="false" DocumentTitle="@Post.Title" />
+                    }
+                    else
+                    {
+                        <p class="stub-text">@Strings.Get("noGeneratedNoteYet")</p>
+                    }
+                </div>
+            </div>
+        </div>
     }
 
     @if (!string.IsNullOrWhiteSpace(Post.Description))
@@ -154,7 +193,13 @@
 
     private void Toggle() => Post.IsExpanded = !Post.IsExpanded;
 
-    private void ToggleFilePreview() => Post.ShowFiles = !Post.ShowFiles;
+    private void GoToNote() => Navigation.NavigateTo($"/notes/{Post.Id}");
+
+    private void GoToBrainMap() => Navigation.NavigateTo($"/notes/{Post.Id}/brain-map");
+
+    private void GoToProcess() => Navigation.NavigateTo($"/notes/{Post.Id}/process");
+
+    private void GoToMap() => Navigation.NavigateTo($"/notes/{Post.Id}/map");
 
     private async Task ToggleFollow() => await Store.ToggleFollowAsync(Post);
 

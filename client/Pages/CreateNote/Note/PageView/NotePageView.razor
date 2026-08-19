@@ -6,7 +6,7 @@
 <div class="note-file-page-surface">
     @if (!string.IsNullOrWhiteSpace(Page.Heading))
     {
-        <p class="note-file-page-title">@Page.Heading</p>
+        <p class="note-file-page-title" @key="Page.Heading" @ref="HeadingElement">@((MarkupString)Page.Heading)</p>
     }
 
     @if (EditMode)
@@ -32,44 +32,82 @@
     [Parameter] public EventCallback OnTextSelected { get; set; }
 
     private ElementReference BodyElement;
+    private ElementReference HeadingElement;
     private DotNetObjectReference<NotePageView>? _selfRef;
 
-    // Not gated on firstRender: applying a highlight changes Page.Body, and since the <p>
-    // above is keyed on Page.Body, Blazor throws that exact DOM node away and mounts a new
-    // one — the JS listener attached to the old node goes with it, so this needs to run again
-    // on every render for the new node to pick one up. noteEditor.onSelectionMade guards
-    // against double-attaching to a node that already has a listener.
+    // Which element the most recent selection-driven bubble (HandleAutoAsk) came from — set by
+    // whichever Notify* method JS invoked, read right after by NotePagesViewer via
+    // LastSelectionTargetsHeading before it creates the highlight.
+    private bool _lastSelectionWasHeading;
+    private ElementReference SelectionElement => _lastSelectionWasHeading ? HeadingElement : BodyElement;
+
+    public bool LastSelectionTargetsHeading => _lastSelectionWasHeading;
+
+    // Not gated on firstRender: applying a highlight changes Page.Body/Heading, and since
+    // those elements are keyed on that same value, Blazor throws the exact DOM node away and
+    // mounts a new one — the JS listener attached to the old node goes with it, so this needs
+    // to run again on every render for the new node to pick one up. noteEditor.onSelectionMade
+    // guards against double-attaching to a node that already has a listener.
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (EnableSelectionListener && !EditMode)
         {
             _selfRef ??= DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("noteEditor.onSelectionMade", BodyElement, _selfRef);
+            await JS.InvokeVoidAsync("noteEditor.onSelectionMade", BodyElement, _selfRef, "NotifyTextSelected");
+            if (!string.IsNullOrWhiteSpace(Page.Heading))
+                await JS.InvokeVoidAsync("noteEditor.onSelectionMade", HeadingElement, _selfRef, "NotifyHeadingTextSelected");
         }
     }
 
     [JSInvokable]
-    public Task NotifyTextSelected() => OnTextSelected.InvokeAsync();
+    public Task NotifyTextSelected()
+    {
+        _lastSelectionWasHeading = false;
+        return OnTextSelected.InvokeAsync();
+    }
+
+    [JSInvokable]
+    public Task NotifyHeadingTextSelected()
+    {
+        _lastSelectionWasHeading = true;
+        return OnTextSelected.InvokeAsync();
+    }
 
     public ValueTask<string> GetEditedHtmlAsync() =>
         JS.InvokeAsync<string>("noteEditor.getHtml", BodyElement);
 
     public ValueTask<string> GetSelectionTextAsync() =>
-        JS.InvokeAsync<string>("noteEditor.getSelectionText", BodyElement);
+        JS.InvokeAsync<string>("noteEditor.getSelectionText", SelectionElement);
 
-    public async Task ApplyHighlightAsync(Guid highlightId)
+    public async Task ApplyHighlightAsync(Guid highlightId, bool targetsHeading)
     {
-        Page.Body = await JS.InvokeAsync<string>("noteEditor.wrapSelectionAsHighlight", BodyElement, highlightId.ToString());
+        if (targetsHeading)
+            Page.Heading = await JS.InvokeAsync<string>("noteEditor.wrapSelectionAsHighlight", HeadingElement, highlightId.ToString());
+        else
+            Page.Body = await JS.InvokeAsync<string>("noteEditor.wrapSelectionAsHighlight", BodyElement, highlightId.ToString());
     }
 
-    public ValueTask ScrollToHighlightAsync(Guid highlightId) =>
-        JS.InvokeVoidAsync("noteEditor.scrollToHighlight", BodyElement, highlightId.ToString());
+    public ValueTask ScrollToHighlightAsync(Guid highlightId, bool targetsHeading) =>
+        JS.InvokeVoidAsync("noteEditor.scrollToHighlight", targetsHeading ? HeadingElement : BodyElement, highlightId.ToString());
 
     // "Add to Document": either inserts the given html right after the highlighted span
     // (replace: false) or swaps the highlighted span out for it entirely (replace: true).
-    public async Task ApplyDocumentEditAsync(Guid highlightId, string html, bool replace)
+    public async Task ApplyDocumentEditAsync(Guid highlightId, string html, bool replace, bool targetsHeading)
     {
-        Page.Body = await JS.InvokeAsync<string>("noteEditor.applyDocumentEdit", BodyElement, highlightId.ToString(), html, replace);
+        if (targetsHeading)
+            Page.Heading = await JS.InvokeAsync<string>("noteEditor.applyDocumentEdit", HeadingElement, highlightId.ToString(), html, replace);
+        else
+            Page.Body = await JS.InvokeAsync<string>("noteEditor.applyDocumentEdit", BodyElement, highlightId.ToString(), html, replace);
+    }
+
+    // Dismissing a bubble: keeps the text but strips the <mark> wrapper (and thus the
+    // highlight styling) out of the persisted page content for good.
+    public async Task RemoveHighlightAsync(Guid highlightId, bool targetsHeading)
+    {
+        if (targetsHeading)
+            Page.Heading = await JS.InvokeAsync<string>("noteEditor.removeHighlight", HeadingElement, highlightId.ToString());
+        else
+            Page.Body = await JS.InvokeAsync<string>("noteEditor.removeHighlight", BodyElement, highlightId.ToString());
     }
 
     public ValueTask DisposeAsync()

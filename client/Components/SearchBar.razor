@@ -1,9 +1,9 @@
-<div class="search-bar">
+<div class="search-bar" @attributes="AdditionalAttributes">
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8" />
         <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </svg>
-    <input type="search" class="search-bar-input" placeholder="@Placeholder" value="@Value" @oninput="HandleInput" />
+    <input type="search" class="search-bar-input" placeholder="@Placeholder" value="@Value" @oninput="HandleInput" @onkeydown="HandleKeydown" />
 </div>
 
 @code {
@@ -11,9 +11,23 @@
     [Parameter] public string Value { get; set; } = "";
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
 
+    // Optional — only pages that want an explicit "go search" action (vs. just live-filtering
+    // ValueChanged as the user types) bind this, e.g. the global header search.
+    [Parameter] public EventCallback<string> OnSubmit { get; set; }
+
+    // Lets callers pass plain HTML attributes straight onto the root div — e.g. data-tour ids
+    // for TourGuide to highlight.
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
     private async Task HandleInput(ChangeEventArgs e)
     {
         Value = e.Value?.ToString() ?? "";
         await ValueChanged.InvokeAsync(Value);
+    }
+
+    private async Task HandleKeydown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await OnSubmit.InvokeAsync(Value);
     }
 }

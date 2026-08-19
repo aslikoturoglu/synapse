@@ -36,7 +36,7 @@
 
     @foreach (var note in dateGroup)
     {
-        <NoteCard Post="note" OnDelete="OnDelete" OnAddToGroup="OnAddToGroup" OnShare="OnShare" OnUnshare="OnUnshare" />
+        <NoteCard Post="note" OnDelete="OnDelete" OnAddToGroup="OnAddToGroup" OnUnshare="OnUnshare" />
     }
 }
 
@@ -52,7 +52,6 @@
     [Parameter] public List<Post> Posts { get; set; } = [];
     [Parameter] public EventCallback<Post> OnDelete { get; set; }
     [Parameter] public EventCallback<Post> OnAddToGroup { get; set; }
-    [Parameter] public EventCallback<Post> OnShare { get; set; }
     [Parameter] public EventCallback<Post> OnUnshare { get; set; }
 
     private string SearchTerm { get; set; } = "";
@@ -77,9 +76,21 @@
                 _ => filtered,
             };
 
-            return [.. filtered
-                .GroupBy(p => p.CreatedDate)
-                .OrderByDescending(g => g.Key)];
+            var grouped = filtered.GroupBy(p => p.CreatedDate);
+
+            // The date headers are their own layer of ordering on top of the per-post sort
+            // above — without this, groups always stayed newest-first regardless of the chosen
+            // sort mode, so "Based on Likes/Comments" only ever reordered posts within the same
+            // calendar day (a no-op for the common case of one note per day).
+            grouped = SelectedSort switch
+            {
+                SortMode.OldToNew => grouped.OrderBy(g => g.Key),
+                SortMode.Likes => grouped.OrderByDescending(g => g.Max(p => p.LikeCount)),
+                SortMode.Comments => grouped.OrderByDescending(g => g.Max(p => p.Comments.Count)),
+                _ => grouped.OrderByDescending(g => g.Key),
+            };
+
+            return [.. grouped];
         }
     }
 

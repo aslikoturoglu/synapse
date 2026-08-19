@@ -1,0 +1,95 @@
+@using Client.Services
+@inject AssistantApiClient AssistantApi
+
+<button type="button" class="axon-toggle" @onclick="ToggleOpen" aria-label="Ask Axon">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="7" cy="7" r="2.6" />
+        <circle cx="17" cy="7" r="2.6" />
+        <circle cx="12" cy="17.5" r="2.6" />
+        <line x1="9.1" y1="8.4" x2="10.6" y2="15.2" />
+        <line x1="14.9" y1="8.4" x2="13.4" y2="15.2" />
+        <line x1="9.5" y1="7" x2="14.5" y2="7" />
+    </svg>
+</button>
+
+@if (IsOpen)
+{
+    <div class="axon-panel">
+        <div class="axon-panel-header">
+            <span class="axon-panel-title">Axon</span>
+            <button type="button" class="axon-panel-close" @onclick="ToggleOpen" aria-label="Close">&times;</button>
+        </div>
+
+        <div class="axon-panel-messages">
+            @if (Messages.Count == 0)
+            {
+                <p class="axon-panel-intro">Hi, I'm Axon. Ask me how anything in Synapse works.</p>
+            }
+            @foreach (var message in Messages)
+            {
+                <div class="axon-message @(message.FromUser ? "axon-message-user" : "axon-message-axon")">
+                    @if (message.FromUser)
+                    {
+                        <p>@message.Text</p>
+                    }
+                    else
+                    {
+                        @MiniMarkdown.ToHtml(message.Text)
+                    }
+                </div>
+            }
+            @if (IsThinking)
+            {
+                <div class="axon-message axon-message-axon axon-message-thinking">
+                    <p>Thinking…</p>
+                </div>
+            }
+        </div>
+
+        <div class="axon-panel-input-row">
+            <input class="axon-panel-input" placeholder="Ask a question..." disabled="@IsThinking" @bind="Draft" @bind:event="oninput" @onkeydown="HandleKeydown" />
+            <button type="button" class="axon-panel-send" disabled="@IsThinking" @onclick="Send" aria-label="Send">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    private bool IsOpen;
+    private bool IsThinking;
+    private string Draft = "";
+    private string? ThreadId;
+    private readonly List<(string Text, bool FromUser)> Messages = [];
+
+    private void ToggleOpen() => IsOpen = !IsOpen;
+
+    private async Task HandleKeydown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await Send();
+    }
+
+    private async Task Send()
+    {
+        var question = Draft.Trim();
+        if (question.Length == 0 || IsThinking)
+            return;
+
+        Messages.Add((question, true));
+        Draft = "";
+        IsThinking = true;
+
+        var result = await AssistantApi.AskAsync(question, ThreadId);
+
+        IsThinking = false;
+        if (result is null)
+        {
+            Messages.Add(("Sorry, I couldn't reach my brain just now — try again in a moment.", false));
+            return;
+        }
+
+        ThreadId = result.ThreadId;
+        Messages.Add((result.Answer, false));
+    }
+}

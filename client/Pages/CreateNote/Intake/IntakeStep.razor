@@ -16,7 +16,12 @@ else if (Failed)
 else if (Loading)
 {
     <h2 class="wizard-heading">@Strings.Get("creatingSynapses")</h2>
-    <div class="wizard-spinner" aria-hidden="true"></div>
+    <div class="synapse-loader" aria-hidden="true">
+        <span class="synapse-loader-node"></span>
+        <span class="synapse-loader-node"></span>
+        <span class="synapse-loader-node"></span>
+        <span class="synapse-loader-node"></span>
+    </div>
 }
 else
 {

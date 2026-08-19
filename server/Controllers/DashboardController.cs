@@ -7,7 +7,7 @@ namespace Server.Controllers;
 
 [ApiController]
 [Route("api/dashboard")]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,Moderator")]
 public class DashboardController(DashboardService dashboardService) : ControllerBase
 {
     // range: "total" | "6h" | "24h" | "1w" | "1m" | "6m" | "1y" | "custom" (custom reads from/to).

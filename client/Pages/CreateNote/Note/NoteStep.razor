@@ -1,29 +1,46 @@
 @using Client.Pages.Home
 @using Client.Pages.CreateNote
 @inject NotesStore Store
+@inject UiStrings Strings
 
-<NotePagesViewer Pages="Draft.Pages" Title="@Draft.Title" PostId="CreatedPost?.Id" Posted="CreatedPost?.IsShared ?? false" OnShare="SharePost" Highlights="CreatedPost?.Highlights ?? []"
-                 OnDocumentChanged="HandleDocumentChanged" OnPageBodyChanged="HandlePageBodyChanged"
-                 OnHighlightCreated="HandleHighlightCreated" OnHighlightMessageAdded="HandleHighlightMessageAdded" />
+@if (Failed)
+{
+    <h2 class="wizard-heading">@Strings.Get("generationFailed")</h2>
+    <button type="button" class="wizard-continue-btn" @onclick="TryCreate">@Strings.Get("retry")</button>
+}
+else if (CreatedPost is null)
+{
+    <div class="wizard-spinner" aria-hidden="true"></div>
+}
+else
+{
+    <NotePagesViewer Pages="Draft.Pages" Title="@Draft.Title" PostId="CreatedPost.Id" Posted="CreatedPost.IsShared" OnShare="() => ShareModalOpen = true" Highlights="CreatedPost.Highlights"
+                     OnDocumentChanged="HandleDocumentChanged" OnPageBodyChanged="HandlePageBodyChanged" OnPageHeadingChanged="HandlePageHeadingChanged"
+                     OnHighlightCreated="HandleHighlightCreated" OnHighlightMessageAdded="HandleHighlightMessageAdded"
+                     OnHighlightAddedToDocument="HandleHighlightAddedToDocument" />
+
+    <ShareSettingsModal Post="CreatedPost" IsOpen="ShareModalOpen" IsOpenChanged="@(open => ShareModalOpen = open)" />
+}
 
 @code {
     [Parameter, EditorRequired] public NoteDraft Draft { get; set; } = null!;
 
     private Post? CreatedPost;
+    private bool ShareModalOpen;
+    private bool Failed;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync() => await TryCreate();
+
+    // Pages already come from the real generation pipeline (ProcessingStep) by the time the
+    // wizard reaches this step. Saved to All Notes the moment the note is ready — sharing it
+    // publicly is a separate, explicit step (see ShareSettingsModal above). If the save itself
+    // fails (expired session, network blip, server error), the draft stays intact (see
+    // NotesStore.CreatePostFromDraftIfNeededAsync) so Retry can just try the same POST again.
+    private async Task TryCreate()
     {
-        // Pages already come from the real generation pipeline (ProcessingStep) by the time
-        // the wizard reaches this step.
-        // Saved to All Notes the moment the note is ready — sharing it publicly is a
-        // separate, explicit step (see SharePost below).
+        Failed = false;
         CreatedPost = await Store.CreatePostFromDraftIfNeededAsync();
-    }
-
-    private async Task SharePost()
-    {
-        if (CreatedPost is not null)
-            await Store.ShareAsync(CreatedPost);
+        Failed = CreatedPost is null;
     }
 
     private async Task HandleDocumentChanged()
@@ -38,6 +55,12 @@
             await Store.UpdatePageBodyAsync(CreatedPost, page.Number, page.Body);
     }
 
+    private async Task HandlePageHeadingChanged(NotePage page)
+    {
+        if (CreatedPost is not null && page.Heading is not null)
+            await Store.UpdatePageHeadingAsync(CreatedPost, page.Number, page.Heading);
+    }
+
     private async Task HandleHighlightCreated(NoteHighlight highlight)
     {
         if (CreatedPost is not null)
@@ -48,5 +71,11 @@
     {
         if (CreatedPost is not null)
             await Store.AddHighlightMessageAsync(CreatedPost, args.HighlightId, args.Message);
+    }
+
+    private async Task HandleHighlightAddedToDocument((Guid HighlightId, int MessageId) args)
+    {
+        if (CreatedPost is not null)
+            await Store.MarkAddedToDocumentAsync(CreatedPost, args.HighlightId, args.MessageId);
     }
 }

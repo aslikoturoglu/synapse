@@ -16,6 +16,17 @@ public class PostDto
     public required DateOnly CreatedDate { get; set; }
     public bool IsShared { get; set; }
 
+    // Which of Brain Map/Process the author has left visible to other viewers — see
+    // Post.ShareBrainMap. Always true for the author's own view; NoteReaderPage/PostCard gate
+    // on (IsAuthor || this flag) per button. Map has no such flag — always visible.
+    public bool ShareBrainMap { get; set; } = true;
+    public bool ShareProcess { get; set; } = true;
+
+    // The generated note's first page — enough for the home feed's inline preview (PostCard)
+    // without dragging the whole Pages list along on every list response; null for a post
+    // whose note hasn't finished generating yet.
+    public NotePageDto? FirstPage { get; set; }
+
     public required int AuthorId { get; set; }
     public required string AuthorName { get; set; }
     public string AuthorRole { get; set; } = "";
@@ -77,6 +88,7 @@ public class AiChatMessageDto
     public required string Question { get; set; }
     public required string Answer { get; set; }
     public DateTime CreatedAt { get; set; }
+    public bool AddedToDocument { get; set; }
 }
 
 public class NoteHighlightDto
@@ -84,6 +96,7 @@ public class NoteHighlightDto
     public required Guid Id { get; set; }
     public required int PageNumber { get; set; }
     public required string SelectedText { get; set; }
+    public bool TargetsHeading { get; set; }
     public List<AiChatMessageDto> Messages { get; set; } = [];
 }
 
@@ -129,9 +142,30 @@ public class AddKeywordRequest
     public required string Text { get; set; }
 }
 
+public class UpdatePostTitleRequest
+{
+    public required string Title { get; set; }
+}
+
+public class UpdatePostDescriptionRequest
+{
+    public required string Description { get; set; }
+}
+
+public class UpdateShareSettingsRequest
+{
+    public bool ShareBrainMap { get; set; } = true;
+    public bool ShareProcess { get; set; } = true;
+}
+
 public class UpdatePageBodyRequest
 {
     public required string Body { get; set; }
+}
+
+public class UpdatePageHeadingRequest
+{
+    public required string Heading { get; set; }
 }
 
 // No Answer field: the mock used to have the client compute it, but the real
@@ -143,6 +177,7 @@ public class CreateHighlightRequest
     public required int PageNumber { get; set; }
     public required string SelectedText { get; set; }
     public required string Question { get; set; }
+    public bool TargetsHeading { get; set; }
 }
 
 public class AddHighlightMessageRequest

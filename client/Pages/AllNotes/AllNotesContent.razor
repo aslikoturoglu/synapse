@@ -4,7 +4,7 @@
 @inject AuthState AuthState
 @inject UiStrings Strings
 
-<div class="notes-actions-row">
+<div class="notes-actions-row" data-tour="allnotes-actions">
     @if (!AuthState.IsAdmin)
     {
         <a class="notes-action-card" href="/notes/new">
@@ -35,7 +35,7 @@
     }
 </div>
 
-<NotesList Title="@(ShowTitle ? Strings.Get("allNotes") : "")" Posts="MyPosts" OnDelete="HandleDelete" OnAddToGroup="OpenAddToGroup" OnShare="HandleShare" OnUnshare="HandleUnshare" />
+<NotesList Title="@(ShowTitle ? Strings.Get("allNotes") : "")" Posts="MyPosts" OnDelete="HandleDelete" OnAddToGroup="OpenAddToGroup" OnUnshare="HandleUnshare" />
 
 <Modal IsOpen="CreateGroupModalOpen" IsOpenChanged="@(open => CreateGroupModalOpen = open)" OnAccept="ConfirmCreateGroup" AcceptLabel="@Strings.Get("create")">
     <h3 class="modal-form-heading">@Strings.Get("createGroup")</h3>
@@ -71,8 +71,6 @@
     private Post? PostForGroupAssignment { get; set; }
 
     private async Task HandleDelete(Post post) => await Store.DeletePostAsync(post);
-
-    private async Task HandleShare(Post post) => await Store.ShareAsync(post);
 
     private async Task HandleUnshare(Post post) => await Store.UnshareAsync(post);
 

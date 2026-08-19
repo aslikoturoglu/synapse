@@ -8,7 +8,7 @@ namespace Server.Controllers;
 
 [ApiController]
 [Route("api/admin-chat")]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,Moderator")]
 public class AdminChatController(AdminChatAiService chatService, UserService userService, DashboardService dashboardService) : ControllerBase
 {
     [HttpPost]

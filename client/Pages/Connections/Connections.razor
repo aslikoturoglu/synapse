@@ -21,17 +21,21 @@
         }
         else
         {
+            <div class="connections-search" data-tour="connections-search">
+                <SearchBar Placeholder="@Strings.Get("searchConnectionsPlaceholder")" @bind-Value="SearchTerm" />
+            </div>
+
             <div class="connections-split">
                 <div class="connections-column">
-                    <h2 class="connections-column-heading">@Following.Count @Strings.Get("following")</h2>
-                    @if (Following.Count == 0)
+                    <h2 class="connections-column-heading">@FilteredFollowing.Count @Strings.Get("following")</h2>
+                    @if (FilteredFollowing.Count == 0)
                     {
-                        <p class="stub-text">@Strings.Get("noConnectionsYet")</p>
+                        <p class="stub-text">@(SearchTerm.Length == 0 ? Strings.Get("noConnectionsYet") : Strings.Get("noSearchResults"))</p>
                     }
                     else
                     {
                         <div class="connections-list">
-                            @foreach (var connection in Following)
+                            @foreach (var connection in FilteredFollowing)
                             {
                                 <a class="connection-card" href="@($"/profile/{Uri.EscapeDataString(connection.FullName)}")" @key="connection.Id">
                                     <span class="avatar-circle" aria-hidden="true">@connection.Name.Substring(0, 1)</span>
@@ -54,15 +58,15 @@
                 <div class="connections-divider" aria-hidden="true"></div>
 
                 <div class="connections-column">
-                    <h2 class="connections-column-heading">@Followers.Count @Strings.Get("followers")</h2>
-                    @if (Followers.Count == 0)
+                    <h2 class="connections-column-heading">@FilteredFollowers.Count @Strings.Get("followers")</h2>
+                    @if (FilteredFollowers.Count == 0)
                     {
-                        <p class="stub-text">@Strings.Get("noFollowersYet")</p>
+                        <p class="stub-text">@(SearchTerm.Length == 0 ? Strings.Get("noFollowersYet") : Strings.Get("noSearchResults"))</p>
                     }
                     else
                     {
                         <div class="connections-list">
-                            @foreach (var connection in Followers)
+                            @foreach (var connection in FilteredFollowers)
                             {
                                 <a class="connection-card" href="@($"/profile/{Uri.EscapeDataString(connection.FullName)}")" @key="connection.Id">
                                     <span class="avatar-circle" aria-hidden="true">@connection.Name.Substring(0, 1)</span>
@@ -82,6 +86,8 @@
                     }
                 </div>
             </div>
+
+            <TourGuide TourId="connections" />
         }
     </div>
 </div>
@@ -90,6 +96,13 @@
     private List<ConnectionDto> Following { get; set; } = [];
     private List<ConnectionDto> Followers { get; set; } = [];
     private bool Loading = true;
+    private string SearchTerm = "";
+
+    private List<ConnectionDto> FilteredFollowing =>
+        Following.Where(c => SearchTerm.Length == 0 || c.FullName.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    private List<ConnectionDto> FilteredFollowers =>
+        Followers.Where(c => SearchTerm.Length == 0 || c.FullName.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase)).ToList();
 
     protected override async Task OnInitializedAsync()
     {

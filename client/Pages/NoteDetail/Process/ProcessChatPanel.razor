@@ -21,14 +21,21 @@
                     <div class="process-chat-item-body">
                         @foreach (var message in highlight.Messages)
                         {
-                            <div class="process-chat-message">
+                            <div class="process-chat-message @(message.AddedToDocument ? "process-chat-message-added" : "")">
+                                @if (message.AddedToDocument)
+                                {
+                                    <span class="process-chat-added-tag">@Strings.Get("addedToDocumentTag")</span>
+                                }
                                 <p class="process-chat-question">@message.Question</p>
                                 <p class="process-chat-answer">@(string.IsNullOrEmpty(message.Answer) ? Strings.Get("askAiThinking") : message.Answer)</p>
                             </div>
                         }
 
-                        <input class="form-input process-chat-followup-input" placeholder="@Strings.Get("askAiPlaceholder")"
-                               @bind="FollowUpText" @bind:event="oninput" @onkeydown="@(e => HandleFollowUpKeydown(e, highlight))" />
+                        @if (!ReadOnly)
+                        {
+                            <input class="form-input process-chat-followup-input" placeholder="@Strings.Get("askAiPlaceholder")"
+                                   @bind="FollowUpText" @bind:event="oninput" @onkeydown="@(e => HandleFollowUpKeydown(e, highlight))" />
+                        }
                     </div>
                 }
             </div>
@@ -39,6 +46,8 @@
 @code {
     [Parameter, EditorRequired] public Post Post { get; set; } = null!;
     [Parameter] public Guid? SelectedHighlightId { get; set; }
+    // A non-owner viewer can review existing highlights/Q&A history but not ask new questions.
+    [Parameter] public bool ReadOnly { get; set; }
     [Parameter] public EventCallback<(Guid HighlightId, AiChatMessage Message)> OnFollowUpAsked { get; set; }
 
     private Guid? ExpandedHighlightId;

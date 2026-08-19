@@ -24,6 +24,7 @@
     protected override void OnInitialized()
     {
         Draft.EnsureKeywordsSeeded();
+        BrainMapKeywordActions.ApplyOccurrenceCounts(Draft.Keywords, Draft.DocumentKnowledgeBase);
     }
 
     private void RemoveKeyword(BrainMapKeyword keyword) => BrainMapKeywordActions.Remove(Draft.Keywords, keyword);

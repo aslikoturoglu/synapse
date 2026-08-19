@@ -15,6 +15,9 @@ public class NoteHighlight
     public int PageNumber { get; set; }
     public required string SelectedText { get; set; }
 
+    // Whether this highlight was made in the page's Heading rather than its Body.
+    public bool TargetsHeading { get; set; }
+
     public List<AiChatMessage> Messages { get; } = [];
 
     // The Responses API's continuation id (NoteChatAiService.AskAsync's ResponseId) from the

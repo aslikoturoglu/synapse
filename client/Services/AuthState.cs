@@ -18,6 +18,14 @@ public class AuthState(IJSRuntime js, HttpClient http)
     public bool IsAuthenticated => Token is not null;
     public bool IsAdmin => CurrentUser?.Role == "Admin";
 
+    // Granted by an Admin, never self-assigned. Keeps full normal-user content permissions
+    // (unlike Admin) plus most of Admin's All Users management powers — just not the ability
+    // to change anyone's role. UI that's specifically about managing other accounts should
+    // check CanManageUsers; UI about the caller's own content permissions should keep checking
+    // IsAdmin alone, since a Moderator is meant to look just like a User there.
+    public bool IsModerator => CurrentUser?.Role == "Moderator";
+    public bool CanManageUsers => IsAdmin || IsModerator;
+
     public event Action? Changed;
 
     public async Task InitializeAsync()

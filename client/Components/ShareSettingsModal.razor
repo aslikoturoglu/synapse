@@ -1,0 +1,90 @@
+@using Client.Pages.Home
+@inject NotesStore Store
+@inject UiStrings Strings
+
+<Modal IsOpen="IsOpen" IsOpenChanged="@(open => IsOpenChanged.InvokeAsync(open))" ShowAcceptButton="false">
+    <h3 class="modal-form-heading">@Strings.Get("shareSettingsHeading")</h3>
+
+    <div class="form-group">
+        <label class="form-label">@Strings.Get("shareTitleLabel")</label>
+        <input class="form-input" @bind="TitleDraft" @bind:event="oninput" />
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">@Strings.Get("shareDescriptionLabel")</label>
+        <textarea class="form-input" @bind="DescriptionDraft" @bind:event="oninput"></textarea>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">@Strings.Get("shareVisibilityHeading")</label>
+        <div class="share-visibility-list">
+            <label class="share-visibility-option">
+                <input type="checkbox" @bind="ShowBrainMap" />
+                <span>@Strings.Get("brainMapButton")</span>
+            </label>
+            <label class="share-visibility-option">
+                <input type="checkbox" @bind="ShowProcess" />
+                <span>@Strings.Get("process")</span>
+            </label>
+        </div>
+    </div>
+
+    <div class="modal-confirm-actions">
+        <button type="button" class="btn-secondary" @onclick="Cancel">@Strings.Get("cancel")</button>
+        <button type="button" class="btn-primary" disabled="@string.IsNullOrWhiteSpace(TitleDraft)" @onclick="Confirm">@Strings.Get("shareOnProfile")</button>
+    </div>
+</Modal>
+
+@code {
+    [Parameter, EditorRequired] public Post Post { get; set; } = null!;
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public EventCallback OnShared { get; set; }
+
+    private string TitleDraft = "";
+    private string DescriptionDraft = "";
+    private bool ShowBrainMap = true;
+    private bool ShowProcess = true;
+    private bool _loadedForCurrentOpen;
+
+    // Seeds the draft fields from the post right as the modal opens (not OnInitialized — the
+    // same modal instance stays mounted across opens/closes on some callers) and resets the
+    // guard on close so the next open re-seeds instead of keeping stale edits.
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && !_loadedForCurrentOpen)
+        {
+            TitleDraft = Post.Title;
+            DescriptionDraft = Post.Description;
+            ShowBrainMap = Post.ShareBrainMap;
+            ShowProcess = Post.ShareProcess;
+            _loadedForCurrentOpen = true;
+        }
+        else if (!IsOpen)
+        {
+            _loadedForCurrentOpen = false;
+        }
+    }
+
+    private async Task Cancel() => await IsOpenChanged.InvokeAsync(false);
+
+    private async Task Confirm()
+    {
+        var title = TitleDraft.Trim();
+        if (title.Length == 0)
+            return;
+
+        if (title != Post.Title)
+            await Store.UpdateTitleAsync(Post, title);
+
+        var description = DescriptionDraft.Trim();
+        if (description != Post.Description)
+            await Store.UpdateDescriptionAsync(Post, description);
+
+        await Store.UpdateShareSettingsAsync(Post, ShowBrainMap, ShowProcess);
+        await Store.ShareAsync(Post);
+
+        await IsOpenChanged.InvokeAsync(false);
+        await OnShared.InvokeAsync();
+    }
+}

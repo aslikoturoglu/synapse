@@ -23,7 +23,7 @@
         }
         else
         {
-            <NotesList Title="@GroupName" Posts="GroupPosts" OnDelete="HandleDelete" OnAddToGroup="OpenAddToGroup" OnShare="HandleShare" OnUnshare="HandleUnshare" />
+            <NotesList Title="@GroupName" Posts="GroupPosts" OnDelete="HandleDelete" OnAddToGroup="OpenAddToGroup" OnUnshare="HandleUnshare" />
         }
     </div>
 </div>
@@ -48,8 +48,6 @@
     private Post? PostForGroupAssignment { get; set; }
 
     private async Task HandleDelete(Post post) => await Store.DeletePostAsync(post);
-
-    private async Task HandleShare(Post post) => await Store.ShareAsync(post);
 
     private async Task HandleUnshare(Post post) => await Store.UnshareAsync(post);
 

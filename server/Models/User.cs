@@ -1,6 +1,11 @@
 namespace Server.Models;
 
-public enum UserRole { User, Admin }
+// Moderator = 2: granted by an Admin (UserService.ToggleRoleAsync), never self-assigned and
+// never grantable by a Moderator itself. Unlike Admin, a Moderator keeps full normal-user
+// content permissions (post/note/like/comment/follow — see the IsInRole("Admin") checks in
+// PostsController, which a Moderator's role claim never matches) on top of most of Admin's
+// All Users management powers (UsersController) — just not the power to change anyone's role.
+public enum UserRole { User, Admin, Moderator }
 
 public class User
 {

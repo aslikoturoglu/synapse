@@ -30,6 +30,7 @@ builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<ConnectionService>();
 builder.Services.AddScoped<ProfileService>();
+builder.Services.AddScoped<RequestService>();
 builder.Services.AddSingleton<EmailService>();
 
 // FoundryAgentClient wraps a PersistentAgentsClient (thread-safe, reused like any other Azure

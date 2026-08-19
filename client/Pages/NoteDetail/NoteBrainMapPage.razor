@@ -1,6 +1,8 @@
 @page "/notes/{PostId:int}/brain-map"
 @using Client.Pages.Home
+@using Client.Services
 @inject NotesStore Store
+@inject AuthState AuthState
 @inject UiStrings Strings
 
 <PageTitle>@(Post?.Title ?? Strings.Get("allNotes"))</PageTitle>
@@ -18,13 +20,19 @@ else
         }
         else
         {
-            <BrainMapDiagram Keywords="Post.Keywords" ShowHistory="true" AlwaysEditable="true" OnAdd="AddKeyword" OnRemove="RemoveKeyword">
-                <div class="brain-map-history-summary">
-                    <span><strong>@Post.Keywords.Count</strong> @Strings.Get("keywordsTotalLabel")</span>
-                    <span><strong>@GeneratedCount</strong> @Strings.Get("keywordsGeneratedLabel")</span>
-                    <span><strong>@DeletedCount</strong> @Strings.Get("keywordsDeletedLabel")</span>
-                    <span><strong>@AddedCount</strong> @Strings.Get("keywordsAddedLabel")</span>
-                </div>
+            @* Non-owner viewers only ever see the Brain Map's final state — no AI-deleted/
+               user-added history markers, no add/remove controls (ShowHistory/ReadOnly below
+               both key off IsAuthor). *@
+            <BrainMapDiagram Keywords="Post.Keywords" ShowHistory="@IsAuthor" AlwaysEditable="true" ReadOnly="@(!IsAuthor)" OnAdd="AddKeyword" OnRemove="RemoveKeyword">
+                @if (IsAuthor)
+                {
+                    <div class="brain-map-history-summary">
+                        <span><strong>@Post.Keywords.Count</strong> @Strings.Get("keywordsTotalLabel")</span>
+                        <span><strong>@GeneratedCount</strong> @Strings.Get("keywordsGeneratedLabel")</span>
+                        <span><strong>@DeletedCount</strong> @Strings.Get("keywordsDeletedLabel")</span>
+                        <span><strong>@AddedCount</strong> @Strings.Get("keywordsAddedLabel")</span>
+                    </div>
+                }
             </BrainMapDiagram>
         }
     </NoteDetailLayout>
@@ -35,6 +43,8 @@ else
 
     private Post? Post;
     private int? LoadedPostId;
+
+    private bool IsAuthor => Post?.AuthorId == AuthState.CurrentUser?.Id;
 
     protected override async Task OnParametersSetAsync()
     {

@@ -1,0 +1,51 @@
+@page "/search"
+@using Client.Pages.Home
+@inject NotesStore Store
+@inject UiStrings Strings
+
+<PageTitle>@Strings.Get("searchResultsFor") @Query</PageTitle>
+
+<PrimaryHeader />
+
+<div class="home-body">
+    <Drawer UserName="@Store.Profile.Name" UserEmail="@Store.Profile.Email" />
+
+    <div class="home-feed">
+        <h1 class="notes-title">@Strings.Get("searchResultsFor") "@Query"</h1>
+
+        @if (string.IsNullOrWhiteSpace(Query))
+        {
+            <p class="stub-text">@Strings.Get("noSearchResults")</p>
+        }
+        else if (Results.Count == 0)
+        {
+            <p class="stub-text">@Strings.Get("noSearchResults")</p>
+        }
+        else
+        {
+            @foreach (var post in Results)
+            {
+                <PostCard Post="post" OnDeleted="StateHasChanged" />
+            }
+        }
+    </div>
+</div>
+
+@code {
+    // Site-wide: everything the caller can already see client-side (their own notes, shared or
+    // not, plus the public feed — see NotesStore.LoadFeedAsync), matched against every text
+    // field on the post rather than just the title, hence "all words".
+    [SupplyParameterFromQuery(Name = "q")]
+    [Parameter]
+    public string? Query { get; set; }
+
+    private List<Post> Results =>
+        string.IsNullOrWhiteSpace(Query)
+            ? []
+            : Store.Posts.Where(p =>
+                p.Title.Contains(Query, StringComparison.OrdinalIgnoreCase) ||
+                p.Description.Contains(Query, StringComparison.OrdinalIgnoreCase) ||
+                p.MiniDescription.Contains(Query, StringComparison.OrdinalIgnoreCase) ||
+                p.AuthorName.Contains(Query, StringComparison.OrdinalIgnoreCase))
+              .ToList();
+}

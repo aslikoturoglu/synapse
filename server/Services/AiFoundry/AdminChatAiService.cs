@@ -32,7 +32,7 @@ public class AdminChatAiService(FoundryAgentClient client, IConfiguration config
     {
         var sb = new StringBuilder();
         sb.AppendLine($"Total accounts: {users.Count}");
-        sb.AppendLine($"Admins: {users.Count(u => u.Role == "Admin")}, Regular users: {users.Count(u => u.Role == "User")}");
+        sb.AppendLine($"Admins: {users.Count(u => u.Role == "Admin")}, Moderators: {users.Count(u => u.Role == "Moderator")}, Regular users: {users.Count(u => u.Role == "User")}");
         sb.AppendLine($"Deactivated accounts: {users.Count(u => u.IsDeactivated)}");
         sb.AppendLine();
         sb.AppendLine("All-time activity totals:");

@@ -2,6 +2,7 @@
 @using Client.Pages.Home
 @using Client.Services
 @inject NotesStore Store
+@inject AuthState AuthState
 @inject PostsApiClient PostsApi
 @inject UiStrings Strings
 
@@ -24,9 +25,12 @@ else
         }
         else
         {
-            <div class="note-map-actions-row">
-                <button type="button" class="btn-primary" disabled="@Regenerating" @onclick="Regenerate">@Strings.Get("regenerateMap")</button>
-            </div>
+            @if (IsAuthor)
+            {
+                <div class="note-map-actions-row">
+                    <button type="button" class="btn-primary" disabled="@Regenerating" @onclick="Regenerate">@Strings.Get("regenerateMap")</button>
+                </div>
+            }
             <BrainMapGraph Nodes="Graph.Nodes" Edges="Graph.Edges" />
         }
     </NoteDetailLayout>
@@ -40,6 +44,8 @@ else
     private GraphDto? Graph;
     private bool Loading = true;
     private bool Regenerating;
+
+    private bool IsAuthor => Post?.AuthorId == AuthState.CurrentUser?.Id;
 
     protected override async Task OnParametersSetAsync()
     {

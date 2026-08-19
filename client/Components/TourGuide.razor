@@ -1,0 +1,159 @@
+@using System.Globalization
+@using Client.Services
+@implements IDisposable
+@inject IJSRuntime JS
+@inject TourState TourState
+
+@if (CurrentStep is not null && Rect is not null)
+{
+    <div class="tour-dim" @onclick="Finish"></div>
+    <div class="tour-highlight" style="top:@((Rect.Top - 8).ToString(CultureInfo.InvariantCulture))px; left:@((Rect.Left - 8).ToString(CultureInfo.InvariantCulture))px; width:@((Rect.Width + 16).ToString(CultureInfo.InvariantCulture))px; height:@((Rect.Height + 16).ToString(CultureInfo.InvariantCulture))px;"></div>
+
+    <div class="tour-callout" style="top:@(CalloutTop.ToString(CultureInfo.InvariantCulture))px; left:@(CalloutLeft.ToString(CultureInfo.InvariantCulture))px;" @onclick:stopPropagation="true">
+        <span class="tour-callout-arrow @(CalloutBelow ? "tour-callout-arrow-up" : "tour-callout-arrow-down")"></span>
+        <p class="tour-callout-eyebrow">Axon</p>
+        <h4 class="tour-callout-title">@CurrentStep.Title</h4>
+        <p class="tour-callout-text">@CurrentStep.Text</p>
+        <div class="tour-callout-actions">
+            <span class="tour-callout-progress">@(StepIndex + 1)/@Steps.Count</span>
+            <button type="button" class="link-inline" @onclick="Finish">Skip</button>
+            <button type="button" class="btn-primary tour-callout-next" @onclick="Next">@(IsLastStep ? "Done" : "Next")</button>
+        </div>
+    </div>
+}
+
+@code {
+    // Which entry in TourCatalog.Tours this instance plays — also the localStorage key suffix
+    // ("tour_seen_{TourId}") deciding whether it auto-starts on this component's first mount.
+    [Parameter, EditorRequired] public string TourId { get; set; } = "";
+
+    private List<TourStep> Steps => TourCatalog.Tours.TryGetValue(TourId, out var steps) ? steps : [];
+
+    private bool Active;
+    private int StepIndex;
+    private ElementRect? Rect;
+    private double CalloutTop;
+    private double CalloutLeft;
+    private bool CalloutBelow;
+
+    private TourStep? CurrentStep => Active && StepIndex < Steps.Count ? Steps[StepIndex] : null;
+    private bool IsLastStep => StepIndex >= Steps.Count - 1;
+
+    private string StorageKey => $"tour_seen_{TourId}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Live re-trigger for "Learn Synapse." clicked while already on this exact screen — a
+        // same-URI navigation wouldn't re-run OnInitializedAsync, so ConsumeReplay alone
+        // wouldn't catch that case.
+        TourState.ReplayRequested += HandleReplayRequested;
+
+        if (Steps.Count == 0)
+            return;
+
+        if (TourState.ConsumeReplay(TourId))
+        {
+            await Start();
+            return;
+        }
+
+        var seen = await JS.InvokeAsync<string?>("draftStorage.getItem", StorageKey);
+        if (string.IsNullOrEmpty(seen))
+            await Start();
+    }
+
+    private async void HandleReplayRequested(string tourId)
+    {
+        if (tourId == TourId)
+            await InvokeAsync(Start);
+    }
+
+    public void Dispose() => TourState.ReplayRequested -= HandleReplayRequested;
+
+    private async Task Start()
+    {
+        Active = true;
+        StepIndex = 0;
+        await UpdateRect();
+    }
+
+    private async Task Next()
+    {
+        if (IsLastStep)
+        {
+            await Finish();
+            return;
+        }
+
+        StepIndex++;
+        await UpdateRect();
+    }
+
+    private async Task Finish()
+    {
+        Active = false;
+        Rect = null;
+        await JS.InvokeVoidAsync("draftStorage.setItem", StorageKey, "1");
+        StateHasChanged();
+    }
+
+    // Target not on screen (yet) just skips straight to Finish rather than getting stuck —
+    // most likely cause is a step whose data-tour id doesn't exist on this render.
+    //
+    // Explicit StateHasChanged() at the end matters here: Start/Next are called both from
+    // Blazor-dispatched events (@onclick, which re-render their component automatically) and
+    // from HandleReplayRequested — a plain C# event subscription that runs outside Blazor's
+    // own dispatch pipeline. InvokeAsync there only marshals onto the right sync context, it
+    // does not schedule a render, so without this call "Learn Synapse." while already on the
+    // tour's own page silently updated state with nothing ever appearing on screen.
+    private async Task UpdateRect()
+    {
+        Rect = await JS.InvokeAsync<ElementRect?>("tour.getRect", CurrentStep?.TargetId);
+        if (Rect is null)
+        {
+            await Finish();
+            return;
+        }
+
+        // Prefer showing the callout below the target; flip above it if that would run off
+        // the bottom of a typical viewport. OnAfterRenderAsync clamps this against the real
+        // viewport/callout size once it's actually on screen — this is just a starting guess.
+        CalloutBelow = Rect.Top + Rect.Height + 220 < 900;
+        CalloutTop = CalloutBelow ? Rect.Top + Rect.Height + 20 : Math.Max(16, Rect.Top - 200);
+        CalloutLeft = Math.Max(16, Rect.Left);
+        _needsClampCheck = true;
+        StateHasChanged();
+    }
+
+    // The callout's initial position (above/below/left-aligned to the target) is only a guess
+    // — near a screen edge it can still render partially off-screen. Once it's actually
+    // rendered, measure its real size and the real viewport and pull it back inside all four
+    // edges. Runs at most once per step (guarded by _needsClampCheck) so it can't loop.
+    private bool _needsClampCheck;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_needsClampCheck || CurrentStep is null)
+            return;
+
+        _needsClampCheck = false;
+
+        var viewport = await JS.InvokeAsync<Viewport?>("tour.getViewport");
+        var calloutRect = await JS.InvokeAsync<ElementRect?>("tour.getElementRect", ".tour-callout");
+        if (viewport is null || calloutRect is null)
+            return;
+
+        var clampedTop = Math.Clamp(CalloutTop, 16, Math.Max(16, viewport.Height - calloutRect.Height - 16));
+        var clampedLeft = Math.Clamp(CalloutLeft, 16, Math.Max(16, viewport.Width - calloutRect.Width - 16));
+
+        if (Math.Abs(clampedTop - CalloutTop) > 0.5 || Math.Abs(clampedLeft - CalloutLeft) > 0.5)
+        {
+            CalloutTop = clampedTop;
+            CalloutLeft = clampedLeft;
+            StateHasChanged();
+        }
+    }
+
+    private sealed record ElementRect(double Top, double Left, double Width, double Height);
+    private sealed record Viewport(double Width, double Height);
+}

@@ -23,6 +23,13 @@ public class Post
     // appearing in the public feed too.
     public bool IsShared { get; set; }
 
+    // Set (defaulting to true) in the share confirmation popup — whether a non-author viewer
+    // is allowed to open that review page at all. The author can always reach both regardless
+    // of these flags; see PostService.UpdateShareSettingsAsync. Map has no such flag — every
+    // viewer of a shared post can always open it.
+    public bool ShareBrainMap { get; set; } = true;
+    public bool ShareProcess { get; set; } = true;
+
     public int? GroupId { get; set; }
     public Group? Group { get; set; }
 

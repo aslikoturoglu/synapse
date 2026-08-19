@@ -1,3 +1,5 @@
+@inject NavigationManager Navigation
+
 @if (!string.IsNullOrWhiteSpace(UserDisplayName))
 {
     <div class="primary-header primary-header-profile">
@@ -9,10 +11,29 @@ else
 {
     <div class="primary-header">
         <h1 class="brand-title">synapse.</h1>
-        <SearchBar Placeholder="Search" />
+        @if (ShowSearch)
+        {
+            <SearchBar Placeholder="Search" Value="@SearchQuery" ValueChanged="@(v => SearchQuery = v)" OnSubmit="HandleSubmit" data-tour="global-search" />
+        }
     </div>
 }
 
 @code {
     [Parameter] public string? UserDisplayName { get; set; }
+
+    // Site-wide search only makes sense as a heading feature on Home, where it sits above a
+    // mixed feed of everything — every other screen either has its own section-scoped search
+    // (Drawer, Requests, All Notes, Connections) or isn't a search surface at all.
+    [Parameter] public bool ShowSearch { get; set; }
+
+    private string SearchQuery = "";
+
+    // Site-wide search (your own notes + the public feed, by title/description/author) — not
+    // scoped to whatever page happens to render this header, unlike the section-local search
+    // bars (Drawer's menu search, All Notes', Requests').
+    private void HandleSubmit(string query)
+    {
+        if (!string.IsNullOrWhiteSpace(query))
+            Navigation.NavigateTo($"/search?q={Uri.EscapeDataString(query.Trim())}");
+    }
 }

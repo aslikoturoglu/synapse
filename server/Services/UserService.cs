@@ -6,7 +6,7 @@ using Server.Models;
 
 namespace Server.Services;
 
-public enum ToggleRoleResult { Success, NotFound, LastAdmin }
+public enum ToggleRoleResult { Success, NotFound, CannotChangeAdmin }
 
 public class UserService(AppDbContext db, EmailService email)
 {
@@ -68,22 +68,21 @@ public class UserService(AppDbContext db, EmailService email)
         return newPassword;
     }
 
+    // This is a Moderator grant/revoke toggle (User &lt;-&gt; Moderator), not a general role editor —
+    // it only ever operates on that pair. An Admin account is protected outright: this endpoint
+    // is Admin-only to call (UsersController), and even an Admin can't demote a fellow Admin
+    // (or, self-evidently, themselves) through it, since "our real admin(s)" is meant to stay a
+    // deliberate, out-of-band decision rather than a click away.
     public async Task<ToggleRoleResult> ToggleRoleAsync(int id)
     {
         var user = await db.Users.FindAsync(id);
         if (user is null)
             return ToggleRoleResult.NotFound;
 
-        // Demoting the last remaining admin would lock the whole admin panel (including the
-        // ability to promote someone back) — refuse rather than allow a self-inflicted lockout.
         if (user.Role == UserRole.Admin)
-        {
-            var otherAdmins = await db.Users.CountAsync(u => u.Role == UserRole.Admin && u.Id != id);
-            if (otherAdmins == 0)
-                return ToggleRoleResult.LastAdmin;
-        }
+            return ToggleRoleResult.CannotChangeAdmin;
 
-        user.Role = user.Role == UserRole.Admin ? UserRole.User : UserRole.Admin;
+        user.Role = user.Role == UserRole.Moderator ? UserRole.User : UserRole.Moderator;
         await db.SaveChangesAsync();
 
         await email.SendAsync(user.Email, "Your Synapse account role has changed",
@@ -105,6 +104,7 @@ public class UserService(AppDbContext db, EmailService email)
         await db.Comments.Where(c => c.AuthorId == id).ExecuteDeleteAsync();
         await db.NoteHighlights.Where(h => h.UserId == id).ExecuteDeleteAsync();
         await db.Follows.Where(f => f.FollowerId == id || f.FollowingId == id).ExecuteDeleteAsync();
+        await db.UserRequests.Where(r => r.UserId == id || r.HandledByUserId == id).ExecuteDeleteAsync();
 
         await email.SendAsync(user.Email, "Your Synapse account has been deleted",
             $"Hi {user.Name},\n\nYour account and all associated content have been permanently deleted by an administrator.");

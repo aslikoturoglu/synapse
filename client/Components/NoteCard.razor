@@ -61,7 +61,7 @@
             }
             else
             {
-                <button type="button" class="note-action note-action-share" @onclick="() => OnShare.InvokeAsync(Post)">
+                <button type="button" class="note-action note-action-share" @onclick="() => ShareModalOpen = true">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg>
                     @Strings.Get("shareOnProfile")
                 </button>
@@ -98,14 +98,16 @@
     </div>
 </Modal>
 
+<ShareSettingsModal Post="Post" IsOpen="ShareModalOpen" IsOpenChanged="@(open => ShareModalOpen = open)" />
+
 @code {
     [Parameter, EditorRequired] public Post Post { get; set; } = null!;
     [Parameter] public EventCallback<Post> OnDelete { get; set; }
     [Parameter] public EventCallback<Post> OnAddToGroup { get; set; }
-    [Parameter] public EventCallback<Post> OnShare { get; set; }
     [Parameter] public EventCallback<Post> OnUnshare { get; set; }
 
     private bool UnshareModalOpen { get; set; }
+    private bool ShareModalOpen { get; set; }
 
     private void Toggle() => Post.IsExpanded = !Post.IsExpanded;
 

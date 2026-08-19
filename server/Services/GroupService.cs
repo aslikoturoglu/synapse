@@ -10,7 +10,13 @@ public enum GroupOpResult { Success, Conflict }
 public class GroupService(AppDbContext db)
 {
     public async Task<List<GroupDto>> GetMineAsync(int userId) =>
-        await db.Groups.Where(g => g.OwnerId == userId)
+        await GetByOwnerIdAsync(userId);
+
+    // Admin-only: lets an admin see another user's groups the same way GetMineAsync lets that
+    // user see their own — gated to Admin by UsersController's class-level
+    // [Authorize(Roles = "Admin")], not here.
+    public async Task<List<GroupDto>> GetByOwnerIdAsync(int ownerId) =>
+        await db.Groups.Where(g => g.OwnerId == ownerId)
             .OrderBy(g => g.Name)
             .Select(g => new GroupDto { Id = g.Id, Name = g.Name })
             .ToListAsync();

@@ -9,7 +9,7 @@ namespace Client.Pages.Home;
 // Holds session-wide UI state. Posts now come from the real backend (via PostsApiClient);
 // Groups/Profile/Settings are still mock-only — kept here for the session the same way Posts
 // used to be, until those get their own backend wiring.
-public class NotesStore(AuthState authState, PostsApiClient postsApi, ConnectionsApiClient connectionsApi, GroupsApiClient groupsApi, ProfileApiClient profileApi, IJSRuntime js)
+public class NotesStore(AuthState authState, PostsApiClient postsApi, ConnectionsApiClient connectionsApi, GroupsApiClient groupsApi, ProfileApiClient profileApi, UsersApiClient usersApi, IJSRuntime js)
 {
     private const string ActiveDraftStorageKey = "synapse_active_draft";
     private const string ArchivedDraftsStorageKey = "synapse_archived_drafts";
@@ -264,12 +264,66 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi, Connection
         return true;
     }
 
+    public async Task<bool> UpdateTitleAsync(Post post, string title)
+    {
+        if (!await postsApi.UpdateTitleAsync(post.Id, title))
+            return false;
+
+        post.Title = title;
+        return true;
+    }
+
+    public async Task<bool> UpdateDescriptionAsync(Post post, string description)
+    {
+        if (!await postsApi.UpdateDescriptionAsync(post.Id, description))
+            return false;
+
+        post.Description = description;
+        return true;
+    }
+
+    // Set right before the actual ShareAsync call — see ShareSettingsModal.
+    public async Task<bool> UpdateShareSettingsAsync(Post post, bool showBrainMap, bool showProcess)
+    {
+        if (!await postsApi.UpdateShareSettingsAsync(post.Id, showBrainMap, showProcess))
+            return false;
+
+        post.ShareBrainMap = showBrainMap;
+        post.ShareProcess = showProcess;
+        return true;
+    }
+
+    public async Task<bool> UpdatePageHeadingAsync(Post post, int pageNumber, string heading)
+    {
+        if (!await postsApi.UpdatePageHeadingAsync(post.Id, pageNumber, heading))
+            return false;
+
+        var page = post.Pages.FirstOrDefault(p => p.Number == pageNumber);
+        if (page is not null)
+            page.Heading = heading;
+        return true;
+    }
+
     public async Task<bool> IncrementDocumentChangeAsync(Post post)
     {
         if (!await postsApi.IncrementDocumentChangeAsync(post.Id))
             return false;
 
         post.DocumentChangeCount++;
+        return true;
+    }
+
+    // Same "Add to Document" event as IncrementDocumentChangeAsync above, but also tags the
+    // specific message that produced the edit, so Process view can group/tag it distinctly.
+    public async Task<bool> MarkAddedToDocumentAsync(Post post, Guid highlightId, int messageId)
+    {
+        if (!await postsApi.MarkAddedToDocumentAsync(post.Id, highlightId, messageId))
+            return false;
+
+        post.DocumentChangeCount++;
+        var message = post.Highlights.FirstOrDefault(h => h.Id == highlightId)?.Messages.FirstOrDefault(m => m.Id == messageId);
+        if (message is not null)
+            message.AddedToDocument = true;
         return true;
     }
 
@@ -290,14 +344,16 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi, Connection
             PageNumber = highlight.PageNumber,
             SelectedText = highlight.SelectedText,
             Question = pendingMessage.Question,
+            TargetsHeading = highlight.TargetsHeading,
         };
 
         var dto = await postsApi.CreateHighlightAsync(post.Id, request);
-        var realAnswer = dto?.Messages.FirstOrDefault()?.Answer;
-        if (realAnswer is null)
+        var realMessage = dto?.Messages.FirstOrDefault();
+        if (realMessage is null)
             return false;
 
-        pendingMessage.Answer = realAnswer;
+        pendingMessage.Id = realMessage.Id;
+        pendingMessage.Answer = realMessage.Answer;
         return true;
     }
 
@@ -310,6 +366,7 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi, Connection
         if (dto is null)
             return false;
 
+        message.Id = dto.Id;
         message.Answer = dto.Answer;
         return true;
     }
@@ -348,17 +405,20 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi, Connection
         };
 
         var dto = await postsApi.CreateAsync(request);
-        Post? post = null;
-        if (dto is not null)
-        {
-            post = ToPost(dto);
-            post.Keywords.AddRange(Draft.Keywords);
-            post.Pages.AddRange(Draft.Pages);
-            Posts.Insert(0, post);
-        }
+        // Leave Draft.IsCreated false on failure (network blip, expired session, server error,
+        // etc.) so the caller can retry — previously this was set unconditionally, which
+        // silently marked the draft "done" with no post behind it AND wiped its localStorage
+        // backup below, permanently losing the note with no error and no way to retry.
+        if (dto is null)
+            return null;
+
+        var post = ToPost(dto);
+        post.Keywords.AddRange(Draft.Keywords);
+        post.Pages.AddRange(Draft.Pages);
+        Posts.Insert(0, post);
 
         Draft.IsCreated = true;
-        Draft.CreatedPostId = post?.Id;
+        Draft.CreatedPostId = post.Id;
         // Now a real, saved Post — no longer "unfinished", so the persisted copy of it as an
         // in-progress draft has to go too, or a later reload would restore it and show a
         // resume banner for a note that's actually already done.
@@ -452,6 +512,15 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi, Connection
     public async Task<List<Post>> GetRepostsByAuthorIdAsync(int userId) =>
         (await profileApi.GetRepostsByIdAsync(userId)).Select(ToPost).ToList();
 
+    // Admin-only: a target user's full note collection (shared and unshared, mirroring what
+    // they see on their own All Notes page) and the groups they've organized them into — see
+    // UsersController.GetNotes/GetGroups.
+    public async Task<List<Post>> GetNotesByAuthorIdAsync(int userId) =>
+        (await usersApi.GetNotesAsync(userId)).Select(ToPost).ToList();
+
+    public async Task<List<GroupDto>> GetGroupsByAuthorIdAsync(int userId) =>
+        await usersApi.GetGroupsAsync(userId);
+
     public async Task AddCommentAsync(Post post, string text)
     {
         var comment = await postsApi.AddCommentAsync(post.Id, text);
@@ -479,6 +548,9 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi, Connection
         MiniDescription = dto.MiniDescription,
         CreatedDate = dto.CreatedDate,
         IsShared = dto.IsShared,
+        ShareBrainMap = dto.ShareBrainMap,
+        ShareProcess = dto.ShareProcess,
+        FirstPage = dto.FirstPage is null ? null : ToNotePage(dto.FirstPage),
         AuthorId = dto.AuthorId,
         AuthorName = dto.AuthorName,
         AuthorRole = dto.AuthorRole,
@@ -544,6 +616,7 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi, Connection
             Id = dto.Id,
             PageNumber = dto.PageNumber,
             SelectedText = dto.SelectedText,
+            TargetsHeading = dto.TargetsHeading,
         };
         highlight.Messages.AddRange(dto.Messages.Select(ToMessage));
         return highlight;
@@ -551,8 +624,10 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi, Connection
 
     private static AiChatMessage ToMessage(AiChatMessageDto dto) => new()
     {
+        Id = dto.Id,
         Question = dto.Question,
         Answer = dto.Answer,
         CreatedAt = dto.CreatedAt,
+        AddedToDocument = dto.AddedToDocument,
     };
 }

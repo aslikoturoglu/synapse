@@ -40,11 +40,26 @@ public class PostsApiClient(HttpClient http)
     public async Task<bool> RemoveKeywordAsync(int postId, int keywordId) =>
         (await http.DeleteAsync($"api/posts/{postId}/keywords/{keywordId}")).IsSuccessStatusCode;
 
+    public async Task<bool> UpdateTitleAsync(int postId, string title) =>
+        (await http.PutAsJsonAsync($"api/posts/{postId}/title", new UpdatePostTitleRequest { Title = title })).IsSuccessStatusCode;
+
+    public async Task<bool> UpdateDescriptionAsync(int postId, string description) =>
+        (await http.PutAsJsonAsync($"api/posts/{postId}/description", new UpdatePostDescriptionRequest { Description = description })).IsSuccessStatusCode;
+
+    public async Task<bool> UpdateShareSettingsAsync(int postId, bool showBrainMap, bool showProcess) =>
+        (await http.PutAsJsonAsync($"api/posts/{postId}/share-settings", new UpdateShareSettingsRequest { ShareBrainMap = showBrainMap, ShareProcess = showProcess })).IsSuccessStatusCode;
+
     public async Task<bool> UpdatePageBodyAsync(int postId, int pageNumber, string body) =>
         (await http.PutAsJsonAsync($"api/posts/{postId}/pages/{pageNumber}", new UpdatePageBodyRequest { Body = body })).IsSuccessStatusCode;
 
+    public async Task<bool> UpdatePageHeadingAsync(int postId, int pageNumber, string heading) =>
+        (await http.PutAsJsonAsync($"api/posts/{postId}/pages/{pageNumber}/heading", new UpdatePageHeadingRequest { Heading = heading })).IsSuccessStatusCode;
+
     public async Task<bool> IncrementDocumentChangeAsync(int postId) =>
         (await http.PostAsync($"api/posts/{postId}/document-change", null)).IsSuccessStatusCode;
+
+    public async Task<bool> MarkAddedToDocumentAsync(int postId, Guid highlightId, int messageId) =>
+        (await http.PostAsync($"api/posts/{postId}/highlights/{highlightId}/messages/{messageId}/add-to-document", null)).IsSuccessStatusCode;
 
     public async Task<NoteHighlightDto?> CreateHighlightAsync(int postId, CreateHighlightRequest request)
     {

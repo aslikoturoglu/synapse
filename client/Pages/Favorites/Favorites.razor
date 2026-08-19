@@ -10,8 +10,10 @@
 <div class="home-body">
     <Drawer UserName="@Store.Profile.Name" UserEmail="@Store.Profile.Email" />
 
-    <div class="home-feed">
+    <div class="home-feed" data-tour="favorites-list">
         <h2 class="stub-heading">@Strings.Get("favorites")</h2>
         <FavoritesContent />
     </div>
 </div>
+
+<TourGuide TourId="favorites" />

@@ -30,6 +30,16 @@ public class Post
     // users, once explicitly shared (NotesStore.ShareAsync).
     public bool IsShared { get; set; }
 
+    // Which of Brain Map/Process the author left visible to other viewers, set from the share
+    // confirmation popup (ShareSettingsModal). Always true for the author's own view — pages
+    // gate on (IsAuthor || this flag) per button. Map has no such flag — always visible.
+    public bool ShareBrainMap { get; set; } = true;
+    public bool ShareProcess { get; set; } = true;
+
+    // The generated note's first page — enough for the home feed's inline preview (PostCard)
+    // without a full LoadPostDetailAsync round trip. Null until the note's finished generating.
+    public NotePage? FirstPage { get; set; }
+
     public int AuthorId { get; set; }
     public required string AuthorName { get; set; }
     public string AuthorRole { get; set; } = "";
@@ -68,6 +78,10 @@ public class Post
     public bool IsFollowing { get; set; }
     public bool ShowFiles { get; set; }
     public bool ShowGeneratedPreview { get; set; }
+
+    // Home feed (PostCard): whether the inline first-page + Note/Brain Map/Process/Map preview
+    // is showing in place of the page thumbnails.
+    public bool ShowNotePreview { get; set; }
 
     public int FileCount => Files.Count;
     public int TotalPageCount => Files.Sum(f => f.PageCount);

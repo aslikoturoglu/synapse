@@ -1,21 +1,25 @@
 @page "/home"
 @using Client.Pages.Home
+@using Client.Services
 @inject NotesStore Store
+@inject AuthState AuthState
 
 <PageTitle>synapse.</PageTitle>
 
-<PrimaryHeader />
+<PrimaryHeader ShowSearch="true" />
 
 <div class="home-body">
     <Drawer UserName="@Store.Profile.Name" UserEmail="@Store.Profile.Email" />
 
-    <div class="home-feed">
+    <div class="home-feed" data-tour="home-feed">
         @foreach (var post in SharedPosts)
         {
-            <PostCard Post="post" OnDeleted="StateHasChanged" />
+            <PostCard Post="post" ShowFollowButton="@(!AuthState.IsAdmin)" OnDeleted="StateHasChanged" />
         }
     </div>
 </div>
+
+<TourGuide TourId="home" />
 
 @code {
     // The public feed only ever shows shared posts — Store.Posts also carries the caller's

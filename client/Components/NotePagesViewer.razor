@@ -40,7 +40,7 @@
         }
     </div>
 
-    <NoteToolbar EditMode="EditMode" Posted="Posted" OnToggleEdit="() => EditMode = true" OnDone="SaveAndExitEditMode" OnShowToc="() => TocOpen = true" OnAskAi="HandleAskAiClick" OnShare="OnShare" OnDownload="OpenPdfPreview" />
+    <NoteToolbar EditMode="EditMode" Posted="Posted" IsAuthor="IsAuthor" OnToggleEdit="() => EditMode = true" OnDone="SaveAndExitEditMode" OnShowToc="() => TocOpen = true" OnAskAi="HandleAskAiClick" OnShare="OnShare" OnDownload="OpenPdfPreview" />
 
     <NoteTableOfContents IsOpen="TocOpen" IsOpenChanged="@(open => TocOpen = open)" Pages="Pages" OnSelectPage="GoToPage" />
 }
@@ -75,7 +75,6 @@ else
                                       value="@GetDraft(highlight.Id)" @oninput="e => SetDraft(highlight.Id, e.Value?.ToString() ?? string.Empty)"
                                       @onkeydown="e => HandleBubbleKeydown(e, highlight)"></textarea>
                             <div class="note-ai-bubble-actions">
-                                <span class="note-ai-bubble-chat-tag">@Strings.Get("aiChatsLabel") <span aria-hidden="true">↗</span></span>
                                 <button type="button" class="btn-primary note-ai-bubble-add-btn" disabled="@isLoading" @onclick="() => AddToDocument(highlight)">@Strings.Get("addToDocument")</button>
                             </div>
                         }
@@ -94,15 +93,25 @@ else
         </div>
 
         <div class="note-ai-single-page">
-            <NotePageView @ref="SinglePageView" Page="LeftPage" EditMode="false" DocumentTitle="@Title"
-                          EnableSelectionListener="true" OnTextSelected="HandleAutoAsk" />
+            <div class="note-pages-row">
+                <button type="button" class="note-page-arrow note-page-side-arrow" disabled="@(CurrentLeftPage - 1 < 1)" @onclick="() => GoToSinglePage(CurrentLeftPage - 1)" aria-label="Previous page">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+                </button>
+
+                <NotePageView @ref="SinglePageView" Page="LeftPage" EditMode="false" DocumentTitle="@Title"
+                              EnableSelectionListener="true" OnTextSelected="HandleAutoAsk" />
+
+                <button type="button" class="note-page-arrow note-page-side-arrow" disabled="@(CurrentLeftPage + 1 > Pages.Count)" @onclick="() => GoToSinglePage(CurrentLeftPage + 1)" aria-label="Next page">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                </button>
+            </div>
             <NotePagination Total="Pages.Count" Current="CurrentLeftPage" OnSelect="GoToSinglePage" />
         </div>
     </div>
 
     @if (GeneralChatOpen)
     {
-        <div class="note-ai-general-chat">
+        <div class="note-ai-general-chat" data-floating-widget>
             <div class="note-ai-general-chat-header">
                 <span>@Strings.Get("askToAi")</span>
                 <button type="button" class="note-ai-general-chat-close" @onclick="() => GeneralChatOpen = false" aria-label="Close">×</button>
@@ -129,7 +138,7 @@ else
         </div>
     }
 
-    <div class="note-ai-bottom-actions">
+    <div class="note-ai-bottom-actions" data-floating-widget>
         <button type="button" class="note-ai-general-chat-toggle @(GeneralChatOpen ? "note-ai-general-chat-toggle-active" : "")"
                 @onclick="() => GeneralChatOpen = !GeneralChatOpen" aria-label="@Strings.Get("askToAi")">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>
@@ -182,13 +191,24 @@ else
     [Parameter] public EventCallback OnDocumentChanged { get; set; }
     [Parameter] public bool Posted { get; set; }
     [Parameter] public EventCallback OnShare { get; set; }
+    // Defaults true: the create-note wizard (NoteStep.razor) never renders this for anyone but
+    // the author. NoteReaderPage.razor is the one caller that passes false, for a viewer who
+    // isn't the note's author — Ask AI, manual edit, and share are meaningless (and the server
+    // already rejects them) for someone else's note.
+    [Parameter] public bool IsAuthor { get; set; } = true;
 
     // Fired whenever a page's Body actually changes (manual edit, a new highlight wrapping
     // its text, or Add to Document) so the caller can persist it — Page.Body is already
     // mutated in place by the time these fire, this just tells the caller which page to save.
     [Parameter] public EventCallback<NotePage> OnPageBodyChanged { get; set; }
+    // Same as OnPageBodyChanged, but for highlights/edits that landed in Page.Heading instead.
+    [Parameter] public EventCallback<NotePage> OnPageHeadingChanged { get; set; }
     [Parameter] public EventCallback<NoteHighlight> OnHighlightCreated { get; set; }
     [Parameter] public EventCallback<(Guid HighlightId, AiChatMessage Message)> OnHighlightMessageAdded { get; set; }
+    // Fired when the user clicks "Add to Document" on an already-answered message, so the
+    // caller can flag that specific message as one that actually changed the document (see
+    // Process page grouping) rather than just bumping the generic document-change counter.
+    [Parameter] public EventCallback<(Guid HighlightId, int MessageId)> OnHighlightAddedToDocument { get; set; }
 
     private bool EditMode { get; set; }
     private bool TocOpen { get; set; }
@@ -255,7 +275,8 @@ else
     private void HandleAskAiClick() => AskAiMode = true;
 
     // Selecting text on the single page is what actually creates a bubble — the only path in,
-    // by design (see HandleAskAiClick above).
+    // by design (see HandleAskAiClick above). Works the same whether the selection was made in
+    // the page's Heading or its Body — NotePageView tracks which one fired.
     private async Task HandleAutoAsk()
     {
         if (SinglePageView is null)
@@ -265,20 +286,24 @@ else
         if (string.IsNullOrWhiteSpace(text))
             return;
 
-        await CreateBubbleAsync(SinglePageView, CurrentLeftPage, text);
+        await CreateBubbleAsync(SinglePageView, CurrentLeftPage, text, SinglePageView.LastSelectionTargetsHeading);
     }
 
     // Only wraps the selection and opens an empty bubble — no question is asked yet. The user
     // types their own first question (never an auto-picked one) before anything is sent to the
     // agent; see HandleBubbleKeydown, which handles both that first question and every
     // follow-up through the same path.
-    private async Task CreateBubbleAsync(NotePageView view, int pageNumber, string text)
+    private async Task CreateBubbleAsync(NotePageView view, int pageNumber, string text, bool targetsHeading)
     {
         var highlightId = Guid.NewGuid();
-        await view.ApplyHighlightAsync(highlightId);
-        await OnPageBodyChanged.InvokeAsync(Pages[pageNumber - 1]);
+        await view.ApplyHighlightAsync(highlightId, targetsHeading);
 
-        var highlight = new NoteHighlight { Id = highlightId, PageNumber = pageNumber, SelectedText = text };
+        if (targetsHeading)
+            await OnPageHeadingChanged.InvokeAsync(Pages[pageNumber - 1]);
+        else
+            await OnPageBodyChanged.InvokeAsync(Pages[pageNumber - 1]);
+
+        var highlight = new NoteHighlight { Id = highlightId, PageNumber = pageNumber, SelectedText = text, TargetsHeading = targetsHeading };
         Highlights.Add(highlight);
     }
 
@@ -315,9 +340,21 @@ else
 
         var lastMessage = highlight.Messages[^1];
         var isEditRequest = EditKeywords.Any(k => lastMessage.Question.Contains(k, StringComparison.OrdinalIgnoreCase));
-        await SinglePageView.ApplyDocumentEditAsync(highlight.Id, lastMessage.Answer, isEditRequest);
-        await OnPageBodyChanged.InvokeAsync(LeftPage);
-        await OnDocumentChanged.InvokeAsync();
+        await SinglePageView.ApplyDocumentEditAsync(highlight.Id, lastMessage.Answer, isEditRequest, highlight.TargetsHeading);
+
+        if (highlight.TargetsHeading)
+            await OnPageHeadingChanged.InvokeAsync(LeftPage);
+        else
+            await OnPageBodyChanged.InvokeAsync(LeftPage);
+
+        // AddedToDocument itself is set by Store.MarkAddedToDocumentAsync (via
+        // OnHighlightAddedToDocument below) only once the server confirms it — not here — so a
+        // failed request never leaves the UI showing "Added to Document" for an edit that
+        // didn't actually persist.
+        if (lastMessage.Id != 0)
+            await OnHighlightAddedToDocument.InvokeAsync((highlight.Id, lastMessage.Id));
+        else
+            await OnDocumentChanged.InvokeAsync();
     }
 
     private async Task HandleGeneralChatKeydown(KeyboardEventArgs e)
@@ -350,7 +387,22 @@ else
             _collapsedBubbles.Add(id);
     }
 
-    private void Dismiss(Guid id) => _dismissedBubbles.Add(id);
+    // Dismissing a bubble removes both the bubble UI and the underlying highlight mark from
+    // the note text (the text itself, including any Add to Document insertion, stays).
+    private async Task Dismiss(Guid id)
+    {
+        _dismissedBubbles.Add(id);
+
+        var highlight = Highlights.FirstOrDefault(h => h.Id == id);
+        if (highlight is null || SinglePageView is null || highlight.PageNumber != CurrentLeftPage)
+            return;
+
+        await SinglePageView.RemoveHighlightAsync(id, highlight.TargetsHeading);
+        if (highlight.TargetsHeading)
+            await OnPageHeadingChanged.InvokeAsync(LeftPage);
+        else
+            await OnPageBodyChanged.InvokeAsync(LeftPage);
+    }
 
     private string GetDraft(Guid id) => _bubbleDrafts.TryGetValue(id, out var value) ? value : "";
 

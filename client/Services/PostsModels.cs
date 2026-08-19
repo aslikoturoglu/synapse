@@ -25,6 +25,11 @@ public class PostDto
     public DateOnly CreatedDate { get; set; }
     public bool IsShared { get; set; }
 
+    public bool ShareBrainMap { get; set; } = true;
+    public bool ShareProcess { get; set; } = true;
+
+    public NotePageDto? FirstPage { get; set; }
+
     public int AuthorId { get; set; }
     public string AuthorName { get; set; } = "";
     public string AuthorRole { get; set; } = "";
@@ -75,6 +80,7 @@ public class AiChatMessageDto
     public string Question { get; set; } = "";
     public string Answer { get; set; } = "";
     public DateTime CreatedAt { get; set; }
+    public bool AddedToDocument { get; set; }
 }
 
 public class NoteHighlightDto
@@ -82,6 +88,7 @@ public class NoteHighlightDto
     public Guid Id { get; set; }
     public int PageNumber { get; set; }
     public string SelectedText { get; set; } = "";
+    public bool TargetsHeading { get; set; }
     public List<AiChatMessageDto> Messages { get; set; } = [];
 }
 
@@ -111,9 +118,30 @@ public class AddKeywordRequest
     public required string Text { get; set; }
 }
 
+public class UpdatePostTitleRequest
+{
+    public required string Title { get; set; }
+}
+
+public class UpdatePostDescriptionRequest
+{
+    public required string Description { get; set; }
+}
+
+public class UpdateShareSettingsRequest
+{
+    public bool ShareBrainMap { get; set; } = true;
+    public bool ShareProcess { get; set; } = true;
+}
+
 public class UpdatePageBodyRequest
 {
     public required string Body { get; set; }
+}
+
+public class UpdatePageHeadingRequest
+{
+    public required string Heading { get; set; }
 }
 
 // No Answer field — the real answer only exists once the server has actually called
@@ -124,6 +152,7 @@ public class CreateHighlightRequest
     public required int PageNumber { get; set; }
     public required string SelectedText { get; set; }
     public required string Question { get; set; }
+    public bool TargetsHeading { get; set; }
 }
 
 public class AddHighlightMessageRequest

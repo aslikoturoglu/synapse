@@ -70,6 +70,9 @@ namespace Server.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
+                    b.Property<bool>("AddedToDocument")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("Answer")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -210,6 +213,9 @@ namespace Server.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<bool>("TargetsHeading")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
@@ -292,6 +298,12 @@ namespace Server.Migrations
                     b.Property<int>("Sends")
                         .HasColumnType("int");
 
+                    b.Property<bool>("ShareBrainMap")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("ShareProcess")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("SynthesizedDocumentMarkdown")
                         .HasColumnType("longtext");
 
@@ -305,7 +317,7 @@ namespace Server.Migrations
 
                     b.HasIndex("GroupId");
 
-                    b.ToTable("Posts");
+                    b.ToTable("Notes", (string)null);
                 });
 
             modelBuilder.Entity("Server.Models.PostComment", b =>
@@ -396,6 +408,53 @@ namespace Server.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("Server.Models.UserRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("Decision")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("HandledAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("HandledByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reply")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("RequestedRole")
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HandledByUserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserRequests");
                 });
 
             modelBuilder.Entity("Server.Models.UserSettings", b =>
@@ -591,6 +650,24 @@ namespace Server.Migrations
                     b.Navigation("Author");
 
                     b.Navigation("Post");
+                });
+
+            modelBuilder.Entity("Server.Models.UserRequest", b =>
+                {
+                    b.HasOne("Server.Models.User", "HandledByUser")
+                        .WithMany()
+                        .HasForeignKey("HandledByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Server.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("HandledByUser");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Server.Models.UserSettings", b =>

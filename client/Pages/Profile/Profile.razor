@@ -11,6 +11,7 @@
 @inject UiStrings Strings
 @inject UsersApiClient UsersApi
 @inject ProfileApiClient ProfileApi
+@inject RequestsApiClient RequestsApi
 
 <PageTitle>@(IsOwnProfile ? Store.Profile.FullName : DisplayName)</PageTitle>
 
@@ -22,7 +23,7 @@
     <div class="home-feed @(ActiveTab == ProfileTab.MyNotes ? "notes-feed" : "")">
         @if (IsOwnProfile)
         {
-            <nav class="profile-nav">
+            <nav class="profile-nav" data-tour="profile-nav">
                 <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.Profile ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.Profile">@Strings.Get("profile")</button>
                 @if (!AuthState.IsAdmin)
                 {
@@ -126,6 +127,23 @@
                             <span class="profile-info-value">•••••••</span>
                         }
                     </div>
+
+                    <div class="profile-info-row">
+                        @if (CurrentRole != "Admin")
+                        {
+                            <button type="button" class="profile-info-edit-icon" disabled="@(PendingRoleRequest is not null)" @onclick="OpenRoleChangeModal" aria-label="Request role change" data-tooltip="@Strings.Get("requestRoleChangeTooltip")">
+                                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></svg>
+                            </button>
+                        }
+                        <span class="profile-info-label">@Strings.Get("role")</span>
+                        <span class="profile-info-value">
+                            @CurrentRole
+                            @if (PendingRoleRequest is not null)
+                            {
+                                <span class="profile-role-pending">(@Strings.Get("roleChangePending"))</span>
+                            }
+                        </span>
+                    </div>
                 </div>
             }
             else if (ActiveTab == ProfileTab.MyPosts)
@@ -162,7 +180,7 @@
                 <div class="profile-header-identity">
                     <h2 class="profile-name">
                         @DisplayName
-                        @if (AuthState.IsAdmin && IsDeactivated)
+                        @if (AuthState.CanManageUsers && IsDeactivated)
                         {
                             <span class="profile-deactivated-badge">@Strings.Get("deactivated")</span>
                         }
@@ -180,51 +198,63 @@
                 @if (ProfileSummary is not null)
                 {
                     <div class="profile-header-details">
-                        @if (!string.IsNullOrWhiteSpace(ProfileSummary.JobTitle))
-                        {
+                        <div class="profile-header-detail-col">
                             <div class="profile-header-detail-row">
                                 <span class="profile-info-label">@Strings.Get("jobTitle")</span>
                                 <span class="profile-info-value">@ProfileSummary.JobTitle</span>
                             </div>
-                        }
-                        <div class="profile-header-detail-row">
-                            <span class="profile-info-label">@Strings.Get("joined")</span>
-                            <span class="profile-info-value">@ProfileSummary.CreatedAt.ToLocalTime().ToString("MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture)</span>
-                        </div>
-                        @if (AuthState.IsAdmin && OtherUserDetail is not null)
-                        {
                             <div class="profile-header-detail-row">
-                                <span class="profile-info-label">@Strings.Get("email")</span>
-                                <span class="profile-info-value">@OtherUserDetail.Email</span>
+                                <span class="profile-info-label">@Strings.Get("joined")</span>
+                                <span class="profile-info-value">@ProfileSummary.CreatedAt.ToLocalTime().ToString("MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture)</span>
                             </div>
-                            <div class="profile-header-detail-row">
-                                <span class="profile-info-label">@Strings.Get("phone")</span>
-                                <span class="profile-info-value">@OtherUserDetail.Phone</span>
+                        </div>
+                        @if (AuthState.CanManageUsers && OtherUserDetail is not null)
+                        {
+                            <div class="profile-header-detail-col">
+                                <div class="profile-header-detail-row">
+                                    <span class="profile-info-label">@Strings.Get("email")</span>
+                                    <span class="profile-info-value">@OtherUserDetail.Email</span>
+                                </div>
+                                <div class="profile-header-detail-row">
+                                    <span class="profile-info-label">@Strings.Get("phone")</span>
+                                    <span class="profile-info-value">@OtherUserDetail.Phone</span>
+                                </div>
                             </div>
                         }
                     </div>
 
                     <div class="profile-header-stats">
                         <p><strong>@ProfileSummary.PostCount</strong> @Strings.Get("postsCount")</p>
-                        <button type="button" class="profile-header-stat-link" @onclick='() => Navigation.NavigateTo($"/profile/{Uri.EscapeDataString(DisplayName)}/followers?id={ProfileSummary.Id}")'>
-                            <strong>@ProfileSummary.FollowerCount</strong> @Strings.Get("followers")
-                        </button>
-                        <button type="button" class="profile-header-stat-link" @onclick='() => Navigation.NavigateTo($"/profile/{Uri.EscapeDataString(DisplayName)}/following?id={ProfileSummary.Id}")'>
-                            <strong>@ProfileSummary.FollowingCount</strong> @Strings.Get("following")
-                        </button>
+                        @if (AuthState.CanManageUsers)
+                        {
+                            @* Admin/Moderator already has a Connections tab for this same data right
+                               below — these stay as plain counts instead of routing to the standalone
+                               followers/following pages. *@
+                            <p><strong>@ProfileSummary.FollowerCount</strong> @Strings.Get("followers")</p>
+                            <p><strong>@ProfileSummary.FollowingCount</strong> @Strings.Get("following")</p>
+                        }
+                        else
+                        {
+                            <button type="button" class="profile-header-stat-link" @onclick='() => Navigation.NavigateTo($"/profile/{Uri.EscapeDataString(DisplayName)}/followers?id={ProfileSummary.Id}")'>
+                                <strong>@ProfileSummary.FollowerCount</strong> @Strings.Get("followers")
+                            </button>
+                            <button type="button" class="profile-header-stat-link" @onclick='() => Navigation.NavigateTo($"/profile/{Uri.EscapeDataString(DisplayName)}/following?id={ProfileSummary.Id}")'>
+                                <strong>@ProfileSummary.FollowingCount</strong> @Strings.Get("following")
+                            </button>
+                        }
                     </div>
                 }
             </div>
 
-            @if (AuthState.IsAdmin)
+            @if (AuthState.CanManageUsers)
             {
                 <nav class="profile-nav">
-                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Posts ? "profile-nav-item-active" : "")" @onclick="() => OtherTab = OtherProfileTab.Posts">@Strings.Get("postsTab")</button>
-                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Notes ? "profile-nav-item-active" : "")" @onclick="() => OtherTab = OtherProfileTab.Notes">@Strings.Get("notesTab")</button>
-                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Favorites ? "profile-nav-item-active" : "")" @onclick="() => OtherTab = OtherProfileTab.Favorites">@Strings.Get("favoritesTab")</button>
-                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Connections ? "profile-nav-item-active" : "")" @onclick="() => OtherTab = OtherProfileTab.Connections">@Strings.Get("connectionsTab")</button>
-                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Comments ? "profile-nav-item-active" : "")" @onclick="() => OtherTab = OtherProfileTab.Comments">@Strings.Get("commentsTab")</button>
-                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Likes ? "profile-nav-item-active" : "")" @onclick="() => OtherTab = OtherProfileTab.Likes">@Strings.Get("likesTab")</button>
+                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Posts ? "profile-nav-item-active" : "")" @onclick="() => SelectOtherTab(OtherProfileTab.Posts)">@Strings.Get("postsTab")</button>
+                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Notes ? "profile-nav-item-active" : "")" @onclick="() => SelectOtherTab(OtherProfileTab.Notes)">@Strings.Get("notesTab")</button>
+                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Favorites ? "profile-nav-item-active" : "")" @onclick="() => SelectOtherTab(OtherProfileTab.Favorites)">@Strings.Get("favoritesTab")</button>
+                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Connections ? "profile-nav-item-active" : "")" @onclick="() => SelectOtherTab(OtherProfileTab.Connections)">@Strings.Get("connectionsTab")</button>
+                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Comments ? "profile-nav-item-active" : "")" @onclick="() => SelectOtherTab(OtherProfileTab.Comments)">@Strings.Get("commentsTab")</button>
+                    <button type="button" class="profile-nav-item @(OtherTab == OtherProfileTab.Likes ? "profile-nav-item-active" : "")" @onclick="() => SelectOtherTab(OtherProfileTab.Likes)">@Strings.Get("likesTab")</button>
                     @if (OtherUserDetail is not null)
                     {
                         <button type="button" class="profile-nav-item profile-nav-item-danger" @onclick="() => DeactivateModalOpen = true">@(IsDeactivated ? Strings.Get("reactivateAccount") : Strings.Get("deactivateAccount"))</button>
@@ -241,24 +271,111 @@
                     {
                         @foreach (var post in OtherPosts)
                         {
-                            <PostCard Post="post" OnDeleted="StateHasChanged" />
+                            <PostCard Post="post" ShowFollowButton="false" OnDeleted="StateHasChanged" />
                         }
                     }
                 }
                 else if (OtherTab == OtherProfileTab.Notes)
                 {
-                    @if (OtherPosts.Count == 0)
+                    @if (OtherAllNotes is null)
                     {
-                        <p class="stub-text">@Strings.Get("noNotesYet")</p>
+                        <div class="wizard-spinner" aria-hidden="true"></div>
                     }
                     else
                     {
-                        <NotesList Title="" Posts="OtherPosts" OnDelete="HandleDeleteOtherNote" />
+                        @if (OtherGroups is { Count: > 0 })
+                        {
+                            <div class="notes-actions-row">
+                                @foreach (var group in OtherGroups)
+                                {
+                                    <span class="notes-action-card notes-action-card-group" @key="group.Id">
+                                        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
+                                        <span>@group.Name</span>
+                                    </span>
+                                }
+                            </div>
+                        }
+
+                        @if (OtherAllNotes.Count == 0)
+                        {
+                            <p class="stub-text">@Strings.Get("noNotesYet")</p>
+                        }
+                        else
+                        {
+                            <NotesList Title="" Posts="OtherAllNotes" OnDelete="HandleDeleteOtherNote" />
+                        }
                     }
                 }
                 else if (OtherTab == OtherProfileTab.Connections)
                 {
-                    <p class="stub-text">@Strings.Get("comingSoon")</p>
+                    @if (OtherFollowers is null)
+                    {
+                        <div class="wizard-spinner" aria-hidden="true"></div>
+                    }
+                    else
+                    {
+                        <div class="connections-split">
+                            <div class="connections-column">
+                                <h2 class="connections-column-heading">@OtherFollowing!.Count @Strings.Get("following")</h2>
+                                @if (OtherFollowing.Count == 0)
+                                {
+                                    <p class="stub-text">@Strings.Get("noConnectionsYet")</p>
+                                }
+                                else
+                                {
+                                    <div class="connections-list">
+                                        @foreach (var connection in OtherFollowing)
+                                        {
+                                            <a class="connection-card" href="@($"/profile/{Uri.EscapeDataString(connection.FullName)}")" @key="connection.Id">
+                                                <span class="avatar-circle" aria-hidden="true">@connection.Name.Substring(0, 1)</span>
+                                                <div class="connection-info">
+                                                    <p class="connection-name">@connection.FullName</p>
+                                                    <p class="connection-role">@connection.JobTitle</p>
+                                                </div>
+                                                <span class="connection-arrow" aria-hidden="true">
+                                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                        <line x1="7" y1="17" x2="17" y2="7" />
+                                                        <polyline points="7 7 17 7 17 17" />
+                                                    </svg>
+                                                </span>
+                                            </a>
+                                        }
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="connections-divider" aria-hidden="true"></div>
+
+                            <div class="connections-column">
+                                <h2 class="connections-column-heading">@OtherFollowers.Count @Strings.Get("followers")</h2>
+                                @if (OtherFollowers.Count == 0)
+                                {
+                                    <p class="stub-text">@Strings.Get("noFollowersYet")</p>
+                                }
+                                else
+                                {
+                                    <div class="connections-list">
+                                        @foreach (var connection in OtherFollowers)
+                                        {
+                                            <a class="connection-card" href="@($"/profile/{Uri.EscapeDataString(connection.FullName)}")" @key="connection.Id">
+                                                <span class="avatar-circle" aria-hidden="true">@connection.Name.Substring(0, 1)</span>
+                                                <div class="connection-info">
+                                                    <p class="connection-name">@connection.FullName</p>
+                                                    <p class="connection-role">@connection.JobTitle</p>
+                                                </div>
+                                                <span class="connection-arrow" aria-hidden="true">
+                                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                        <line x1="7" y1="17" x2="17" y2="7" />
+                                                        <polyline points="7 7 17 7 17 17" />
+                                                    </svg>
+                                                </span>
+                                            </a>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
                 }
                 else if (OtherTab == OtherProfileTab.Favorites)
                 {
@@ -270,7 +387,7 @@
                     {
                         @foreach (var post in OtherFavorites)
                         {
-                            <PostCard Post="post" OnDeleted="StateHasChanged" />
+                            <PostCard Post="post" ShowFollowButton="false" OnDeleted="StateHasChanged" />
                         }
                     }
                 }
@@ -284,7 +401,7 @@
                     {
                         @foreach (var post in OtherLikes)
                         {
-                            <PostCard Post="post" OnDeleted="StateHasChanged" />
+                            <PostCard Post="post" ShowFollowButton="false" OnDeleted="StateHasChanged" />
                         }
                     }
                 }
@@ -298,15 +415,17 @@
                     {
                         @foreach (var (post, comment) in OtherComments)
                         {
-                            <div class="post-comment">
-                                <span class="avatar-circle" aria-hidden="true">@comment.AuthorName.Substring(0, 1)</span>
-                                <div class="post-comment-body">
-                                    <p class="post-comment-context">@post.Title</p>
-                                    <p>@comment.Text</p>
+                            <div class="profile-comment-entry">
+                                <PostCard Post="post" ShowFollowButton="false" OnDeleted="StateHasChanged" />
+                                <div class="post-comment">
+                                    <span class="avatar-circle" aria-hidden="true">@comment.AuthorName.Substring(0, 1)</span>
+                                    <div class="post-comment-body">
+                                        <p>@comment.Text</p>
+                                    </div>
+                                    <button type="button" class="post-action-icon post-delete-icon post-comment-delete-icon" title="@Strings.Get("delete")" @onclick="() => DeleteComment(post, comment)">
+                                        @TrashIcon
+                                    </button>
                                 </div>
-                                <button type="button" class="post-action-icon post-delete-icon post-comment-delete-icon" title="@Strings.Get("delete")" @onclick="() => DeleteComment(post, comment)">
-                                    @TrashIcon
-                                </button>
                             </div>
                         }
                     }
@@ -359,12 +478,26 @@
     </div>
 </div>
 
-@if (AuthState.IsAdmin && !IsOwnProfile && OtherUserDetail is not null && OtherUserId is int otherUserId)
+@if (IsOwnProfile)
+{
+    <TourGuide TourId="profile" />
+}
+
+@if (AuthState.CanManageUsers && !IsOwnProfile && OtherUserDetail is not null && OtherUserId is int otherUserId)
 {
     <DeactivateAccountModal IsOpen="DeactivateModalOpen" IsOpenChanged="@(open => DeactivateModalOpen = open)"
         UserId="otherUserId" UserName="@DisplayName" UserEmail="@OtherUserDetail.Email"
         IsCurrentlyDeactivated="IsDeactivated" OnChanged="RefreshOtherUserDetail" />
 }
+
+<Modal IsOpen="RoleChangeModalOpen" IsOpenChanged="@(open => RoleChangeModalOpen = open)" ShowAcceptButton="false">
+    <h3 class="modal-form-heading">@Strings.Get("requestRoleChangeHeading")</h3>
+    <p class="stub-text">@Strings.Get("requestRoleChangeBody") <strong>@RoleChangeTarget</strong>?</p>
+    <div class="modal-confirm-actions">
+        <button type="button" class="btn-secondary" @onclick="() => RoleChangeModalOpen = false">@Strings.Get("cancel")</button>
+        <button type="button" class="btn-primary" @onclick="ConfirmRoleChangeRequest">@Strings.Get("yes")</button>
+    </div>
+</Modal>
 
 @code {
     private enum ProfileTab { Profile, MyPosts, MyFavorites, MyNotes, Settings }
@@ -378,6 +511,28 @@
     private bool IsOwnProfile => string.IsNullOrWhiteSpace(AuthorName) || AuthorName == Store.Profile.FullName;
 
     private string DisplayName => IsOwnProfile ? Store.Profile.FullName : AuthorName!;
+
+    // Role-change request (own profile only) — see requestRoleChange row below the Password
+    // field. PendingRoleRequest disables the icon while one's already awaiting a decision.
+    private string CurrentRole => AuthState.CurrentUser?.Role ?? "User";
+    private string RoleChangeTarget => CurrentRole == "Moderator" ? "User" : "Moderator";
+    private bool RoleChangeModalOpen;
+    private UserRequestDto? PendingRoleRequest;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (CurrentRole != "Admin")
+            PendingRoleRequest = (await RequestsApi.GetMineAsync())
+                .FirstOrDefault(r => r.RequestedRole is not null && r.Decision == "Pending");
+    }
+
+    private void OpenRoleChangeModal() => RoleChangeModalOpen = true;
+
+    private async Task ConfirmRoleChangeRequest()
+    {
+        PendingRoleRequest = await RequestsApi.CreateRoleChangeAsync();
+        RoleChangeModalOpen = false;
+    }
 
     private List<Post> OtherPosts => Store.GetPostsByAuthor(DisplayName);
     private List<Post> OtherFavorites => Store.GetFavoritesByAuthor(DisplayName);
@@ -400,12 +555,24 @@
     private string? ProfileSummaryLoadedFor { get; set; }
     private List<Post>? Reposts { get; set; }
 
+    // Admin-only, lazy-loaded the first time their tab is opened (see SelectOtherTab) — the
+    // target's full note collection (shared and unshared, mirroring their own All Notes page)
+    // plus the groups they've organized them into, and their followers/following lists.
+    private List<Post>? OtherAllNotes { get; set; }
+    private List<GroupDto>? OtherGroups { get; set; }
+    private List<ConnectionDto>? OtherFollowers { get; set; }
+    private List<ConnectionDto>? OtherFollowing { get; set; }
+
     protected override async Task OnParametersSetAsync()
     {
         if (!IsOwnProfile && ProfileSummaryLoadedFor != DisplayName)
         {
             ProfileSummaryLoadedFor = DisplayName;
             Reposts = null;
+            OtherAllNotes = null;
+            OtherGroups = null;
+            OtherFollowers = null;
+            OtherFollowing = null;
             OtherTab = OtherProfileTab.Posts;
             // Display name isn't unique (two accounts can share one) — go by id whenever one of
             // this author's posts has already given us their real id, only falling back to the
@@ -415,7 +582,7 @@
                 : await ProfileApi.GetSummaryAsync(DisplayName);
         }
 
-        if (!AuthState.IsAdmin || IsOwnProfile)
+        if (!AuthState.CanManageUsers || IsOwnProfile)
             return;
 
         if (OtherUserDetailLoadedFor == DisplayName)
@@ -436,6 +603,26 @@
         Reposts ??= OtherUserId is int id
             ? await Store.GetRepostsByAuthorIdAsync(id)
             : await Store.GetRepostsByAuthorAsync(DisplayName);
+    }
+
+    // Admin's own-user-view nav: loads each tab's data on first visit only, keyed off
+    // ProfileSummary.Id (reliable even for a target with zero shared posts, unlike OtherUserId).
+    private async Task SelectOtherTab(OtherProfileTab tab)
+    {
+        OtherTab = tab;
+        if (ProfileSummary is not { } summary)
+            return;
+
+        if (tab == OtherProfileTab.Notes && OtherAllNotes is null)
+        {
+            OtherAllNotes = await Store.GetNotesByAuthorIdAsync(summary.Id);
+            OtherGroups = await Store.GetGroupsByAuthorIdAsync(summary.Id);
+        }
+        else if (tab == OtherProfileTab.Connections && OtherFollowers is null)
+        {
+            OtherFollowers = await ProfileApi.GetFollowersByIdAsync(summary.Id);
+            OtherFollowing = await ProfileApi.GetFollowingByIdAsync(summary.Id);
+        }
     }
 
     private async Task ToggleFollowOnProfile()

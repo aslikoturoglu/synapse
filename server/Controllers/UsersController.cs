@@ -6,12 +6,14 @@ using Server.Services;
 namespace Server.Controllers;
 
 // Every action here exposes another user's contact info or lets the caller change/end their
-// account — all of it is admin-only, not just "any authenticated user" like most other
-// controllers in this app.
+// account — all of it is admin-or-moderator-only, not just "any authenticated user" like most
+// other controllers in this app. Moderator gets everything here EXCEPT ToggleRole, which is
+// individually re-restricted to Admin below — a Moderator can manage other accounts but can't
+// grant that same power to anyone else.
 [ApiController]
 [Route("api/users")]
-[Authorize(Roles = "Admin")]
-public class UsersController(UserService userService) : ControllerBase
+[Authorize(Roles = "Admin,Moderator")]
+public class UsersController(UserService userService, PostService postService, GroupService groupService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<List<AdminUserDto>>> GetAll() => Ok(await userService.GetAllAdminAsync());
@@ -22,6 +24,16 @@ public class UsersController(UserService userService) : ControllerBase
         var user = await userService.GetByIdAsync(id);
         return user is null ? NotFound() : Ok(user);
     }
+
+    // A target user's full note collection (shared and unshared) — mirrors what they see on
+    // their own All Notes page, for the admin's read-only view of another account.
+    [HttpGet("{id:int}/notes")]
+    public async Task<ActionResult<List<PostDto>>> GetNotes(int id) =>
+        Ok(await postService.GetAllByAuthorIdAsync(User.GetUserId(), id));
+
+    [HttpGet("{id:int}/groups")]
+    public async Task<ActionResult<List<GroupDto>>> GetGroups(int id) =>
+        Ok(await groupService.GetByOwnerIdAsync(id));
 
     [HttpPost("{id:int}/deactivate")]
     public async Task<IActionResult> Deactivate(int id, DeactivateUserRequest request)
@@ -36,11 +48,12 @@ public class UsersController(UserService userService) : ControllerBase
     public async Task<IActionResult> Reactivate(int id) =>
         await userService.ReactivateAsync(id) ? NoContent() : NotFound();
 
+    [Authorize(Roles = "Admin")]
     [HttpPost("{id:int}/toggle-role")]
     public async Task<IActionResult> ToggleRole(int id) => await userService.ToggleRoleAsync(id) switch
     {
         ToggleRoleResult.Success => NoContent(),
-        ToggleRoleResult.LastAdmin => BadRequest(new { error = "Can't change this user's role — they're the last remaining admin." }),
+        ToggleRoleResult.CannotChangeAdmin => BadRequest(new { error = "Can't change an Admin's role here." }),
         _ => NotFound(),
     };
 

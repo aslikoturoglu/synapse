@@ -10,6 +10,14 @@ public class UsersApiClient(HttpClient http)
     public async Task<List<AdminUserDto>> GetAllAsync() =>
         await http.GetFromJsonAsync<List<AdminUserDto>>("api/users") ?? [];
 
+    // Admin-only: a target user's full note collection (shared and unshared) and their groups
+    // — used by the admin's read-only view of another account's profile.
+    public async Task<List<PostDto>> GetNotesAsync(int id) =>
+        await http.GetFromJsonAsync<List<PostDto>>($"api/users/{id}/notes") ?? [];
+
+    public async Task<List<GroupDto>> GetGroupsAsync(int id) =>
+        await http.GetFromJsonAsync<List<GroupDto>>($"api/users/{id}/groups") ?? [];
+
     public async Task<bool> DeactivateAsync(int id, string reason) =>
         (await http.PostAsJsonAsync($"api/users/{id}/deactivate", new DeactivateUserRequest { Reason = reason })).IsSuccessStatusCode;
 

@@ -82,7 +82,59 @@ public class NoteCreationAiService(FoundryAgentClient client, IConfiguration con
             "This applies to EVERYTHING, including your own template's structural labels (the section headings, \"İlgili Anahtar Kavramlar (Brain Map)\", \"İçerik\", \"Bağlantılar ve İlişkiler\", the table of contents heading, etc.) — translate those labels into the chosen language too, not just the content. Never mix languages within the document.\n\n" +
             $"Document RAG knowledge base:\n{documentKnowledgeBase}");
 
-        return (MarkdownPager.SplitIntoPages(synthesized), synthesized);
+        var cleaned = StripClosingBoilerplate(synthesized);
+        return (MarkdownPager.SplitIntoPages(cleaned), cleaned);
+    }
+
+    // The synthesizer agent's own system prompt (configured on Azure AI Foundry, not something
+    // this server's prompt controls) makes it end every document with a closing "compliance"
+    // remark about Brain Map keyword coverage — bookkeeping for the agent itself, never meant
+    // to be read as note content. Its wording follows the LANGUAGE instruction above and comes
+    // back in whatever language the document itself is in, so an exact English string match
+    // only catches it sometimes. The one thing that stays constant across languages is that
+    // this trailing block is always set off by its own "---" rule and always cites the literal
+    // constraint parameter names from this method's own prompt (no_internet_research /
+    // no_bibliography — config keys, never translated) — that combination is what's stripped
+    // first; the English-specific fallback below only matters for a run that skips the rule.
+    private static string StripClosingBoilerplate(string markdown)
+    {
+        var normalized = markdown.Replace("\r\n", "\n");
+        var lastRuleIndex = normalized.LastIndexOf("\n---\n", StringComparison.Ordinal);
+        if (lastRuleIndex >= 0)
+        {
+            var trailer = normalized[(lastRuleIndex + 5)..];
+            if (trailer.Contains("no_internet_research", StringComparison.OrdinalIgnoreCase) ||
+                trailer.Contains("no_bibliography", StringComparison.OrdinalIgnoreCase))
+            {
+                normalized = normalized[..lastRuleIndex];
+            }
+        }
+
+        var lines = normalized.Split('\n').ToList();
+
+        void TrimTrailingBlankLines()
+        {
+            while (lines.Count > 0 && string.IsNullOrWhiteSpace(lines[^1]))
+                lines.RemoveAt(lines.Count - 1);
+        }
+
+        TrimTrailingBlankLines();
+
+        if (lines.Count > 0 && lines[^1].Trim().Equals("End of synthesized document.", StringComparison.OrdinalIgnoreCase))
+        {
+            lines.RemoveAt(lines.Count - 1);
+            TrimTrailingBlankLines();
+        }
+
+        if (lines.Count > 0 &&
+            lines[^1].Contains("Brain Map keyword", StringComparison.OrdinalIgnoreCase) &&
+            lines[^1].Contains("Insufficient information in source documents", StringComparison.OrdinalIgnoreCase))
+        {
+            lines.RemoveAt(lines.Count - 1);
+            TrimTrailingBlankLines();
+        }
+
+        return string.Join('\n', lines);
     }
 
     private async Task<(string ThreadId, PreliminaryScanDto Scan)> RunPreliminaryScanAsync(IReadOnlyList<string> fileIds, string description)

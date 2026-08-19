@@ -16,6 +16,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<NoteHighlight> NoteHighlights => Set<NoteHighlight>();
     public DbSet<AiChatMessage> AiChatMessages => Set<AiChatMessage>();
     public DbSet<Follow> Follows => Set<Follow>();
+    public DbSet<UserRequest> UserRequests => Set<UserRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -45,6 +46,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         modelBuilder.Entity<Post>(entity =>
         {
+            // Most rows here are never shared (IsShared stays false) — they're just a user's
+            // private notes. "Posts" as a table name only ever described the subset that got
+            // shared publicly, so the physical table is named Notes instead; the C# type/DbSet
+            // stay Post/Posts since that's still the app-wide vocabulary for "the shareable
+            // thing a note becomes" (ShareSettingsModal, PostCard, etc.) and renaming those
+            // would be a much larger, purely cosmetic change with no schema benefit.
+            entity.ToTable("Notes");
+
             // MySql.EntityFrameworkCore's DateOnly read path throws InvalidCastException
             // (tries to read the `date` column straight into DateOnly); store/read as
             // DateTime instead and convert at the boundary.
@@ -144,6 +153,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasOne(f => f.Following)
                 .WithMany(u => u.FollowerLinks)
                 .HasForeignKey(f => f.FollowingId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<UserRequest>(entity =>
+        {
+            // Both FKs point at User — same reasoning as Follow above, both must be Restrict.
+            // UserService.DeleteAsync clears these rows explicitly before removing a User.
+            entity.HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(r => r.HandledByUser)
+                .WithMany()
+                .HasForeignKey(r => r.HandledByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

@@ -59,31 +59,38 @@
             }
             else
             {
-                @if (node.Keyword.Count is not null)
+                @if (node.Keyword.Count is int count && IsAboveCenter(node.AngleDegrees))
                 {
-                    <span class="brain-map-count">@node.Keyword.Count times</span>
+                    <span class="brain-map-count" data-tooltip="@OccurrenceTooltip(node.Keyword)">@count</span>
                 }
                 <span class="brain-map-label">@node.Keyword.Text</span>
+                @if (node.Keyword.Count is int belowCount && !IsAboveCenter(node.AngleDegrees))
+                {
+                    <span class="brain-map-count" data-tooltip="@OccurrenceTooltip(node.Keyword)">@belowCount</span>
+                }
             }
         </div>
     }
 </div>
 
 <div class="brain-map-footer">
-    @if (!AlwaysEditable)
+    @if (!ReadOnly)
     {
-        @if (!EditMode)
+        @if (!AlwaysEditable)
         {
-            <button type="button" class="brain-map-add-link" @onclick="() => EditMode = true">+ <strong>@Strings.Get("edit")</strong></button>
+            @if (!EditMode)
+            {
+                <button type="button" class="brain-map-add-link" @onclick="() => EditMode = true">+ <strong>@Strings.Get("edit")</strong></button>
+            }
+            else
+            {
+                @AddPanel
+            }
         }
         else
         {
             @AddPanel
         }
-    }
-    else
-    {
-        @AddPanel
     }
 
     @if (ChildContent is not null)
@@ -116,6 +123,9 @@
     [Parameter, EditorRequired] public List<BrainMapKeyword> Keywords { get; set; } = [];
     [Parameter] public bool ShowHistory { get; set; }
     [Parameter] public bool AlwaysEditable { get; set; }
+    // Fully suppresses the add/remove UI regardless of AlwaysEditable/EditMode — for a
+    // non-owner viewer of a shared note's Brain Map, who can look but never touch.
+    [Parameter] public bool ReadOnly { get; set; }
     [Parameter] public EventCallback<BrainMapKeyword> OnRemove { get; set; }
     [Parameter] public EventCallback<string> OnAdd { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
@@ -123,7 +133,7 @@
     private bool EditMode { get; set; }
     private string CustomKeyword { get; set; } = "";
 
-    private bool CanEdit => EditMode || AlwaysEditable;
+    private bool CanEdit => !ReadOnly && (EditMode || AlwaysEditable);
 
     private IEnumerable<BrainMapKeyword> VisibleKeywords =>
         ShowHistory ? Keywords : Keywords.Where(k => k.Status != KeywordStatus.AiDeleted);
@@ -144,6 +154,13 @@
             }
         }
     }
+
+    // Keeps the count on the outer side of the label, away from the center hub, instead of
+    // always sitting above it regardless of where the node actually falls on the ring.
+    private static bool IsAboveCenter(double angleDegrees) => Math.Sin(angleDegrees * Math.PI / 180) < 0;
+
+    private static string OccurrenceTooltip(BrainMapKeyword keyword) =>
+        $"Found {keyword.Count} occurrence{(keyword.Count == 1 ? "" : "s")} of \"{keyword.Text}\" in the files.";
 
     private (int X, int Y) PointAt(double angleDegrees, int radiusX, int radiusY)
     {

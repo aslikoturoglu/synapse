@@ -23,8 +23,8 @@ else
         else
         {
             <div class="process-columns">
-                <ProcessSummaryPanel Post="Post" SelectedHighlightId="SelectedHighlightId" OnSelect="SelectHighlight" />
-                <ProcessChatPanel Post="Post" SelectedHighlightId="SelectedHighlightId" ReadOnly="@(!IsAuthor)" OnFollowUpAsked="HandleFollowUpAsked" />
+                <ProcessSummaryPanel Post="Post" SelectedHighlightId="SelectedHighlightId" OnSelect="SelectHighlight" OnSelectPage="GoToPage" />
+                <ProcessChatPanel Post="Post" CurrentPageNumber="CurrentPageNumber" SelectedHighlightId="SelectedHighlightId" ReadOnly="@(!IsAuthor)" OnFollowUpAsked="HandleFollowUpAsked" />
 
                 <div class="process-document-column">
                     <NotePageView @ref="PageView" Page="CurrentPage" EditMode="false" DocumentTitle="@Post.Title" />

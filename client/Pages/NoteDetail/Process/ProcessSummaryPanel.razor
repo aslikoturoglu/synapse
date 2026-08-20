@@ -1,3 +1,4 @@
+@using System.Text.RegularExpressions
 @using Client.Pages.Home
 @inject UiStrings Strings
 
@@ -12,9 +13,9 @@
     <div class="process-page-list">
         @foreach (var page in Post.Pages)
         {
-            var highlights = HighlightsByPage.TryGetValue(page.Number, out var list) ? list : [];
+            var highlights = OrderedHighlightsForPage(page);
             <div class="process-page-row">
-                <button type="button" class="process-page-row-header @(ExpandedPage == page.Number ? "process-page-row-header-open" : "")" @onclick="() => ToggleExpand(page.Number)">
+                <button type="button" class="process-page-row-header @(ExpandedPage == page.Number ? "process-page-row-header-open" : "")" @onclick="() => SelectPage(page)">
                     <span class="process-page-row-title">Page @(page.Number)</span>
                     <span class="process-page-count">@(highlights.Count == 0 ? Strings.Get("noneLabel") : $"{highlights.Count} {Strings.Get("highlightLabel")}")</span>
                 </button>
@@ -25,7 +26,7 @@
                         @foreach (var highlight in highlights)
                         {
                             <li>
-                                <button type="button" class="process-page-highlight-item @(highlight.Id == SelectedHighlightId ? "process-page-highlight-item-active" : "")" @onclick="() => Select(highlight.Id)">
+                                <button type="button" class="process-page-highlight-item @(IsAddedToDocument(highlight) ? "process-page-highlight-item-added" : "")  @(highlight.Id == SelectedHighlightId ? "process-page-highlight-item-active" : "")" @onclick="() => Select(highlight.Id)">
                                     @Truncate(highlight.SelectedText)
                                 </button>
                             </li>
@@ -41,13 +42,47 @@
     [Parameter, EditorRequired] public Post Post { get; set; } = null!;
     [Parameter] public Guid? SelectedHighlightId { get; set; }
     [Parameter] public EventCallback<Guid> OnSelect { get; set; }
+    // Clicking a page's row jumps the document column to that page, in addition to expanding
+    // this row's own highlight list — previously it only expanded, leaving the document
+    // wherever it already was.
+    [Parameter] public EventCallback<int> OnSelectPage { get; set; }
 
     private int? ExpandedPage;
+
+    private static readonly Regex HighlightIdPattern = new(@"data-highlight-id=""([^""]+)""", RegexOptions.Compiled);
 
     private Dictionary<int, List<NoteHighlight>> HighlightsByPage =>
         Post.Highlights.GroupBy(h => h.PageNumber).ToDictionary(g => g.Key, g => g.ToList());
 
-    private void ToggleExpand(int pageNumber) => ExpandedPage = ExpandedPage == pageNumber ? null : pageNumber;
+    // NoteHighlight has no stored position — the <mark data-highlight-id> sequence baked into
+    // the page's own Heading/Body HTML *is* the document order, so read it from there instead
+    // of relying on creation order (which drifts once someone highlights something earlier in
+    // the page after something later).
+    private List<NoteHighlight> OrderedHighlightsForPage(NotePage page)
+    {
+        if (!HighlightsByPage.TryGetValue(page.Number, out var highlights) || highlights.Count == 0)
+            return [];
+
+        var order = HighlightIdPattern.Matches((page.Heading ?? "") + page.Body)
+            .Select(m => m.Groups[1].Value)
+            .ToList();
+
+        return [.. highlights.OrderBy(h =>
+        {
+            var index = order.IndexOf(h.Id.ToString());
+            return index == -1 ? int.MaxValue : index;
+        })];
+    }
+
+    // The one action that actually changes the document — colors the list entry to match, the
+    // same way the chat panel already tags an added message.
+    private static bool IsAddedToDocument(NoteHighlight highlight) => highlight.Messages.Any(m => m.AddedToDocument);
+
+    private async Task SelectPage(NotePage page)
+    {
+        ExpandedPage = ExpandedPage == page.Number ? null : page.Number;
+        await OnSelectPage.InvokeAsync(page.Number);
+    }
 
     private async Task Select(Guid highlightId) => await OnSelect.InvokeAsync(highlightId);
 

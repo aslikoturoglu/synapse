@@ -2,21 +2,21 @@
 @inject UiStrings Strings
 
 <div class="process-chat-panel">
-    @if (Post.Highlights.Count == 0)
+    @if (PageHighlights.Count == 0)
     {
         <p class="stub-text">@Strings.Get("noHighlightsYet")</p>
     }
     else
     {
-        @foreach (var highlight in Post.Highlights)
+        @foreach (var highlight in PageHighlights)
         {
             <div class="process-chat-item @(highlight.Id == SelectedHighlightId ? "process-chat-item-active" : "")" @key="highlight.Id">
                 <button type="button" class="process-chat-item-header" @onclick="() => ToggleExpand(highlight.Id)">
                     <span>@highlight.SelectedText</span>
-                    <span class="process-chat-item-caret" aria-hidden="true">@(ExpandedHighlightId == highlight.Id ? "▲" : "▼")</span>
+                    <span class="process-chat-item-caret" aria-hidden="true">@(ExpandedHighlightIds.Contains(highlight.Id) ? "▲" : "▼")</span>
                 </button>
 
-                @if (ExpandedHighlightId == highlight.Id)
+                @if (ExpandedHighlightIds.Contains(highlight.Id))
                 {
                     <div class="process-chat-item-body">
                         @foreach (var message in highlight.Messages)
@@ -45,22 +45,33 @@
 
 @code {
     [Parameter, EditorRequired] public Post Post { get; set; } = null!;
+    [Parameter] public int CurrentPageNumber { get; set; }
     [Parameter] public Guid? SelectedHighlightId { get; set; }
     // A non-owner viewer can review existing highlights/Q&A history but not ask new questions.
     [Parameter] public bool ReadOnly { get; set; }
     [Parameter] public EventCallback<(Guid HighlightId, AiChatMessage Message)> OnFollowUpAsked { get; set; }
 
-    private Guid? ExpandedHighlightId;
+    // Only the page currently open in the document column — this panel used to list every
+    // highlight in the whole note regardless of which page you were looking at.
+    private List<NoteHighlight> PageHighlights =>
+        Post.Highlights.Where(h => h.PageNumber == CurrentPageNumber).ToList();
+
+    // Each highlight gets its own independent open/closed state — was a single nullable id
+    // (accordion-style, opening one silently closed whatever else was open).
+    private readonly HashSet<Guid> ExpandedHighlightIds = [];
     private string FollowUpText = "";
 
     protected override void OnParametersSet()
     {
         if (SelectedHighlightId is { } id)
-            ExpandedHighlightId = id;
+            ExpandedHighlightIds.Add(id);
     }
 
-    private void ToggleExpand(Guid highlightId) =>
-        ExpandedHighlightId = ExpandedHighlightId == highlightId ? null : highlightId;
+    private void ToggleExpand(Guid highlightId)
+    {
+        if (!ExpandedHighlightIds.Remove(highlightId))
+            ExpandedHighlightIds.Add(highlightId);
+    }
 
     private async Task HandleFollowUpKeydown(KeyboardEventArgs e, NoteHighlight highlight)
     {

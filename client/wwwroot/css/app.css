@@ -3343,9 +3343,17 @@ button.post-action-toggle:disabled {
     background-color: #000000;
 }
 
+/* Same story as mark.note-highlight below: baked into Page.Body, so it renders wherever that
+   page is displayed unless explicitly scoped — a plain reader shouldn't see which sentences
+   came from "Add to Document". */
 .note-ai-inserted {
-    background-color: rgba(22, 163, 74, 0.12);
+    background-color: transparent;
     border-radius: 0.2rem;
+}
+
+.process-document-column .note-ai-inserted,
+.note-ai-single-page .note-ai-inserted {
+    background-color: rgba(22, 163, 74, 0.12);
 }
 
 /* Brain Map history view */
@@ -3389,9 +3397,19 @@ button.post-action-toggle:disabled {
     color: var(--color-success);
 }
 
-/* Highlights left in the generated note by "Ask AI" */
+/* Highlights left in the generated note by "Ask AI" — the <mark> is baked into Page.Body
+   itself, so it's present in the DOM wherever that page is rendered (the plain reading views
+   included). It should only actually show as a highlight where it's being worked with: the
+   Process view's document column, and the Ask AI single-page authoring view — a reader just
+   paging through the note shouldn't see someone's highlight marks. */
 
 mark.note-highlight {
+    background-color: transparent;
+    color: inherit;
+}
+
+.process-document-column mark.note-highlight,
+.note-ai-single-page mark.note-highlight {
     padding: 0.05rem 0.15rem;
     border-radius: 0.2rem;
     background-color: rgba(234, 179, 8, 0.35);
@@ -3499,6 +3517,14 @@ mark.note-highlight {
     background-color: rgba(234, 179, 8, 0.18);
     color: var(--color-text-title);
     font-weight: 600;
+}
+
+/* Colored to match the "Added to Document" tag in the chat panel — the one action among a
+   highlight's messages that actually changed the note, so it's worth spotting at a glance. */
+.process-page-highlight-item-added {
+    border-left: 3px solid var(--color-success);
+    padding-left: calc(1.25rem - 3px);
+    color: var(--color-success);
 }
 
 .process-chat-item {

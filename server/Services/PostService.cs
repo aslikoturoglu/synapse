@@ -94,8 +94,11 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
     }
 
     // Any signed-in viewer can read a shared post's full content; only the author can read
-    // their own not-yet-shared draft. Highlights only ever include the caller's own — see
-    // NoteHighlight.UserId.
+    // their own not-yet-shared draft. Highlights shown are always the post's author's — the
+    // client only lets the author create highlights (NotePagesViewer's toolbar hides Ask AI
+    // from everyone else), so a non-author has no highlights of their own to show anyway, and
+    // filtering by the viewer's id here made Share Process show nothing to anyone but the
+    // author, defeating its purpose.
     public async Task<PostDetailDto?> GetDetailAsync(int userId, int postId)
     {
         var post = await db.Posts
@@ -116,7 +119,7 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
         dto.Keywords = post.Keywords
             .Select(k => new BrainMapKeywordDto { Id = k.Id, Text = k.Text, Count = k.Count, Status = k.Status.ToString() })
             .ToList();
-        dto.Highlights = post.Highlights.Where(h => h.UserId == userId)
+        dto.Highlights = post.Highlights.Where(h => h.UserId == post.AuthorId)
             .Select(h => new NoteHighlightDto
             {
                 Id = h.Id,

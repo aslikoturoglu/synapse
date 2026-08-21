@@ -4135,6 +4135,7 @@ mark.note-highlight {
 
 .request-row {
     width: 100%;
+    flex-shrink: 0;
     box-sizing: border-box;
     margin-bottom: 0.9rem;
     border-radius: 0.9rem;

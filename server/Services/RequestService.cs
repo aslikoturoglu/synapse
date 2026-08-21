@@ -7,7 +7,7 @@ namespace Server.Services;
 
 public enum RespondResult { Success, NotFound, Forbidden, InvalidDecision }
 
-public class RequestService(AppDbContext db, UserService userService)
+public class RequestService(AppDbContext db, UserService userService, EmailService email)
 {
     // Moderators see every request except role-change ones (only an Admin can act on those)
     // and their own (a moderator reviewing their own ticket is a conflict of interest — they
@@ -35,7 +35,9 @@ public class RequestService(AppDbContext db, UserService userService)
         db.UserRequests.Add(request);
         await db.SaveChangesAsync();
 
-        return ToDto(await db.UserRequests.Include(r => r.User).FirstAsync(r => r.Id == request.Id));
+        var loaded = await db.UserRequests.Include(r => r.User).FirstAsync(r => r.Id == request.Id);
+        await NotifyStaffOfNewRequestAsync(loaded);
+        return ToDto(loaded);
     }
 
     // Role direction is derived from the caller's own current role, never from client input —
@@ -65,7 +67,9 @@ public class RequestService(AppDbContext db, UserService userService)
         db.UserRequests.Add(request);
         await db.SaveChangesAsync();
 
-        return ToDto(await db.UserRequests.Include(r => r.User).FirstAsync(r => r.Id == request.Id));
+        var loaded = await db.UserRequests.Include(r => r.User).FirstAsync(r => r.Id == request.Id);
+        await NotifyStaffOfNewRequestAsync(loaded);
+        return ToDto(loaded);
     }
 
     public async Task<bool> MarkSeenAsync(int id, bool isModerator)
@@ -88,7 +92,7 @@ public class RequestService(AppDbContext db, UserService userService)
     // change (reusing UserService's own User<->Moderator toggle and its Admin protection).
     public async Task<RespondResult> RespondAsync(int id, int handledByUserId, bool isModerator, string? reply, string? decision)
     {
-        var request = await db.UserRequests.FindAsync(id);
+        var request = await db.UserRequests.Include(r => r.User).FirstOrDefaultAsync(r => r.Id == id);
         if (request is null)
             return RespondResult.NotFound;
         if (isModerator && request.RequestedRole is not null)
@@ -122,7 +126,35 @@ public class RequestService(AppDbContext db, UserService userService)
         request.HandledAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
+        await email.SendAsync(request.User.Email, $"Your request has been answered: {request.Subject}",
+            EmailService.Paragraphs(
+                $"Hi {EmailService.Encode(request.User.Name)},",
+                $"Your request \"<strong>{EmailService.Encode(request.Subject)}</strong>\" has been reviewed.",
+                $"<strong>Your request:</strong><br>{EmailService.Encode(request.Content)}",
+                !string.IsNullOrWhiteSpace(request.Reply) ? $"<strong>Reply:</strong><br>{EmailService.Encode(request.Reply)}" : null,
+                request.Decision != RequestDecision.Pending ? $"<strong>Decision:</strong> {request.Decision}" : null));
+
         return RespondResult.Success;
+    }
+
+    // New request in ("talep") → staff (Admin, plus Moderator unless it's a role-change
+    // request, since only an Admin can act on those — see RespondAsync's Forbidden check
+    // and the class-level comment on GetAllAsync). Never the requester themselves.
+    private async Task NotifyStaffOfNewRequestAsync(UserRequest request)
+    {
+        var staffEmails = await db.Users
+            .Where(u => u.Id != request.UserId && (request.RequestedRole != null
+                ? u.Role == UserRole.Admin
+                : (u.Role == UserRole.Admin || u.Role == UserRole.Moderator)))
+            .Select(u => u.Email)
+            .ToListAsync();
+
+        var body = EmailService.Paragraphs(
+            $"<strong>{EmailService.Encode(request.User.Name)} {EmailService.Encode(request.User.Surname)}</strong> (@{EmailService.Encode(request.User.Username)}) submitted a new request.",
+            $"<strong>Subject:</strong> {EmailService.Encode(request.Subject)}",
+            EmailService.Encode(request.Content));
+        foreach (var staffEmail in staffEmails)
+            await email.SendAsync(staffEmail, $"New request: {request.Subject}", body);
     }
 
     private static UserRequestDto ToDto(UserRequest r) => new()

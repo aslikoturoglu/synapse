@@ -1,4 +1,6 @@
 using System.Text;
+using Google.Apis.Auth.OAuth2;
+using Google.Cloud.Firestore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -31,6 +33,20 @@ builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<ConnectionService>();
 builder.Services.AddScoped<ProfileService>();
 builder.Services.AddScoped<RequestService>();
+
+// Credentials live in "Firebase:CredentialsJson" (a user-secret / env var — never appsettings.json,
+// see EmailService), so a missing value fails fast here instead of surfacing as a confusing
+// FirestoreDb error the first time a mail is queued.
+var firebaseProjectId = builder.Configuration["Firebase:ProjectId"]
+    ?? throw new InvalidOperationException("Firebase:ProjectId is not configured.");
+var firebaseCredentialsJson = builder.Configuration["Firebase:CredentialsJson"]
+    ?? throw new InvalidOperationException("Firebase:CredentialsJson is not configured.");
+using var firebaseCredentialsStream = new MemoryStream(Encoding.UTF8.GetBytes(firebaseCredentialsJson));
+builder.Services.AddSingleton(new FirestoreDbBuilder
+{
+    ProjectId = firebaseProjectId,
+    Credential = CredentialFactory.FromStream<ServiceAccountCredential>(firebaseCredentialsStream).ToGoogleCredential(),
+}.Build());
 builder.Services.AddSingleton<EmailService>();
 
 // FoundryAgentClient wraps a PersistentAgentsClient (thread-safe, reused like any other Azure

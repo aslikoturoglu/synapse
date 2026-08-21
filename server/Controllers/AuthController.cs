@@ -8,7 +8,7 @@ namespace Server.Controllers;
 [ApiController]
 [Route("api/auth")]
 [AllowAnonymous]
-public class AuthController(AuthService authService) : ControllerBase
+public class AuthController(AuthService authService, UserService userService) : ControllerBase
 {
     [HttpPost("signup")]
     public async Task<ActionResult<AuthResponse>> Signup(SignupRequest request)
@@ -28,5 +28,14 @@ public class AuthController(AuthService authService) : ControllerBase
             return Unauthorized(new { error = result.Error });
 
         return Ok(result.Response);
+    }
+
+    // Always returns the same generic response whether or not the email exists — otherwise
+    // this endpoint becomes a way to check which emails are registered.
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
+    {
+        await userService.ForgotPasswordAsync(request.Email.Trim());
+        return Ok(new { message = "If that email is registered, a new password has been sent to it." });
     }
 }

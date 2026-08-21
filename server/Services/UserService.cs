@@ -30,7 +30,11 @@ public class UserService(AppDbContext db, EmailService email)
         await db.SaveChangesAsync();
 
         await email.SendAsync(user.Email, "Your Synapse account has been deactivated",
-            $"Hi {user.Name},\n\nYour account has been deactivated by an administrator.\n\nReason: {reason}\n\nIf you believe this is a mistake, please get in touch.");
+            EmailService.Paragraphs(
+                $"Hi {EmailService.Encode(user.Name)},",
+                "Your account has been deactivated by an administrator.",
+                $"<strong>Reason:</strong> {EmailService.Encode(reason)}",
+                "If you believe this is a mistake, please get in touch."));
 
         return true;
     }
@@ -46,7 +50,9 @@ public class UserService(AppDbContext db, EmailService email)
         await db.SaveChangesAsync();
 
         await email.SendAsync(user.Email, "Your Synapse account has been reactivated",
-            $"Hi {user.Name},\n\nYour account has been reactivated — you can log in again.");
+            EmailService.Paragraphs(
+                $"Hi {EmailService.Encode(user.Name)},",
+                "Your account has been reactivated — you can log in again."));
 
         return true;
     }
@@ -57,14 +63,45 @@ public class UserService(AppDbContext db, EmailService email)
         if (user is null)
             return null;
 
+        var newPassword = await ReplacePasswordAsync(user);
+
+        await email.SendAsync(user.Email, "Your Synapse password has been reset",
+            EmailService.Paragraphs(
+                $"Hi {EmailService.Encode(user.Name)},",
+                "An administrator reset your password. Your new temporary password is:",
+                $"<strong>{newPassword}</strong>",
+                "Please log in and change it as soon as possible."));
+
+        return newPassword;
+    }
+
+    // Self-service counterpart to ResetPasswordAsync (same "new random password, mailed
+    // out" mechanism, just triggered by the user themselves instead of an admin) — the
+    // caller (AuthController) always returns the same generic response regardless of what
+    // this does, so it deliberately returns nothing an API response could leak.
+    public async Task ForgotPasswordAsync(string emailAddress)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == emailAddress);
+        if (user is null)
+            return;
+
+        var newPassword = await ReplacePasswordAsync(user);
+
+        await email.SendAsync(user.Email, "Your Synapse password has been reset",
+            EmailService.Paragraphs(
+                $"Hi {EmailService.Encode(user.Name)},",
+                "We received a request to reset your password. Your new temporary password is:",
+                $"<strong>{newPassword}</strong>",
+                "If you didn't request this, please contact an administrator.",
+                "Please log in and change it as soon as possible."));
+    }
+
+    private async Task<string> ReplacePasswordAsync(User user)
+    {
         var newPassword = GenerateRandomPassword();
         user.PasswordHash = PasswordHasher.Hash(newPassword);
         user.PasswordChangedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
-
-        await email.SendAsync(user.Email, "Your Synapse password has been reset",
-            $"Hi {user.Name},\n\nAn administrator reset your password. Your new temporary password is:\n\n{newPassword}\n\nPlease log in and change it as soon as possible.");
-
         return newPassword;
     }
 
@@ -86,7 +123,9 @@ public class UserService(AppDbContext db, EmailService email)
         await db.SaveChangesAsync();
 
         await email.SendAsync(user.Email, "Your Synapse account role has changed",
-            $"Hi {user.Name},\n\nAn administrator changed your account role to {user.Role}.");
+            EmailService.Paragraphs(
+                $"Hi {EmailService.Encode(user.Name)},",
+                $"An administrator changed your account role to <strong>{user.Role}</strong>."));
 
         return ToggleRoleResult.Success;
     }
@@ -107,7 +146,9 @@ public class UserService(AppDbContext db, EmailService email)
         await db.UserRequests.Where(r => r.UserId == id || r.HandledByUserId == id).ExecuteDeleteAsync();
 
         await email.SendAsync(user.Email, "Your Synapse account has been deleted",
-            $"Hi {user.Name},\n\nYour account and all associated content have been permanently deleted by an administrator.");
+            EmailService.Paragraphs(
+                $"Hi {EmailService.Encode(user.Name)},",
+                "Your account and all associated content have been permanently deleted by an administrator."));
 
         db.Users.Remove(user);
         await db.SaveChangesAsync();

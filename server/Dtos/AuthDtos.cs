@@ -11,6 +11,11 @@ public class SignupRequest
     public required string Password { get; set; }
 }
 
+public class ForgotPasswordRequest
+{
+    public required string Email { get; set; }
+}
+
 public class LoginRequest
 {
     public required string UsernameOrEmail { get; set; }

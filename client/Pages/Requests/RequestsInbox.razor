@@ -146,9 +146,32 @@
                         r.RequesterName.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-    protected override async Task OnInitializedAsync() => await Reload();
+    // GetAllAsync hits an Admin/Moderator-only endpoint — reachable here too if someone
+    // navigates straight to /requests by URL instead of through the drawer link, which
+    // already hides this page from anyone else. Redirect instead of letting the resulting
+    // 401 throw and take down the whole app.
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAdmin && !AuthState.IsModerator)
+        {
+            Navigation.NavigateTo("/home");
+            return;
+        }
 
-    private async Task Reload() => Requests = await RequestsApi.GetAllAsync();
+        await Reload();
+    }
+
+    private async Task Reload()
+    {
+        try
+        {
+            Requests = await RequestsApi.GetAllAsync();
+        }
+        catch (HttpRequestException)
+        {
+            Navigation.NavigateTo("/home");
+        }
+    }
 
     // Opening a still-unseen request marks it Seen — it stays visible in the default view
     // either way (that only hides Actioned), so nothing jarring disappears mid-click.

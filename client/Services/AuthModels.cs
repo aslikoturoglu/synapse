@@ -17,6 +17,11 @@ public class LoginRequest
     public required string Password { get; set; }
 }
 
+public class ForgotPasswordRequest
+{
+    public required string Email { get; set; }
+}
+
 public class UserDto
 {
     public int Id { get; set; }

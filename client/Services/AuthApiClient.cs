@@ -14,6 +14,22 @@ public class AuthApiClient(HttpClient http)
 
     public Task<AuthResult> LoginAsync(LoginRequest request) => PostAsync("api/auth/login", request);
 
+    // Server always returns 200 with a generic message here (even for an unregistered email,
+    // so this can't be used to check who's registered) — false only means the request itself
+    // failed to go through.
+    public async Task<bool> ForgotPasswordAsync(string email)
+    {
+        try
+        {
+            var response = await http.PostAsJsonAsync("api/auth/forgot-password", new ForgotPasswordRequest { Email = email });
+            return response.IsSuccessStatusCode;
+        }
+        catch (HttpRequestException)
+        {
+            return false;
+        }
+    }
+
     private async Task<AuthResult> PostAsync<TRequest>(string url, TRequest request)
     {
         HttpResponseMessage response;

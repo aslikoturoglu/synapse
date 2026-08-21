@@ -9,8 +9,8 @@
   "register": "Register",
   "forgotPassword": "Forgot Password?",
   "resetPassword": "Reset Password",
-  "resetPasswordIntro": "Enter the email address linked to your account and we'll send you a link to reset your password.",
-  "resetLinkSentNote": "If an account exists for that address, we've sent password reset instructions to",
+  "resetPasswordIntro": "Enter the email address linked to your account and we'll email you a new temporary password.",
+  "resetLinkSentNote": "If an account exists for that address, we've sent a new temporary password to",
 
   "name": "Name",
   "surname": "Surname",

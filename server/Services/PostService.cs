@@ -11,7 +11,7 @@ namespace Server.Services;
 
 public enum PostOpResult { Success, NotFound, Forbidden, GroupNotFound }
 
-public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteMapAiService mapAiService)
+public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteMapAiService mapAiService, EmailService email)
 {
     // The public feed only ever shows posts their author has chosen to share — a freshly
     // created post is visible to its author (see GetMineAsync) but nobody else until then.
@@ -89,6 +89,11 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
 
         db.Posts.Add(post);
         await db.SaveChangesAsync();
+
+        await email.SendAsync(author.Email, "Your note is ready",
+            EmailService.Paragraphs(
+                $"Hi {EmailService.Encode(author.Name)},",
+                $"Your note \"<strong>{EmailService.Encode(post.Title)}</strong>\" has finished processing and is ready to view in Synapse."));
 
         return ToDto(post, author);
     }

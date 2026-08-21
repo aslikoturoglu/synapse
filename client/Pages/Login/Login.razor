@@ -52,7 +52,12 @@
                 <InputText id="reset-email" class="form-input" placeholder="@Strings.Get("emailPlaceholder")" @bind-Value="ResetEmail" />
             </div>
 
-            <button type="submit" class="btn-primary btn-block">@Strings.Get("resetPassword")</button>
+            @if (!string.IsNullOrEmpty(ResetErrorMessage))
+            {
+                <p class="field-error">@ResetErrorMessage</p>
+            }
+
+            <button type="submit" class="btn-primary btn-block @(IsResetSubmitting ? "btn-disabled-look" : "")" disabled="@IsResetSubmitting">@Strings.Get("resetPassword")</button>
         </EditForm>
     }
     else
@@ -71,6 +76,8 @@
 
     private bool ForgotPasswordModalOpen { get; set; }
     private bool ResetLinkSent { get; set; }
+    private bool IsResetSubmitting { get; set; }
+    private string? ResetErrorMessage { get; set; }
 
     private async Task HandleLogin()
     {
@@ -103,11 +110,25 @@
     {
         ResetEmail = "";
         ResetLinkSent = false;
+        ResetErrorMessage = null;
         ForgotPasswordModalOpen = true;
     }
 
-    private void HandleResetPassword()
+    private async Task HandleResetPassword()
     {
+        ResetErrorMessage = null;
+        IsResetSubmitting = true;
+
+        var succeeded = await AuthApi.ForgotPasswordAsync(ResetEmail.Trim());
+
+        IsResetSubmitting = false;
+
+        if (!succeeded)
+        {
+            ResetErrorMessage = "Could not reach the server. Please try again.";
+            return;
+        }
+
         ResetLinkSent = true;
     }
 }

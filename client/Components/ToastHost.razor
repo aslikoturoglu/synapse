@@ -1,0 +1,18 @@
+@using Client.Services
+@implements IDisposable
+@inject ToastService Toast
+
+<div class="toast-host">
+    @foreach (var toast in Toast.Active)
+    {
+        <div class="toast-item toast-item-@(toast.Kind.ToString().ToLowerInvariant())" @key="toast.Id">@toast.Text</div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized() => Toast.Changed += HandleChanged;
+
+    private void HandleChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Toast.Changed -= HandleChanged;
+}

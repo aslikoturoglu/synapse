@@ -1,0 +1,17 @@
+@page "/mini-game"
+@using Client.Pages.Home
+@inject NotesStore Store
+@inject UiStrings Strings
+
+<PageTitle>@Strings.Get("miniGame")</PageTitle>
+
+<PrimaryHeader />
+
+<div class="home-body">
+    <Drawer UserName="@Store.Profile.Name" UserEmail="@Store.Profile.Email" />
+
+    <div class="home-feed">
+        <h2 class="stub-heading">@Strings.Get("miniGame")</h2>
+        <DinoGame />
+    </div>
+</div>

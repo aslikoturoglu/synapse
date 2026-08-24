@@ -12,13 +12,18 @@
 else
 {
     <h2 class="wizard-heading">@Strings.Get("creatingSynapses")</h2>
-    <div class="synapse-loader" aria-hidden="true">
-        <span class="synapse-loader-node"></span>
-        <span class="synapse-loader-node"></span>
-        <span class="synapse-loader-node"></span>
-        <span class="synapse-loader-node"></span>
-    </div>
-    <p class="wizard-loading-note">@Strings.Get("noteReadyEmailNotice").Replace("{email}", Store.Profile.Email)</p>
+    <DinoGame Compact="true" />
+    @if (Ready)
+    {
+        <div class="wizard-ready-banner">
+            <p>@Strings.Get("nextStepReady")</p>
+            <button type="button" class="wizard-continue-btn" @onclick="Continue">@Strings.Get("continue")</button>
+        </div>
+    }
+    else
+    {
+        <p class="wizard-loading-note">@Strings.Get("noteReadyEmailNotice").Replace("{email}", Store.Profile.Email)</p>
+    }
 }
 
 @code {
@@ -26,6 +31,7 @@ else
     [Parameter] public EventCallback OnComplete { get; set; }
 
     private bool Failed;
+    private bool Ready;
 
     protected override Task OnInitializedAsync() => Generate();
 
@@ -36,6 +42,7 @@ else
     private async Task Generate()
     {
         Failed = false;
+        Ready = false;
 
         if (Draft.OrchestratorThreadId is null || Draft.DocumentKnowledgeBase is null)
         {
@@ -64,6 +71,7 @@ else
 
             Draft.Pages.AddRange(noteResponse.Pages.Select(p => new NotePage { Number = p.Number, Heading = p.Heading, Body = p.Body }));
             Draft.SynthesizedMarkdown = noteResponse.SynthesizedMarkdown;
+            Draft.SuggestedTitle = noteResponse.SuggestedTitle;
         }
 
         if (Draft.FinalGraph is null && Draft.SynthesizedMarkdown is not null)
@@ -85,6 +93,11 @@ else
             Draft.FinalGraph = finalGraph;
         }
 
-        await OnComplete.InvokeAsync();
+        Ready = true;
     }
+
+    // Only fired by the wizard-ready-banner button — the note is fully generated already,
+    // this just stops gating the actual navigation behind it so the game isn't yanked away
+    // the instant the AI calls finish.
+    private Task Continue() => OnComplete.InvokeAsync();
 }

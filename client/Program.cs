@@ -37,6 +37,8 @@ builder.Services.AddSingleton<DashboardApiClient>();
 builder.Services.AddSingleton<AdminChatApiClient>();
 builder.Services.AddSingleton<RequestsApiClient>();
 builder.Services.AddSingleton<AssistantApiClient>();
+builder.Services.AddSingleton<GameApiClient>();
+builder.Services.AddSingleton<ToastService>();
 builder.Services.AddSingleton<AuthState>();
 builder.Services.AddSingleton<TourState>();
 

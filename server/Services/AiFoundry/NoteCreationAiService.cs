@@ -13,7 +13,7 @@ namespace Server.Services.AiFoundry;
 // through the Orchestrator first, same net pipeline behavior for fewer LLM calls. See
 // NoteMapAiService for brain-map-agent-synapse and NoteChatAiService for
 // interactive-chat-agent-synapse.
-public class NoteCreationAiService(FoundryAgentClient client, IConfiguration configuration, NoteMapAiService mapAiService)
+public class NoteCreationAiService(FoundryAgentClient client, IConfiguration configuration, NoteMapAiService mapAiService, TokenUsageAccumulator tokenUsage)
 {
     private const string NoClarifyingQuestionsInstruction =
         "This is a fully automated pipeline step with no further user interaction possible — " +
@@ -44,7 +44,8 @@ public class NoteCreationAiService(FoundryAgentClient client, IConfiguration con
         await Task.WhenAll(scanTask, ragTask);
 
         var (threadId, scan) = await scanTask;
-        var (knowledgeBase, _) = await ragTask;
+        var (knowledgeBase, _, ragTokens) = await ragTask;
+        tokenUsage.Add(ragTokens);
         var draftGraph = await mapAiService.GenerateDraftGraphAsync(scan.SeedKeywords);
 
         return (threadId, scan, knowledgeBase, draftGraph, fileIds);
@@ -54,12 +55,12 @@ public class NoteCreationAiService(FoundryAgentClient client, IConfiguration con
     // keyword list) being ready by the time the wizard reaches Processing — the client can't
     // continue past BrainMap without them, so that gate is enforced by the wizard's own step
     // order rather than re-checked here.
-    public async Task<(List<NotePageDto> Pages, string SynthesizedMarkdown)> GenerateDocumentAsync(
+    public async Task<(List<NotePageDto> Pages, string SynthesizedMarkdown, string SuggestedTitle)> GenerateDocumentAsync(
         string threadId, string documentKnowledgeBase, string formatPreference, string userNotes,
         IReadOnlyList<string> finalKeywords, PreliminaryScanDto preliminaryClassification)
     {
         var keywordList = string.Join(", ", finalKeywords);
-        var (directiveText, _) = await client.AskAsync(
+        var (directiveText, _, directiveTokens) = await client.AskAsync(
             RequireAgentName("Orchestrator"),
             "All three synthesis inputs are ready. Document RAG analysis is complete. " +
             $"User's format preference, in their own words (map this to synthesis_mode yourself — never ask the user about synthesis_mode directly): \"{formatPreference}\". " +
@@ -67,10 +68,11 @@ public class NoteCreationAiService(FoundryAgentClient client, IConfiguration con
             $"Final, user-edited Brain Map keyword list: {keywordList}. " +
             "Per your instructions, emit your START_TOPIC_SYNTHESIS trigger now.",
             threadId);
+        tokenUsage.Add(directiveTokens);
 
         var directive = ParseTopicSynthesisDirective(directiveText, formatPreference, userNotes, finalKeywords, preliminaryClassification);
 
-        var (synthesized, _) = await client.AskAsync(
+        var (synthesized, synthesizerResponseId, synthesisTokens) = await client.AskAsync(
             RequireAgentName("TopicSynthesizer"),
             $"{NoClarifyingQuestionsInstruction}\n\n" +
             $"synthesis_mode: {directive.SynthesisMode}\n" +
@@ -81,9 +83,35 @@ public class NoteCreationAiService(FoundryAgentClient client, IConfiguration con
             $"LANGUAGE: write the entire output in a single, consistent language — {directive.PreliminaryClassification.Language} (the source documents' own language), unless user_notes above explicitly asks for a different output language, in which case use that instead. " +
             "This applies to EVERYTHING, including your own template's structural labels (the section headings, \"İlgili Anahtar Kavramlar (Brain Map)\", \"İçerik\", \"Bağlantılar ve İlişkiler\", the table of contents heading, etc.) — translate those labels into the chosen language too, not just the content. Never mix languages within the document.\n\n" +
             $"Document RAG knowledge base:\n{documentKnowledgeBase}");
+        tokenUsage.Add(synthesisTokens);
 
         var cleaned = StripClosingBoilerplate(synthesized);
-        return (MarkdownPager.SplitIntoPages(cleaned), cleaned);
+
+        // Follow-up in the same response chain (previousResponseId) rather than a separate
+        // dedicated agent — reuses TopicSynthesizer's own already-primed context instead of
+        // needing a new Azure AI Foundry agent configured just for this. Only ever actually
+        // used by the client if the user never renamed the note away from the wizard's "New
+        // Note" default (see NotesStore.CreatePostFromDraftIfNeededAsync) — always generated
+        // regardless, since it's cheap and the client decides whether to use it.
+        var (titleText, _, titleTokens) = await client.AskAsync(
+            RequireAgentName("TopicSynthesizer"),
+            "One more thing, still per your existing instructions: suggest a short, specific " +
+            "title for the document you just wrote — 3 to 8 words, no quotation marks, no " +
+            "trailing punctuation, in the same language as the document. Reply with ONLY the " +
+            "title text, nothing else.",
+            synthesizerResponseId);
+        tokenUsage.Add(titleTokens);
+
+        return (MarkdownPager.SplitIntoPages(cleaned), cleaned, CleanTitle(titleText));
+    }
+
+    // Safety net against a model that doesn't perfectly follow "only the title" — strips
+    // surrounding quotes/whitespace and caps length so a rogue reply can't become an absurdly
+    // long note title.
+    private static string CleanTitle(string text)
+    {
+        var trimmed = text.Trim().Trim('"', '\'', '“', '”', '.', ' ');
+        return trimmed.Length > 80 ? trimmed[..80].TrimEnd() : trimmed;
     }
 
     // The synthesizer agent's own system prompt (configured on Azure AI Foundry, not something
@@ -139,11 +167,12 @@ public class NoteCreationAiService(FoundryAgentClient client, IConfiguration con
 
     private async Task<(string ThreadId, PreliminaryScanDto Scan)> RunPreliminaryScanAsync(IReadOnlyList<string> fileIds, string description)
     {
-        var (scanText, responseId) = await client.AskAsync(
+        var (scanText, responseId, tokens) = await client.AskAsync(
             RequireAgentName("Orchestrator"),
             $"{NoClarifyingQuestionsInstruction}\n\nFiles have just been uploaded.{DescribeSuffix(description)} " +
             "Per your instructions, perform your preliminary scan now and report it as your preliminary_scan JSON (seed_keywords, language, domain, estimated_structure).",
             fileIds: fileIds);
+        tokenUsage.Add(tokens);
 
         return (responseId, ParsePreliminaryScan(scanText));
     }

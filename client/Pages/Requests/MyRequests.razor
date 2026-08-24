@@ -3,6 +3,7 @@
 @using Client.Services
 @inject NotesStore Store
 @inject RequestsApiClient RequestsApi
+@inject ToastService Toast
 @inject UiStrings Strings
 
 <PageTitle>@Strings.Get("myRequests")</PageTitle>
@@ -82,7 +83,7 @@
         <textarea class="form-input" @bind="ContentDraft" @bind:event="oninput"></textarea>
     </div>
 
-    <button type="button" class="btn-primary btn-block" disabled="@(string.IsNullOrWhiteSpace(SubjectDraft) || string.IsNullOrWhiteSpace(ContentDraft))" @onclick="SubmitNewRequest">@Strings.Get("submit")</button>
+    <button type="button" class="btn-primary btn-block @(IsSubmitting ? "btn-disabled-look" : "")" disabled="@(IsSubmitting || string.IsNullOrWhiteSpace(SubjectDraft) || string.IsNullOrWhiteSpace(ContentDraft))" @onclick="SubmitNewRequest">@Strings.Get("submit")</button>
 </Modal>
 
 @code {
@@ -92,6 +93,7 @@
     private string ContentDraft = "";
     private string SearchTerm = "";
     private string StatusFilter = "All";
+    private bool IsSubmitting;
     private static readonly string[] StatusOptions = ["All", "Pending", "Approved", "Rejected"];
 
     private List<UserRequestDto> VisibleRequests =>
@@ -117,11 +119,18 @@
         if (string.IsNullOrWhiteSpace(SubjectDraft) || string.IsNullOrWhiteSpace(ContentDraft))
             return;
 
-        var created = await RequestsApi.CreateAsync(SubjectDraft.Trim(), ContentDraft.Trim());
-        if (created is not null)
-        {
-            NewRequestModalOpen = false;
-            await Reload();
-        }
+        await Toast.RunAsync(
+            async () =>
+            {
+                var created = await RequestsApi.CreateAsync(SubjectDraft.Trim(), ContentDraft.Trim());
+                if (created is null)
+                    throw new InvalidOperationException("Request creation failed.");
+
+                NewRequestModalOpen = false;
+                await Reload();
+            },
+            setLoading: value => IsSubmitting = value,
+            successMessage: Strings.Get("emailSentToast"),
+            errorMessage: Strings.Get("requestFailedToast"));
     }
 }

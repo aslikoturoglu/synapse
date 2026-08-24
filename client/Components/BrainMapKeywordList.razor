@@ -1,0 +1,62 @@
+@using Client.Pages.Home
+@inject UiStrings Strings
+
+@* Sorted (most-frequent → least-frequent) sibling to BrainMapDiagram's ring — reads the exact
+   same Keywords list reference and raises the exact same OnRemove callback, so both panels
+   stay in sync purely through Blazor's normal re-render flow (see NotePagesViewer/
+   NoteTableOfContents for the same pattern). *@
+
+<div class="brain-map-keyword-list">
+    <h3 class="brain-map-keyword-list-heading">@Strings.Get("keywordsTotalLabel")</h3>
+    <p class="brain-map-keyword-list-count-label">@SortedKeywords.Count @Strings.Get("keywordsTotalLabel")</p>
+
+    @foreach (var keyword in SortedKeywords)
+    {
+        <div class="brain-map-keyword-list-row" @key="keyword">
+            <span class="brain-map-keyword-list-dot" style="--bubble-color: @DotColor(keyword);"></span>
+            <span class="brain-map-keyword-list-text @HistoryCssClass(keyword)">@keyword.Text</span>
+            @if (keyword.Count is int count)
+            {
+                <span class="brain-map-keyword-list-count">@count</span>
+            }
+            @if (CanEdit && keyword.Status != KeywordStatus.AiDeleted)
+            {
+                <button type="button" class="brain-map-remove" @onclick="() => OnRemove.InvokeAsync(keyword)" aria-label="Remove keyword">×</button>
+            }
+            @if (CanEdit && keyword.Status == KeywordStatus.AiDeleted)
+            {
+                <button type="button" class="brain-map-undo brain-map-keyword-list-undo" @onclick="() => OnRestore.InvokeAsync(keyword)" aria-label="Restore keyword">↺ @Strings.Get("undo")</button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public List<BrainMapKeyword> Keywords { get; set; } = [];
+    [Parameter] public bool ShowHistory { get; set; }
+    [Parameter] public bool CanEdit { get; set; }
+    [Parameter] public EventCallback<BrainMapKeyword> OnRemove { get; set; }
+    [Parameter] public EventCallback<BrainMapKeyword> OnRestore { get; set; }
+
+    private IEnumerable<BrainMapKeyword> VisibleKeywords =>
+        ShowHistory ? Keywords : Keywords.Where(k => k.Status != KeywordStatus.AiDeleted);
+
+    private List<BrainMapKeyword> SortedKeywords =>
+        VisibleKeywords.OrderByDescending(k => k.Count ?? -1).ToList();
+
+    private Dictionary<BrainMapKeyword, string> BubbleColors => BrainMapKeywordActions.ComputeBubbleColors(VisibleKeywords);
+
+    private string DotColor(BrainMapKeyword keyword) => keyword.Status switch
+    {
+        KeywordStatus.AiDeleted => "#dc2626",
+        KeywordStatus.UserAdded => "#16a34a",
+        _ => BubbleColors.GetValueOrDefault(keyword, "#2563eb"),
+    };
+
+    private static string HistoryCssClass(BrainMapKeyword keyword) => keyword.Status switch
+    {
+        KeywordStatus.AiDeleted => "brain-map-keyword-list-text-deleted",
+        KeywordStatus.UserAdded => "brain-map-keyword-list-text-added",
+        _ => "",
+    };
+}

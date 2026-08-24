@@ -39,6 +39,10 @@ public class User
     public bool IsDeactivated { get; set; }
     public string? DeactivationReason { get; set; }
 
+    // Mini-game high score — never lowered, only ever overwritten by a higher submission
+    // (GameService.SubmitScoreAsync).
+    public int BestGameScore { get; set; }
+
     public UserSettings? Settings { get; set; }
 
     public List<Group> Groups { get; } = [];

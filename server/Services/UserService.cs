@@ -8,7 +8,7 @@ namespace Server.Services;
 
 public enum ToggleRoleResult { Success, NotFound, CannotChangeAdmin }
 
-public class UserService(AppDbContext db, EmailService email)
+public class UserService(AppDbContext db, EmailService email, TokenUsageService tokenUsageService)
 {
     public async Task<UserDto?> GetByIdAsync(int id)
     {
@@ -16,8 +16,12 @@ public class UserService(AppDbContext db, EmailService email)
         return user is null ? null : ToDto(user);
     }
 
-    public async Task<List<AdminUserDto>> GetAllAdminAsync() =>
-        await db.Users.OrderBy(u => u.Id).Select(u => ToAdminDto(u)).ToListAsync();
+    public async Task<List<AdminUserDto>> GetAllAdminAsync()
+    {
+        var users = await db.Users.OrderBy(u => u.Id).ToListAsync();
+        var tokenTotals = await tokenUsageService.GetLifetimeTotalsByUserAsync();
+        return users.Select(u => ToAdminDto(u, tokenTotals.GetValueOrDefault(u.Id))).ToList();
+    }
 
     public async Task<bool> DeactivateAsync(int id, string reason)
     {
@@ -194,7 +198,7 @@ public class UserService(AppDbContext db, EmailService email)
         DeactivationReason = user.DeactivationReason,
     };
 
-    private static AdminUserDto ToAdminDto(User user) => new()
+    private static AdminUserDto ToAdminDto(User user, int tokenUsage) => new()
     {
         Id = user.Id,
         Name = user.Name,
@@ -208,6 +212,6 @@ public class UserService(AppDbContext db, EmailService email)
         PasswordChangedAt = user.PasswordChangedAt,
         IsDeactivated = user.IsDeactivated,
         DeactivationReason = user.DeactivationReason,
-        TokenUsage = 0,
+        TokenUsage = tokenUsage,
     };
 }

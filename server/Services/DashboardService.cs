@@ -4,7 +4,7 @@ using Server.Dtos;
 
 namespace Server.Services;
 
-public class DashboardService(AppDbContext db)
+public class DashboardService(AppDbContext db, TokenUsageService tokenUsageService)
 {
     // start == null means "no lower bound" (the "Total" range). end defaults to now for every
     // preset range; "custom" trusts the caller's own from/to.
@@ -38,6 +38,7 @@ public class DashboardService(AppDbContext db)
 
         var downloads = await db.Posts.SumAsync(p => (int?)p.Downloads) ?? 0;
         var sends = await db.Posts.SumAsync(p => (int?)p.Sends) ?? 0;
+        var tokenUsage = await tokenUsageService.GetRangedTotalAsync(start, end);
 
         return new DashboardStatsDto
         {
@@ -48,8 +49,8 @@ public class DashboardService(AppDbContext db)
             LikesGiven = likes,
             Downloads = downloads,
             Sends = sends,
-            TokenUsage = 0,
-            AverageTokenPerPerson = 0,
+            TokenUsage = tokenUsage,
+            AverageTokenPerPerson = accounts > 0 ? tokenUsage / (double)accounts : 0,
         };
     }
 }

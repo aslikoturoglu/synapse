@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MySql.EntityFrameworkCore.Extensions;
 using Server.Data;
+using Server.Filters;
 using Server.Services;
 using Server.Services.AiFoundry;
 
@@ -17,7 +18,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+// TokenUsageActionFilter runs after every action, globally — records whatever the request's
+// TokenUsageAccumulator picked up from any *AiService call it made, with no per-controller
+// wiring needed (see FoundryAgentClient.AskAsync / TokenUsageAccumulator).
+builder.Services.AddControllers(options => options.Filters.Add<TokenUsageActionFilter>());
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
@@ -33,6 +37,9 @@ builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<ConnectionService>();
 builder.Services.AddScoped<ProfileService>();
 builder.Services.AddScoped<RequestService>();
+builder.Services.AddScoped<GameService>();
+builder.Services.AddScoped<TokenUsageAccumulator>();
+builder.Services.AddScoped<TokenUsageService>();
 
 // Credentials live in "Firebase:CredentialsJson" (a user-secret / env var — never appsettings.json,
 // see EmailService), so a missing value fails fast here instead of surfacing as a confusing
@@ -47,7 +54,7 @@ builder.Services.AddSingleton(new FirestoreDbBuilder
     ProjectId = firebaseProjectId,
     Credential = CredentialFactory.FromStream<ServiceAccountCredential>(firebaseCredentialsStream).ToGoogleCredential(),
 }.Build());
-builder.Services.AddSingleton<EmailService>();
+builder.Services.AddScoped<EmailService>();
 
 // FoundryAgentClient wraps a PersistentAgentsClient (thread-safe, reused like any other Azure
 // SDK client), so it's a singleton; the higher-level AiFoundry services need AppDbContext

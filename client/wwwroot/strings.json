@@ -72,6 +72,8 @@
   "subjectLabel": "Subject",
   "contentLabel": "Message",
   "submit": "Submit",
+  "emailSentToast": "Email sent",
+  "requestFailedToast": "Something went wrong, please try again.",
   "requestRoleChangeTooltip": "Request a role change",
   "requestRoleChangeHeading": "Request a Role Change",
   "requestRoleChangeBody": "Send a request to the admin to change your role to",
@@ -181,6 +183,13 @@
   "continue": "Continue",
   "creatingSynapses": "creating synapses",
   "noteReadyEmailNotice": "You'll be notified by email at {email} once your note is ready.",
+  "nextStepReady": "Next step ready!",
+  "miniGame": "Mini Game",
+  "currentScore": "Score",
+  "bestScore": "Best",
+  "dinoPressToStart": "Press Space or click to play",
+  "dinoGameOver": "Game Over",
+  "dinoPressToRestart": "Press Space or click to try again",
   "brainMap": "brain map",
 
   "resumeDraft": "Resume Draft",
@@ -257,6 +266,7 @@
 
   "brainMapAddedTag": "Added",
   "brainMapDeletedTag": "Deleted",
+  "undo": "Undo",
 
   "keywordsTotalLabel": "Keywords",
   "keywordsGeneratedLabel": "Keywords generated with synapse.",

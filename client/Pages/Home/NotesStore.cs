@@ -253,6 +253,19 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi, Connection
         return true;
     }
 
+    // Undoes RemoveKeywordAsync's soft-delete — only meaningful for an AiDeleted keyword
+    // (a UserAdded one is gone outright once removed, nothing left in the list to restore).
+    public async Task<bool> RestoreKeywordAsync(Post post, BrainMapKeyword keyword)
+    {
+        if (keyword.Status != KeywordStatus.AiDeleted)
+            return false;
+        if (!await postsApi.RestoreKeywordAsync(post.Id, keyword.Id))
+            return false;
+
+        keyword.Status = KeywordStatus.AiKept;
+        return true;
+    }
+
     public async Task<bool> UpdatePageBodyAsync(Post post, int pageNumber, string body)
     {
         if (!await postsApi.UpdatePageBodyAsync(post.Id, pageNumber, body))
@@ -380,9 +393,16 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi, Connection
         if (Draft.IsCreated)
             return Draft.CreatedPostId is int id ? FindById(id) : null;
 
+        // Only ever substitutes the AI's suggested title if the user left it at the wizard's
+        // own default the whole time — any manual rename, even to something else entirely
+        // mundane, always wins over the AI's guess.
+        var title = Draft.Title.Trim() == "New Note" && !string.IsNullOrWhiteSpace(Draft.SuggestedTitle)
+            ? Draft.SuggestedTitle
+            : Draft.Title;
+
         var request = new CreatePostRequest
         {
-            Title = Draft.Title,
+            Title = title,
             // No dedicated description step anymore — the Intake step's free-form notes are
             // the closest available substitute for "what this note is about".
             Description = Draft.UserNotes,

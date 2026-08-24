@@ -15,8 +15,7 @@ public class AdminUserDto
     public bool IsDeactivated { get; set; }
     public string? DeactivationReason { get; set; }
 
-    // Real per-user AI token metering isn't wired up yet (FoundryAgentClient doesn't capture
-    // usage from the Responses API) — always 0 for now rather than a fabricated number.
+    // Lifetime sum of TokenUsageLogs for this user (UserService.GetAllAdminAsync).
     public int TokenUsage { get; set; }
 }
 

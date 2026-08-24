@@ -40,6 +40,9 @@ public class PostsApiClient(HttpClient http)
     public async Task<bool> RemoveKeywordAsync(int postId, int keywordId) =>
         (await http.DeleteAsync($"api/posts/{postId}/keywords/{keywordId}")).IsSuccessStatusCode;
 
+    public async Task<bool> RestoreKeywordAsync(int postId, int keywordId) =>
+        (await http.PostAsync($"api/posts/{postId}/keywords/{keywordId}/restore", null)).IsSuccessStatusCode;
+
     public async Task<bool> UpdateTitleAsync(int postId, string title) =>
         (await http.PutAsJsonAsync($"api/posts/{postId}/title", new UpdatePostTitleRequest { Title = title })).IsSuccessStatusCode;
 

@@ -68,6 +68,19 @@ public class PostsController(PostService postService) : ControllerBase
         };
     }
 
+    [HttpPost("{id:int}/keywords/{keywordId:int}/restore")]
+    public async Task<IActionResult> RestoreKeyword(int id, int keywordId)
+    {
+        var result = await postService.RestoreKeywordAsync(User.GetUserId(), id, keywordId);
+        return result switch
+        {
+            PostOpResult.Success => NoContent(),
+            PostOpResult.NotFound => NotFound(),
+            PostOpResult.Forbidden => Forbid(),
+            _ => BadRequest(),
+        };
+    }
+
     [HttpPut("{id:int}/title")]
     public async Task<IActionResult> UpdateTitle(int id, UpdatePostTitleRequest request)
     {

@@ -31,6 +31,7 @@ public class GenerateNoteResponse
 {
     public List<NotePageDto> Pages { get; set; } = [];
     public string SynthesizedMarkdown { get; set; } = "";
+    public string SuggestedTitle { get; set; } = "";
 }
 
 public class GenerateFinalBrainMapRequest

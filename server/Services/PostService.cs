@@ -177,6 +177,25 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
         return PostOpResult.Success;
     }
 
+    // Only ever undoes an AiDeleted keyword back to AiKept — a UserAdded one is hard-deleted
+    // by RemoveKeywordAsync above (the row itself is gone), so there's nothing left to restore.
+    public async Task<PostOpResult> RestoreKeywordAsync(int userId, int postId, int keywordId)
+    {
+        var post = await db.Posts.FindAsync(postId);
+        if (post is null)
+            return PostOpResult.NotFound;
+        if (post.AuthorId != userId)
+            return PostOpResult.Forbidden;
+
+        var keyword = await db.BrainMapKeywords.FirstOrDefaultAsync(k => k.Id == keywordId && k.PostId == postId && k.Status == KeywordStatus.AiDeleted);
+        if (keyword is null)
+            return PostOpResult.NotFound;
+
+        keyword.Status = KeywordStatus.AiKept;
+        await db.SaveChangesAsync();
+        return PostOpResult.Success;
+    }
+
     public async Task<PostOpResult> UpdatePageBodyAsync(int userId, int postId, int pageNumber, string body)
     {
         var post = await db.Posts.FindAsync(postId);

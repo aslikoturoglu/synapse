@@ -9,7 +9,7 @@ namespace Server.Services.AiFoundry;
 // first turn of an exchange — this rebuilds and resends the data snapshot on every question,
 // since the next question in the same conversation might depend on data that changed since it
 // started (e.g. a user the admin just deleted).
-public class AdminChatAiService(FoundryAgentClient client, IConfiguration configuration)
+public class AdminChatAiService(FoundryAgentClient client, IConfiguration configuration, TokenUsageAccumulator tokenUsage)
 {
     private const string Instruction =
         "You are an admin assistant for the Synapse platform. Answer using ONLY the platform " +
@@ -25,7 +25,9 @@ public class AdminChatAiService(FoundryAgentClient client, IConfiguration config
             ?? throw new InvalidOperationException("AzureAiFoundry:Agents:InteractiveChat is not configured.");
 
         var text = $"{Instruction}\n\nPlatform data snapshot (as of {DateTime.UtcNow:u} UTC):\n{BuildSnapshot(users, stats)}\n\nQuestion: {question}";
-        return await client.AskAsync(agentName, text, existingResponseId);
+        var (answer, responseId, tokens) = await client.AskAsync(agentName, text, existingResponseId);
+        tokenUsage.Add(tokens);
+        return (answer, responseId);
     }
 
     private static string BuildSnapshot(List<AdminUserDto> users, DashboardStatsDto stats)
@@ -42,7 +44,7 @@ public class AdminChatAiService(FoundryAgentClient client, IConfiguration config
         sb.AppendLine($"- Likes given: {stats.LikesGiven}");
         sb.AppendLine($"- Downloads: {stats.Downloads} (download tracking isn't wired up in the app yet — this is always 0, not a real signal)");
         sb.AppendLine($"- Sends: {stats.Sends} (send tracking isn't wired up in the app yet — this is always 0, not a real signal)");
-        sb.AppendLine($"- AI token usage: {stats.TokenUsage} (per-user token metering isn't implemented yet — this is always 0, not a real signal)");
+        sb.AppendLine($"- AI token usage: {stats.TokenUsage}");
         sb.AppendLine();
         sb.AppendLine("Per-user detail:");
         foreach (var u in users)

@@ -23,7 +23,7 @@ else
             @* Non-owner viewers only ever see the Brain Map's final state — no AI-deleted/
                user-added history markers, no add/remove controls (ShowHistory/ReadOnly below
                both key off IsAuthor). *@
-            <BrainMapDiagram Keywords="Post.Keywords" ShowHistory="@IsAuthor" AlwaysEditable="true" ReadOnly="@(!IsAuthor)" OnAdd="AddKeyword" OnRemove="RemoveKeyword">
+            <BrainMapDiagram Keywords="Post.Keywords" ShowHistory="@IsAuthor" AlwaysEditable="true" ReadOnly="@(!IsAuthor)" OnAdd="AddKeyword" OnRemove="RemoveKeyword" OnRestore="RestoreKeyword">
                 @if (IsAuthor)
                 {
                     <div class="brain-map-history-summary">
@@ -63,6 +63,12 @@ else
     {
         if (Post is not null)
             await Store.RemoveKeywordAsync(Post, keyword);
+    }
+
+    private async Task RestoreKeyword(BrainMapKeyword keyword)
+    {
+        if (Post is not null)
+            await Store.RestoreKeywordAsync(Post, keyword);
     }
 
     private async Task AddKeyword(string text)

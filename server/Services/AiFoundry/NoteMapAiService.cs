@@ -8,14 +8,15 @@ namespace Server.Services.AiFoundry;
 // topic-synthesizer-agent-synapse's document is complete — enriches, never rebuilds, the
 // existing draft with real node/edge relationships grounded primarily in that finished
 // document, with the Document RAG knowledge base as secondary supporting depth).
-public class NoteMapAiService(FoundryAgentClient client, IConfiguration configuration)
+public class NoteMapAiService(FoundryAgentClient client, IConfiguration configuration, TokenUsageAccumulator tokenUsage)
 {
     public async Task<GraphDto> GenerateDraftGraphAsync(IReadOnlyList<string> keywords)
     {
         var keywordList = string.Join(", ", keywords);
-        var (json, _) = await client.AskAsync(
+        var (json, _, tokens) = await client.AskAsync(
             RequireAgentName(),
             $"START_DRAFT_BRAINMAP — keywords (merged preliminary-scan + user-typed): {keywordList}");
+        tokenUsage.Add(tokens);
 
         return Parse(json);
     }
@@ -23,12 +24,13 @@ public class NoteMapAiService(FoundryAgentClient client, IConfiguration configur
     public async Task<GraphDto> GenerateFinalGraphAsync(IReadOnlyList<string> draftKeywords, string synthesizedDocument, string ragKnowledgeBase)
     {
         var keywordList = string.Join(", ", draftKeywords);
-        var (json, _) = await client.AskAsync(
+        var (json, _, tokens) = await client.AskAsync(
             RequireAgentName(),
             $"START_FINAL_BRAINMAP — draft_keywords (latest user-edited draft list, already user-confirmed nodes — never silently drop these): {keywordList}\n\n" +
             "Enrich the existing draft brain map using all node/edge relationships derivable from the finalized document below; do not rebuild from scratch.\n\n" +
             $"document_ref — the finalized document (PRIMARY grounding source for relationships):\n{synthesizedDocument}\n\n" +
             $"Document RAG knowledge base (secondary — supporting depth only, never introduce a concept absent from the finalized document above):\n{ragKnowledgeBase}");
+        tokenUsage.Add(tokens);
 
         return Parse(json);
     }

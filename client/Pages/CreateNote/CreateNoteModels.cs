@@ -59,6 +59,11 @@ public class NoteDraft
     public string? SynthesizedMarkdown { get; set; }
     public GraphDto? FinalGraph { get; set; }
 
+    // AI-suggested title from the same Processing step — only ever applied at actual save
+    // time (NotesStore.CreatePostFromDraftIfNeededAsync), and only if Title is still exactly
+    // the "New Note" default then, so a manual rename always wins.
+    public string SuggestedTitle { get; set; } = "";
+
     public bool HasProgress => FileNames.Count > 0 || Step != NoteDraftStep.Upload;
 
     // Called before starting a fresh wizard run when the previous draft already became a
@@ -85,6 +90,7 @@ public class NoteDraft
         FormatPreference = "";
         SynthesizedMarkdown = null;
         FinalGraph = null;
+        SuggestedTitle = "";
     }
 
     // Seeds the Brain Map from the Orchestrator's preliminary scan once it's available;

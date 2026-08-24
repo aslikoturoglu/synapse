@@ -4,7 +4,7 @@ namespace Server.Services.AiFoundry;
 // Q&A and the general chatbox. existingResponseId is null on the first question (starts a
 // fresh exchange) and the prior call's response id on every follow-up, so the agent sees the
 // real conversation instead of a fresh, context-less prompt each time.
-public class NoteChatAiService(FoundryAgentClient client, IConfiguration configuration)
+public class NoteChatAiService(FoundryAgentClient client, IConfiguration configuration, TokenUsageAccumulator tokenUsage)
 {
     // The UI shows exactly one question -> one answer per turn — there's no in-place way for
     // the agent to ask a sub-question and get it answered before its response is shown, so
@@ -26,6 +26,8 @@ public class NoteChatAiService(FoundryAgentClient client, IConfiguration configu
             : "";
         var text = $"{NoClarifyingQuestionsInstruction}\n\n{contextPrefix}Question: {question}";
 
-        return await client.AskAsync(agentName, text, existingResponseId);
+        var (answer, responseId, tokens) = await client.AskAsync(agentName, text, existingResponseId);
+        tokenUsage.Add(tokens);
+        return (answer, responseId);
     }
 }

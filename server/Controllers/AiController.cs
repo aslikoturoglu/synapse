@@ -48,11 +48,11 @@ public class AiController(NoteCreationAiService aiService, NoteMapAiService mapA
     [HttpPost("generate-note")]
     public async Task<ActionResult<GenerateNoteResponse>> GenerateNote(GenerateNoteRequest request)
     {
-        var (pages, synthesizedMarkdown) = await aiService.GenerateDocumentAsync(
+        var (pages, synthesizedMarkdown, suggestedTitle) = await aiService.GenerateDocumentAsync(
             request.ThreadId, request.DocumentKnowledgeBase, request.FormatPreference,
             request.UserNotes, request.FinalKeywords, request.PreliminaryClassification);
 
-        return Ok(new GenerateNoteResponse { Pages = pages, SynthesizedMarkdown = synthesizedMarkdown });
+        return Ok(new GenerateNoteResponse { Pages = pages, SynthesizedMarkdown = synthesizedMarkdown, SuggestedTitle = suggestedTitle });
     }
 
     // brain-map-agent-synapse's final mode — enriches the existing draft map using the

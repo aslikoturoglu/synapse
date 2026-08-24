@@ -54,8 +54,10 @@ public class FoundryAgentClient
     // Sends one message to the named agent, optionally continuing a prior exchange
     // (previousResponseId) and optionally referencing already-uploaded files. Returns the
     // answer text and this response's own id — pass that id back in as previousResponseId on
-    // the next call to keep the same conversation going.
-    public async Task<(string Text, string ResponseId)> AskAsync(
+    // the next call to keep the same conversation going. TotalTokens is this one call's own
+    // usage (input+output) — callers accumulate it into a TokenUsageAccumulator themselves;
+    // this stateless singleton has no request/user context to persist usage against.
+    public async Task<(string Text, string ResponseId, int TotalTokens)> AskAsync(
         string agentName, string text, string? previousResponseId = null, IEnumerable<string>? fileIds = null)
     {
         var responsesClient = _client.ProjectOpenAIClient.GetProjectResponsesClientForAgentEndpoint(agentName, null, null);
@@ -72,6 +74,6 @@ public class FoundryAgentClient
         };
 
         var response = await responsesClient.CreateResponseAsync(options);
-        return (response.Value.GetOutputText(), response.Value.Id);
+        return (response.Value.GetOutputText(), response.Value.Id, response.Value.Usage?.TotalTokenCount ?? 0);
     }
 }

@@ -9,7 +9,31 @@
       "Bash(python3 -c \"import sys,json; [print\\(u['id'], u['username'], u['role'], u['email']\\) for u in json.load\\(sys.stdin\\)]\")",
       "Bash(python3 -c ' *)",
       "Bash(/usr/local/mysql/bin/mysql -uroot -p'asliKorcan7' -h127.0.0.1 -P3306 synapse_db -e \"SELECT Id, LENGTH\\(SynthesizedDocumentMarkdown\\) AS MdLen, LENGTH\\(GraphJson\\) AS GraphLen FROM Posts WHERE Id=3;\")",
-      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} \\(time: %{time_total}s\\)\\\\n\" --max-time 5 http://localhost:5057/api/auth/login -X POST -H \"Content-Type: application/json\" -d '{\"usernameOrEmail\":\"x\",\"password\":\"x\"}')"
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} \\(time: %{time_total}s\\)\\\\n\" --max-time 5 http://localhost:5057/api/auth/login -X POST -H \"Content-Type: application/json\" -d '{\"usernameOrEmail\":\"x\",\"password\":\"x\"}')",
+      "Bash(lsof -ti:5057)",
+      "Bash(lsof -i :5057 -sTCP:LISTEN)",
+      "Bash(lsof -i :5296 -sTCP:LISTEN)",
+      "Bash(kill 75556 98318)",
+      "Bash(find / -iname \"OpenAI.dll\" 2>/dev/null | head -5; find ~/.nuget -iname \"*OpenAI*\" -maxdepth 3 2>/dev/null | head -20)",
+      "Read(//Users/aslikoturoglu/.nuget/**)",
+      "Bash(find ~/.nuget/packages -maxdepth 1 -iname \"*openai*\" 2>/dev/null)",
+      "Read(//Users/aslikoturoglu/.nuget/packages/**)",
+      "Read(//Users/aslikoturoglu/.nuget/packages/openai/**)",
+      "Bash(strings /Users/aslikoturoglu/.nuget/packages/openai/2.13.0/lib/net8.0/OpenAI.dll | grep -i \"ResponseTokenUsage\\\\|InputTokenCount\\\\|OutputTokenCount\\\\|TotalTokenCount\" | sort -u)",
+      "Read(//Users/aslikoturoglu/.nuget/packages/openai/2.13.0/lib/net8.0/**)",
+      "Read(//Users/aslikoturoglu/.nuget/packages/openai/2.9.1/lib/net8.0/**)",
+      "Bash(grep -B2 -A2 \"^get_Usage$\")",
+      "Bash(grep -i \"^Usage$\\\\|get_Usage\\\\|<Usage>k__BackingField\")",
+      "Bash(grep -n \"OpenAI.Responses.OpenAIResponse$\")",
+      "Bash(grep -n \"^OpenAIResponse$\\\\|IJsonModel<OpenAI.Responses.OpenAIResponse>\")",
+      "Bash(strings -a /Users/aslikoturoglu/.nuget/packages/openai/2.9.1/lib/net8.0/OpenAI.dll | grep -n \"IJsonModel<OpenAI.Responses\\\\.\" | sort -u)",
+      "Bash(grep -n \"OpenAIResponse\" /Users/aslikoturoglu/.claude/projects/-Users-aslikoturoglu-Desktop-SU-3-CS395-staj-proje-synapse/988d8108-2d00-41d3-bbdb-fc5e57a8834a/tool-results/bh95tv2xt.txt | head -20 *)",
+      "Bash(strings -a /Users/aslikoturoglu/.nuget/packages/openai/2.9.1/lib/net8.0/OpenAI.dll | grep -in \"openairesponse\" | head -20)",
+      "Bash(grep -in \"^ResponsesClient$\\\\|^CreateResponseOptions$\\\\|^ResponseCreationOptions$\")",
+      "Bash(which dotnet-script *)",
+      "Read(//usr/local/share/dotnet/**)",
+      "Bash(find ~/.nuget/packages/system.clientmodel -maxdepth 1 2>/dev/null)",
+      "Read(//Users/aslikoturoglu/.nuget/packages/system.clientmodel/**)"
     ]
   }
 }

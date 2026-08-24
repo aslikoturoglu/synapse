@@ -17,6 +17,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AiChatMessage> AiChatMessages => Set<AiChatMessage>();
     public DbSet<Follow> Follows => Set<Follow>();
     public DbSet<UserRequest> UserRequests => Set<UserRequest>();
+    public DbSet<EmailLog> EmailLogs => Set<EmailLog>();
+    public DbSet<TokenUsageLog> TokenUsageLogs => Set<TokenUsageLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -155,6 +157,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .HasForeignKey(f => f.FollowingId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+
+        modelBuilder.Entity<EmailLog>()
+            .Property(e => e.Body).HasColumnType("mediumtext");
+
+        modelBuilder.Entity<TokenUsageLog>()
+            .HasIndex(l => l.UserId);
 
         modelBuilder.Entity<UserRequest>(entity =>
         {

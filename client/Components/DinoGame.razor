@@ -1,0 +1,229 @@
+@using Client.Services
+@implements IAsyncDisposable
+@inject GameApiClient GameApi
+@inject UiStrings Strings
+
+@* Pure Blazor + CSS endless runner — no <canvas>, no JS game library, same approach as
+   BrainMapDiagram/BrainMapGraph use for their own animation. A PeriodicTimer-driven loop
+   mutates plain C# fields each tick; obstacles/player are just absolutely-positioned divs
+   whose per-frame X/Y go through inline style (the one already-established exception to
+   "no inline styles" for continuously-computed values, same as Brain Map's node position
+   and --bubble-color). *@
+
+<div class="dino-game @(Compact ? "dino-game-compact" : "")">
+    <div class="dino-game-track" style="width: @(TrackWidth)px; height: @(TrackHeight)px;"
+         tabindex="0" @ref="_trackRef" @onkeydown="OnKeyDown" @onkeydown:preventDefault="true" @onclick="OnClick">
+        <span class="dino-player" style="left: @(DinoX)px; bottom: @((int)(GroundOffset + DinoY))px;">🐦</span>
+
+        @foreach (var obstacle in _obstacles)
+        {
+            <span class="dino-obstacle" style="left: @((int)obstacle.X)px; bottom: @(GroundOffset)px; width: @(obstacle.Width)px; height: @(obstacle.Height)px;" @key="obstacle.Id"></span>
+        }
+
+        <div class="dino-ground" style="bottom: @(GroundOffset)px;"></div>
+
+        @if (State == GameState.Ready)
+        {
+            <div class="dino-overlay">
+                <p>@Strings.Get("dinoPressToStart")</p>
+            </div>
+        }
+        else if (State == GameState.GameOver)
+        {
+            <div class="dino-overlay">
+                <p>@Strings.Get("dinoGameOver")</p>
+                <p class="dino-overlay-sub">@Strings.Get("dinoPressToRestart")</p>
+            </div>
+        }
+    </div>
+
+    <div class="dino-game-side-panel">
+        <span class="dino-game-score"><strong>@Score</strong> @Strings.Get("currentScore")</span>
+        <span class="dino-game-score"><strong>@BestScore</strong> @Strings.Get("bestScore")</span>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool Compact { get; set; }
+
+    private enum GameState { Ready, Running, GameOver }
+
+    private class Obstacle
+    {
+        public int Id;
+        public double X;
+        public double Width = 22;
+        public double Height = 40;
+    }
+
+    private const int FrameIntervalMs = 40;
+    private const double JumpDurationMs = 480;
+    private const double BaseSpeed = 220; // px/sec
+    private const double GroundOffset = 12;
+
+    private double TrackWidth => Compact ? 640 : 900;
+    private double TrackHeight => Compact ? 180 : 260;
+    private double JumpHeightPx => Compact ? 65 : 95;
+    private double DinoX => 40;
+    private const double DinoWidth = 34;
+
+    private ElementReference _trackRef;
+    private CancellationTokenSource? _cts;
+    private Task? _loopTask;
+
+    private GameState State = GameState.Ready;
+    private int Score;
+    private int BestScore;
+    private double Elapsed;
+    private double Speed = BaseSpeed;
+
+    private bool IsJumping;
+    private double _jumpElapsedMs;
+    private double DinoY;
+
+    private readonly List<Obstacle> _obstacles = [];
+    private double _spawnCountdownMs = 900;
+    private int _nextObstacleId;
+    private readonly Random _random = new();
+
+    protected override async Task OnInitializedAsync() => BestScore = await GameApi.GetBestScoreAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        await _trackRef.FocusAsync();
+        _cts = new CancellationTokenSource();
+        _loopTask = RunLoopAsync(_cts.Token);
+    }
+
+    private async Task RunLoopAsync(CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(FrameIntervalMs));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                if (State == GameState.Running)
+                    Tick(FrameIntervalMs);
+
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Component disposed mid-loop (navigated away) — expected, nothing to do.
+        }
+    }
+
+    private void Tick(double dtMs)
+    {
+        Elapsed += dtMs;
+        Speed = BaseSpeed + Elapsed / 100.0;
+        Score = (int)(Elapsed / 100);
+
+        if (IsJumping)
+        {
+            _jumpElapsedMs += dtMs;
+            var t = Math.Clamp(_jumpElapsedMs / JumpDurationMs, 0, 1);
+            DinoY = 4 * JumpHeightPx * t * (1 - t);
+            if (t >= 1)
+            {
+                IsJumping = false;
+                DinoY = 0;
+            }
+        }
+
+        var dtSeconds = dtMs / 1000.0;
+        foreach (var obstacle in _obstacles)
+            obstacle.X -= Speed * dtSeconds;
+        _obstacles.RemoveAll(o => o.X + o.Width < 0);
+
+        _spawnCountdownMs -= dtMs;
+        if (_spawnCountdownMs <= 0)
+        {
+            _obstacles.Add(new Obstacle { Id = _nextObstacleId++, X = TrackWidth, Height = _random.Next(28, 50) });
+            _spawnCountdownMs = _random.Next(850, 1700);
+        }
+
+        foreach (var obstacle in _obstacles)
+        {
+            if (Overlaps(obstacle))
+            {
+                EndGame();
+                break;
+            }
+        }
+    }
+
+    // Plain 1D range-overlap arithmetic — no physics engine. X-range overlap first (with a
+    // small hitbox margin so near-misses don't feel cheap), then a height check standing in
+    // for the Y-axis: only a collision if the dino hasn't jumped above the obstacle's top.
+    private bool Overlaps(Obstacle o)
+    {
+        const double marginX = 6, marginY = 4;
+        var xOverlap = DinoX + marginX < o.X + o.Width - marginX && DinoX + DinoWidth - marginX > o.X + marginX;
+        return xOverlap && DinoY + marginY < o.Height;
+    }
+
+    private void EndGame()
+    {
+        State = GameState.GameOver;
+        if (Score > BestScore)
+            _ = SubmitIfNewBestAsync();
+    }
+
+    private async Task SubmitIfNewBestAsync()
+    {
+        BestScore = await GameApi.SubmitScoreAsync(Score);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void Jump()
+    {
+        switch (State)
+        {
+            case GameState.Ready:
+            case GameState.GameOver:
+                Restart();
+                State = GameState.Running;
+                break;
+            case GameState.Running when !IsJumping:
+                IsJumping = true;
+                _jumpElapsedMs = 0;
+                break;
+        }
+    }
+
+    private void Restart()
+    {
+        Score = 0;
+        Elapsed = 0;
+        Speed = BaseSpeed;
+        IsJumping = false;
+        DinoY = 0;
+        _jumpElapsedMs = 0;
+        _obstacles.Clear();
+        _spawnCountdownMs = 900;
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Code is "Space" or "ArrowUp")
+            Jump();
+    }
+
+    private void OnClick() => Jump();
+
+    public async ValueTask DisposeAsync()
+    {
+        _cts?.Cancel();
+        if (_loopTask is not null)
+        {
+            try { await _loopTask; }
+            catch { /* loop's own catch already swallows OperationCanceledException */ }
+        }
+        _cts?.Dispose();
+    }
+}

@@ -58,6 +58,11 @@ public class GenerateNoteResponse
     // Pages — brain-map-agent-synapse's final mode needs this verbatim as its primary
     // grounding source, and it's what gets persisted as Post.SynthesizedDocumentMarkdown.
     public required string SynthesizedMarkdown { get; set; }
+
+    // Always generated, regardless of whether it ends up used — the client only applies this
+    // if the user never renamed the note away from the wizard's "New Note" default (see
+    // NotesStore.CreatePostFromDraftIfNeededAsync).
+    public string SuggestedTitle { get; set; } = "";
 }
 
 public class GenerateFinalBrainMapRequest

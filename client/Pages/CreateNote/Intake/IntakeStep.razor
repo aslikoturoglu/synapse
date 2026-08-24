@@ -16,12 +16,14 @@ else if (Failed)
 else if (Loading)
 {
     <h2 class="wizard-heading">@Strings.Get("creatingSynapses")</h2>
-    <div class="synapse-loader" aria-hidden="true">
-        <span class="synapse-loader-node"></span>
-        <span class="synapse-loader-node"></span>
-        <span class="synapse-loader-node"></span>
-        <span class="synapse-loader-node"></span>
-    </div>
+    <DinoGame Compact="true" />
+    @if (Ready)
+    {
+        <div class="wizard-ready-banner">
+            <p>@Strings.Get("nextStepReady")</p>
+            <button type="button" class="wizard-continue-btn" @onclick="ConfirmReady">@Strings.Get("continue")</button>
+        </div>
+    }
 }
 else
 {
@@ -63,6 +65,7 @@ else
     [Parameter] public EventCallback OnBack { get; set; }
 
     private bool Loading = true;
+    private bool Ready;
     private bool Failed;
     private bool NoFiles;
 
@@ -79,6 +82,7 @@ else
     private async Task Start()
     {
         Loading = true;
+        Ready = false;
         Failed = false;
         NoFiles = false;
 
@@ -111,6 +115,15 @@ else
         Draft.DocumentKnowledgeBase = response.DocumentKnowledgeBase;
         Draft.DraftGraph = response.DraftGraph;
 
+        Ready = true;
+    }
+
+    // Only fired by the wizard-ready-banner button — keeps the game on screen, uninterrupted,
+    // for as long as the user wants once the AI call finishes instead of yanking the form up
+    // the instant it's technically ready.
+    private void ConfirmReady()
+    {
         Loading = false;
+        Ready = false;
     }
 }

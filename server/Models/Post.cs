@@ -67,4 +67,8 @@ public class Post
     // Cached brain-map-agent output (serialized {nodes, edges}) so opening Map doesn't call
     // the agent again on every visit — only on first generation or an explicit Regenerate.
     public string? GraphJson { get; set; }
+
+    // The author's own free-form scratchpad (NoteToolbar's "More" panel) — never shown to
+    // any other viewer, not part of the generated note content itself.
+    public string? PersonalNotes { get; set; }
 }

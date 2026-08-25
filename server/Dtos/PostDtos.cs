@@ -108,6 +108,10 @@ public class PostDetailDto : PostDto
     public List<NotePageDto> Pages { get; set; } = [];
     public List<BrainMapKeywordDto> Keywords { get; set; } = [];
     public List<NoteHighlightDto> Highlights { get; set; } = [];
+
+    // Author-only scratchpad — always "" for a non-author viewer of a shared note (see
+    // PostService.GetDetailAsync), even though they can reach this same DTO.
+    public string PersonalNotes { get; set; } = "";
 }
 
 public class CreatePostRequest
@@ -161,6 +165,11 @@ public class UpdateShareSettingsRequest
 public class UpdatePageBodyRequest
 {
     public required string Body { get; set; }
+}
+
+public class UpdatePersonalNotesRequest
+{
+    public required string Notes { get; set; }
 }
 
 public class UpdatePageHeadingRequest

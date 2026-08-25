@@ -24,7 +24,8 @@ else if (ShowAllPages)
                          OnShare="() => ShareModalOpen = true" OnDocumentChanged="HandleDocumentChanged"
                          OnPageBodyChanged="HandlePageBodyChanged" OnPageHeadingChanged="HandlePageHeadingChanged"
                          OnHighlightCreated="HandleHighlightCreated" OnHighlightMessageAdded="HandleHighlightMessageAdded"
-                         OnHighlightAddedToDocument="HandleHighlightAddedToDocument" />
+                         OnHighlightAddedToDocument="HandleHighlightAddedToDocument"
+                         PersonalNotes="Post.PersonalNotes" OnPersonalNotesChanged="HandlePersonalNotesChanged" />
     </NoteDetailLayout>
 }
 else
@@ -102,6 +103,12 @@ else
     {
         if (Post is not null)
             await Store.UpdatePageBodyAsync(Post, page.Number, page.Body);
+    }
+
+    private async Task HandlePersonalNotesChanged(string notes)
+    {
+        if (Post is not null)
+            await Store.UpdatePersonalNotesAsync(Post, notes);
     }
 
     private async Task HandlePageHeadingChanged(NotePage page)

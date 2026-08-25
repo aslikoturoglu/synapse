@@ -2,6 +2,12 @@ window.noteEditor = {
     exec: function (command, value) {
         document.execCommand(command, false, value || null);
     },
+    // A real toggle (unlike bold/italic/underline, formatBlock has no built-in "toggle back"
+    // behavior in execCommand) — H3 becomes a plain paragraph, anything else becomes H3.
+    toggleHeading: function () {
+        const current = (document.queryCommandValue("formatBlock") || "").toLowerCase();
+        document.execCommand("formatBlock", false, current === "h3" ? "P" : "H3");
+    },
     getHtml: function (element) {
         return element ? element.innerHTML : "";
     },

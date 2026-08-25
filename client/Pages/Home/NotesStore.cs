@@ -220,6 +220,7 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi, Connection
 
         post.DocumentChangeCount = dto.DocumentChangeCount;
         post.GeneratedPageCount = dto.GeneratedPageCount;
+        post.PersonalNotes = dto.PersonalNotes;
         post.Pages.Clear();
         post.Pages.AddRange(dto.Pages.Select(ToNotePage));
         post.Keywords.Clear();
@@ -274,6 +275,15 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi, Connection
         var page = post.Pages.FirstOrDefault(p => p.Number == pageNumber);
         if (page is not null)
             page.Body = body;
+        return true;
+    }
+
+    public async Task<bool> UpdatePersonalNotesAsync(Post post, string notes)
+    {
+        if (!await postsApi.UpdatePersonalNotesAsync(post.Id, notes))
+            return false;
+
+        post.PersonalNotes = notes;
         return true;
     }
 

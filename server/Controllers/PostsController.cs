@@ -136,6 +136,19 @@ public class PostsController(PostService postService) : ControllerBase
         };
     }
 
+    [HttpPut("{id:int}/personal-notes")]
+    public async Task<IActionResult> UpdatePersonalNotes(int id, UpdatePersonalNotesRequest request)
+    {
+        var result = await postService.UpdatePersonalNotesAsync(User.GetUserId(), id, request.Notes);
+        return result switch
+        {
+            PostOpResult.Success => NoContent(),
+            PostOpResult.NotFound => NotFound(),
+            PostOpResult.Forbidden => Forbid(),
+            _ => BadRequest(),
+        };
+    }
+
     [HttpPut("{id:int}/pages/{pageNumber:int}/heading")]
     public async Task<IActionResult> UpdatePageHeading(int id, int pageNumber, UpdatePageHeadingRequest request)
     {

@@ -17,7 +17,8 @@ else
     <NotePagesViewer Pages="Draft.Pages" Title="@Draft.Title" PostId="CreatedPost.Id" Posted="CreatedPost.IsShared" OnShare="() => ShareModalOpen = true" Highlights="CreatedPost.Highlights"
                      OnDocumentChanged="HandleDocumentChanged" OnPageBodyChanged="HandlePageBodyChanged" OnPageHeadingChanged="HandlePageHeadingChanged"
                      OnHighlightCreated="HandleHighlightCreated" OnHighlightMessageAdded="HandleHighlightMessageAdded"
-                     OnHighlightAddedToDocument="HandleHighlightAddedToDocument" />
+                     OnHighlightAddedToDocument="HandleHighlightAddedToDocument"
+                     PersonalNotes="CreatedPost.PersonalNotes" OnPersonalNotesChanged="HandlePersonalNotesChanged" />
 
     <ShareSettingsModal Post="CreatedPost" IsOpen="ShareModalOpen" IsOpenChanged="@(open => ShareModalOpen = open)" />
 }
@@ -53,6 +54,12 @@ else
     {
         if (CreatedPost is not null)
             await Store.UpdatePageBodyAsync(CreatedPost, page.Number, page.Body);
+    }
+
+    private async Task HandlePersonalNotesChanged(string notes)
+    {
+        if (CreatedPost is not null)
+            await Store.UpdatePersonalNotesAsync(CreatedPost, notes);
     }
 
     private async Task HandlePageHeadingChanged(NotePage page)

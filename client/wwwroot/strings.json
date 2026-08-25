@@ -247,6 +247,12 @@
   "no": "No",
   "lookAtTopics": "Look at topics",
   "done": "Done",
+  "fontSizeSmall": "Small",
+  "fontSizeNormal": "Normal",
+  "fontSizeLarge": "Large",
+  "fontSizeXLarge": "X-Large",
+  "personalNotes": "Notes",
+  "personalNotesPlaceholder": "Jot down a private note to yourself here — only you can see this.",
 
   "backToNotes": "Back to Notes",
   "goToNote": "Go to Note",

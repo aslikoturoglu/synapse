@@ -70,6 +70,10 @@ public class Post
     public List<NoteHighlight> Highlights { get; init; } = [];
     public int DocumentChangeCount { get; set; }
 
+    // The author's own free-form scratchpad — always "" for a non-author viewer, same
+    // server-backed/empty-until-LoadPostDetailAsync caveat as Pages/Keywords/Highlights above.
+    public string PersonalNotes { get; set; } = "";
+
     // The real, server-known page count — always accurate, unlike Pages.Count which is 0
     // until LoadPostDetailAsync has actually been called for this post this session.
     public int GeneratedPageCount { get; set; }

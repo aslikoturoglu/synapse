@@ -58,6 +58,9 @@ public class PostsApiClient(HttpClient http)
     public async Task<bool> UpdatePageHeadingAsync(int postId, int pageNumber, string heading) =>
         (await http.PutAsJsonAsync($"api/posts/{postId}/pages/{pageNumber}/heading", new UpdatePageHeadingRequest { Heading = heading })).IsSuccessStatusCode;
 
+    public async Task<bool> UpdatePersonalNotesAsync(int postId, string notes) =>
+        (await http.PutAsJsonAsync($"api/posts/{postId}/personal-notes", new UpdatePersonalNotesRequest { Notes = notes })).IsSuccessStatusCode;
+
     public async Task<bool> IncrementDocumentChangeAsync(int postId) =>
         (await http.PostAsync($"api/posts/{postId}/document-change", null)).IsSuccessStatusCode;
 

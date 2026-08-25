@@ -3,7 +3,7 @@
 @using Client.Pages.Home
 @inject UiStrings Strings
 
-<BrainMapDiagram Keywords="Draft.Keywords" OnRemove="RemoveKeyword" OnAdd="AddKeyword">
+<BrainMapDiagram Keywords="Draft.Keywords" ShowHistory="true" OnRemove="RemoveKeyword" OnAdd="AddKeyword" OnRestore="RestoreKeyword">
     <div class="wizard-actions-row">
         <button type="button" class="btn-primary" @onclick="() => EditFilesModalOpen = true">@Strings.Get("editFiles")</button>
         <button type="button" class="btn-primary" @onclick="() => OnContinue.InvokeAsync()">@Strings.Get("continue")</button>
@@ -28,6 +28,8 @@
     }
 
     private void RemoveKeyword(BrainMapKeyword keyword) => BrainMapKeywordActions.Remove(Draft.Keywords, keyword);
+
+    private void RestoreKeyword(BrainMapKeyword keyword) => BrainMapKeywordActions.Restore(keyword);
 
     private void AddKeyword(string text) => BrainMapKeywordActions.Add(Draft.Keywords, text);
 }

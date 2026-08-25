@@ -3006,13 +3006,175 @@ button.post-action-toggle:disabled {
     font-size: 0.85rem;
 }
 
-.note-toolbar-icon[data-tooltip]:hover::after {
+/* "More" panel: a color-swatch letter button with a small bar underneath showing the current
+   pick — clicking it opens a small popover (six preset swatches + a "more colors" native
+   picker) instead of the OS picker directly, and a font-size button (showing just the current
+   size's initial(s) when closed) that opens a popover listing the full words. */
+.note-toolbar-popover-wrap {
+    position: relative;
+}
+
+.note-toolbar-color-swatch {
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.note-toolbar-color-swatch::after {
+    content: "";
+    position: absolute;
+    bottom: 0.35rem;
+    width: 1.1rem;
+    height: 0.2rem;
+    border-radius: 999px;
+    background-color: var(--swatch-color, currentColor);
+}
+
+.note-toolbar-popover {
+    position: absolute;
+    right: calc(100% + 0.7rem);
+    top: 50%;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem;
+    border-radius: 0.75rem;
+    background-color: #ffffff;
+    box-shadow: 0 0.5rem 1.5rem rgba(24, 24, 27, 0.15);
+    transform: translateY(-50%);
+    animation: wizard-ready-pop 0.15s ease-out;
+}
+
+.note-toolbar-swatch-btn {
+    width: 1.35rem;
+    height: 1.35rem;
+    padding: 0;
+    border: 1px solid rgba(24, 24, 27, 0.15);
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+.note-toolbar-swatch-more {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    border: 1px dashed var(--color-btn-secondary-border);
+    border-radius: 999px;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.note-toolbar-swatch-more input[type="color"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.note-toolbar-popover-list {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.2rem;
+}
+
+.note-toolbar-popover-item {
+    padding: 0.4rem 0.9rem;
+    border: none;
+    border-radius: 0.4rem;
+    background: none;
+    color: var(--color-text-title);
+    font-size: 0.8rem;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.note-toolbar-popover-item:hover {
+    background-color: var(--color-btn-secondary-bg);
+}
+
+.note-toolbar-popover-item-active {
+    font-weight: 700;
+}
+
+.note-personal-notes-panel {
+    position: fixed;
+    top: 50%;
+    right: 5.5rem;
+    z-index: 30;
+    width: 16rem;
+    box-sizing: border-box;
+    padding: 1rem;
+    border-radius: 0.9rem;
+    background-color: #ffffff;
+    box-shadow: 0 0.5rem 1.5rem rgba(24, 24, 27, 0.12);
+    animation: wizard-ready-pop 0.2s ease-out;
+}
+
+.note-personal-notes-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    cursor: grab;
+}
+
+.note-personal-notes-heading {
+    margin: 0;
+    color: var(--color-text-title);
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.note-personal-notes-close {
+    flex-shrink: 0;
+    border: none;
+    background: none;
+    color: var(--color-text-muted);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.note-personal-notes-textarea {
+    width: 100%;
+    min-height: 8rem;
+    box-sizing: border-box;
+    padding: 0.6rem;
+    border: 1px solid var(--color-btn-secondary-border);
+    border-radius: 0.5rem;
+    font: inherit;
+    font-size: 0.85rem;
+    resize: vertical;
+}
+
+.drag-capture-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    cursor: grabbing;
+}
+
+[data-tooltip]:hover::after {
     content: attr(data-tooltip);
     position: absolute;
     right: 100%;
     top: 50%;
+    z-index: 60;
     margin-right: 0.7rem;
     padding: 0.35rem 0.7rem;
+    width: max-content;
+    height: auto;
+    bottom: auto;
     border-radius: 0.4rem;
     background-color: #18181b;
     color: #ffffff;

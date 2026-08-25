@@ -192,11 +192,17 @@
         }
     }
 
-    // Only AiKept nodes get the frequency-ranked blue bubble treatment — AiDeleted/UserAdded
-    // keep their existing dedicated red/green tag styling untouched (see NodeCssClass).
+    // AiKept nodes get the frequency-ranked blue bubble treatment; UserAdded ones get the same
+    // glass bubble shape/animation, just tinted green (matching its existing label/tag color)
+    // since it has no frequency to rank by. AiDeleted keeps its plain, no-bubble look — it's on
+    // its way out, not something to visually promote (see NodeCssClass).
     private Dictionary<BrainMapKeyword, string> BubbleColors => BrainMapKeywordActions.ComputeBubbleColors(VisibleKeywords);
 
-    private string BubbleColor(BrainMapKeyword keyword) => BubbleColors.GetValueOrDefault(keyword, "transparent");
+    private string BubbleColor(BrainMapKeyword keyword) => keyword.Status switch
+    {
+        KeywordStatus.UserAdded => "rgba(22, 163, 74, 0.35)",
+        _ => BubbleColors.GetValueOrDefault(keyword, "transparent"),
+    };
 
     private const int BubbleDelayClassCount = 4;
 
@@ -217,17 +223,13 @@
     // frequency rank to color by) — AiDeleted/UserAdded keep today's plain tagged-text look.
     private string NodeCssClass(BrainMapKeyword keyword, int index)
     {
-        if (keyword.Status != KeywordStatus.AiKept)
-        {
-            return !ShowHistory ? "" : keyword.Status switch
-            {
-                KeywordStatus.AiDeleted => "brain-map-node-deleted",
-                KeywordStatus.UserAdded => "brain-map-node-added",
-                _ => "",
-            };
-        }
+        if (keyword.Status == KeywordStatus.AiDeleted)
+            return !ShowHistory ? "" : "brain-map-node-deleted";
 
-        return $"brain-map-bubble brain-map-bubble-delay-{index % BubbleDelayClassCount}";
+        var bubbleClasses = $"brain-map-bubble brain-map-bubble-delay-{index % BubbleDelayClassCount}";
+        return ShowHistory && keyword.Status == KeywordStatus.UserAdded
+            ? $"{bubbleClasses} brain-map-node-added"
+            : bubbleClasses;
     }
 
     private RenderFragment AddPanel => @<div class="brain-map-add-panel">

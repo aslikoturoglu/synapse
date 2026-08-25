@@ -118,6 +118,9 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
 
         var dto = ToDetailDto(await QueryDto(userId).FirstAsync(p => p.Id == postId));
         dto.DocumentChangeCount = post.DocumentChangeCount;
+        // Author-only scratchpad — never sent to another viewer of a shared note, even though
+        // they can reach this same method.
+        dto.PersonalNotes = post.AuthorId == userId ? post.PersonalNotes ?? "" : "";
         dto.Pages = post.Pages.OrderBy(p => p.Number)
             .Select(p => new NotePageDto { Number = p.Number, Heading = p.Heading, Body = p.Body })
             .ToList();
@@ -209,6 +212,19 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
             return PostOpResult.NotFound;
 
         page.Body = body;
+        await db.SaveChangesAsync();
+        return PostOpResult.Success;
+    }
+
+    public async Task<PostOpResult> UpdatePersonalNotesAsync(int userId, int postId, string notes)
+    {
+        var post = await db.Posts.FindAsync(postId);
+        if (post is null)
+            return PostOpResult.NotFound;
+        if (post.AuthorId != userId)
+            return PostOpResult.Forbidden;
+
+        post.PersonalNotes = notes;
         await db.SaveChangesAsync();
         return PostOpResult.Success;
     }

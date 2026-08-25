@@ -40,7 +40,7 @@
         }
     </div>
 
-    <NoteToolbar EditMode="EditMode" Posted="Posted" IsAuthor="IsAuthor" OnToggleEdit="() => EditMode = true" OnDone="SaveAndExitEditMode" OnShowToc="() => TocOpen = true" OnAskAi="HandleAskAiClick" OnShare="OnShare" OnDownload="OpenPdfPreview" />
+    <NoteToolbar EditMode="EditMode" Posted="Posted" IsAuthor="IsAuthor" OnToggleEdit="() => EditMode = true" OnDone="SaveAndExitEditMode" OnShowToc="() => TocOpen = true" OnAskAi="HandleAskAiClick" OnShare="OnShare" OnDownload="OpenPdfPreview" PersonalNotes="PersonalNotes" PersonalNotesChanged="OnPersonalNotesChanged" />
 
     <NoteTableOfContents IsOpen="TocOpen" IsOpenChanged="@(open => TocOpen = open)" Pages="Pages" OnSelectPage="GoToPage" />
 }
@@ -209,6 +209,12 @@ else
     // caller can flag that specific message as one that actually changed the document (see
     // Process page grouping) rather than just bumping the generic document-change counter.
     [Parameter] public EventCallback<(Guid HighlightId, int MessageId)> OnHighlightAddedToDocument { get; set; }
+
+    // The author's own free-form scratchpad, shown from NoteToolbar's "More" panel — "" and
+    // its callback left unbound for a non-author viewer (IsAuthor false), same as every other
+    // author-only tool this component exposes.
+    [Parameter] public string PersonalNotes { get; set; } = "";
+    [Parameter] public EventCallback<string> OnPersonalNotesChanged { get; set; }
 
     private bool EditMode { get; set; }
     private bool TocOpen { get; set; }

@@ -1,5 +1,6 @@
 @inject IJSRuntime JS
 @inject UiStrings Strings
+@implements IDisposable
 
 <div class="note-toolbar" data-floating-widget>
     @if (!EditMode)
@@ -42,32 +43,92 @@
 
         <div class="note-toolbar-divider"></div>
 
-        <button type="button" class="note-toolbar-icon note-toolbar-text-icon" data-tooltip="Heading" aria-label="Heading" @onmousedown:preventDefault="true" @onclick='() => Exec("formatBlock", "H3")'>T</button>
-        <button type="button" class="note-toolbar-icon note-toolbar-text-icon" data-tooltip="Bold" aria-label="Bold" @onmousedown:preventDefault="true" @onclick='() => Exec("bold")'><strong>B</strong></button>
-        <button type="button" class="note-toolbar-icon note-toolbar-text-icon" data-tooltip="Italic" aria-label="Italic" @onmousedown:preventDefault="true" @onclick='() => Exec("italic")'><em>I</em></button>
-        <button type="button" class="note-toolbar-icon note-toolbar-text-icon" data-tooltip="Underline" aria-label="Underline" @onmousedown:preventDefault="true" @onclick='() => Exec("underline")'><u>U</u></button>
+        @if (!MoreOpen)
+        {
+            <button type="button" class="note-toolbar-icon note-toolbar-text-icon" data-tooltip="Heading" aria-label="Heading" @onmousedown:preventDefault="true" @onclick="ToggleHeading">T</button>
+            <button type="button" class="note-toolbar-icon note-toolbar-text-icon" data-tooltip="Bold" aria-label="Bold" @onmousedown:preventDefault="true" @onclick='() => Exec("bold")'><strong>B</strong></button>
+            <button type="button" class="note-toolbar-icon note-toolbar-text-icon" data-tooltip="Italic" aria-label="Italic" @onmousedown:preventDefault="true" @onclick='() => Exec("italic")'><em>I</em></button>
+            <button type="button" class="note-toolbar-icon note-toolbar-text-icon" data-tooltip="Underline" aria-label="Underline" @onmousedown:preventDefault="true" @onclick='() => Exec("underline")'><u>U</u></button>
 
-        <div class="note-toolbar-divider"></div>
+            <div class="note-toolbar-divider"></div>
 
-        <button type="button" class="note-toolbar-icon" data-tooltip="Copy" aria-label="Copy" @onmousedown:preventDefault="true" @onclick='() => Exec("copy")'>
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
-        </button>
+            <button type="button" class="note-toolbar-icon" data-tooltip="Copy" aria-label="Copy" @onmousedown:preventDefault="true" @onclick='() => Exec("copy")'>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+            </button>
 
-        <button type="button" class="note-toolbar-icon" data-tooltip="More" aria-label="More">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>
-        </button>
+            <button type="button" class="note-toolbar-icon" data-tooltip="More" aria-label="More" @onclick="() => MoreOpen = true">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>
+            </button>
 
-        <button type="button" class="note-toolbar-icon" data-tooltip="Align left" aria-label="Align left" @onmousedown:preventDefault="true" @onclick='() => Exec("justifyLeft")'>
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="15" y2="12" /><line x1="3" y1="18" x2="18" y2="18" /></svg>
-        </button>
+            <button type="button" class="note-toolbar-icon" data-tooltip="Align left" aria-label="Align left" @onmousedown:preventDefault="true" @onclick='() => Exec("justifyLeft")'>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="15" y2="12" /><line x1="3" y1="18" x2="18" y2="18" /></svg>
+            </button>
 
-        <button type="button" class="note-toolbar-icon" data-tooltip="Align center" aria-label="Align center" @onmousedown:preventDefault="true" @onclick='() => Exec("justifyCenter")'>
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="6" y1="12" x2="18" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /></svg>
-        </button>
+            <button type="button" class="note-toolbar-icon" data-tooltip="Align center" aria-label="Align center" @onmousedown:preventDefault="true" @onclick='() => Exec("justifyCenter")'>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="6" y1="12" x2="18" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /></svg>
+            </button>
 
-        <button type="button" class="note-toolbar-icon" data-tooltip="Align right" aria-label="Align right" @onmousedown:preventDefault="true" @onclick='() => Exec("justifyRight")'>
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="9" y1="12" x2="21" y2="12" /><line x1="6" y1="18" x2="21" y2="18" /></svg>
-        </button>
+            <button type="button" class="note-toolbar-icon" data-tooltip="Align right" aria-label="Align right" @onmousedown:preventDefault="true" @onclick='() => Exec("justifyRight")'>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="9" y1="12" x2="21" y2="12" /><line x1="6" y1="18" x2="21" y2="18" /></svg>
+            </button>
+        }
+        else
+        {
+            <div class="note-toolbar-popover-wrap">
+                <button type="button" class="note-toolbar-icon note-toolbar-text-icon note-toolbar-color-swatch" data-tooltip="Text color" aria-label="Text color" style="--swatch-color: @TextColor;" @onclick="() => TextColorPickerOpen = !TextColorPickerOpen">A</button>
+                @if (TextColorPickerOpen)
+                {
+                    <div class="note-toolbar-popover">
+                        @foreach (var preset in PresetColors)
+                        {
+                            <button type="button" class="note-toolbar-swatch-btn" style="background-color: @preset.Hex;" title="@preset.Label" aria-label="@preset.Label" @onclick="() => ApplyTextColor(preset.Hex)"></button>
+                        }
+                        <label class="note-toolbar-swatch-more" title="More colors" aria-label="More colors">
+                            +
+                            <input type="color" value="@TextColor" @onchange="OnTextColorChanged" />
+                        </label>
+                    </div>
+                }
+            </div>
+
+            <div class="note-toolbar-popover-wrap">
+                <button type="button" class="note-toolbar-icon note-toolbar-text-icon note-toolbar-color-swatch" data-tooltip="Highlight" aria-label="Highlight" style="--swatch-color: @HighlightColor;" @onclick="() => HighlightColorPickerOpen = !HighlightColorPickerOpen">H</button>
+                @if (HighlightColorPickerOpen)
+                {
+                    <div class="note-toolbar-popover">
+                        @foreach (var preset in PresetColors)
+                        {
+                            <button type="button" class="note-toolbar-swatch-btn" style="background-color: @preset.Hex;" title="@preset.Label" aria-label="@preset.Label" @onclick="() => ApplyHighlightColor(preset.Hex)"></button>
+                        }
+                        <label class="note-toolbar-swatch-more" title="More colors" aria-label="More colors">
+                            +
+                            <input type="color" value="@HighlightColor" @onchange="OnHighlightColorChanged" />
+                        </label>
+                    </div>
+                }
+            </div>
+
+            <div class="note-toolbar-divider"></div>
+
+            <div class="note-toolbar-popover-wrap">
+                <button type="button" class="note-toolbar-icon note-toolbar-text-icon" data-tooltip="Font size" aria-label="Font size" @onclick="() => FontSizePickerOpen = !FontSizePickerOpen">@FontSizeInitials(SelectedFontSizeLabel)</button>
+                @if (FontSizePickerOpen)
+                {
+                    <div class="note-toolbar-popover note-toolbar-popover-list">
+                        @foreach (var size in FontSizes)
+                        {
+                            <button type="button" class="note-toolbar-popover-item @(size.Label == SelectedFontSizeLabel ? "note-toolbar-popover-item-active" : "")" @onclick="() => ApplyFontSize(size.Label, size.Value)">@size.Label</button>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="note-toolbar-divider"></div>
+
+            <button type="button" class="note-toolbar-icon @(NotesOpen ? "note-toolbar-icon-active" : "")" data-tooltip="@Strings.Get("personalNotes")" aria-label="@Strings.Get("personalNotes")" @onclick="ToggleNotes">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="13" y2="17" /></svg>
+            </button>
+        }
 
         <div class="note-toolbar-divider"></div>
 
@@ -75,9 +136,33 @@
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>
         </button>
 
+        @if (MoreOpen)
+        {
+            <button type="button" class="note-toolbar-icon" data-tooltip="Back" aria-label="Back" @onclick="() => MoreOpen = false">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
+            </button>
+        }
+
         <button type="button" class="btn-primary note-toolbar-done" @onclick="OnDone">@Strings.Get("done")</button>
     }
 </div>
+
+@if (EditMode && NotesOpen)
+{
+    <div class="note-personal-notes-panel" data-floating-widget
+         style="transform: translateY(-50%) translate(@((int)NotesPanelOffsetX)px, @((int)NotesPanelOffsetY)px);">
+        <div class="note-personal-notes-header" @onmousedown="StartDragNotes">
+            <p class="note-personal-notes-heading">@Strings.Get("personalNotes")</p>
+            <button type="button" class="note-personal-notes-close" aria-label="Close" @onmousedown:stopPropagation="true" @onclick="CloseNotes">×</button>
+        </div>
+        <textarea class="note-personal-notes-textarea" placeholder="@Strings.Get("personalNotesPlaceholder")" value="@NotesDraft" @oninput="OnNotesInput" @onblur="SaveNotesIfChanged"></textarea>
+    </div>
+
+    @if (NotesDragging)
+    {
+        <div class="drag-capture-overlay" @onmousemove="OnDragNotes" @onmouseup="EndDragNotes" @onmouseleave="EndDragNotes"></div>
+    }
+}
 
 @code {
     [Parameter] public bool EditMode { get; set; }
@@ -92,6 +177,171 @@
     [Parameter] public EventCallback OnAskAi { get; set; }
     [Parameter] public EventCallback OnDownload { get; set; }
 
+    // The author's own free-form scratchpad — lives on the Post itself (NotesStore.
+    // UpdatePersonalNotesAsync), not the contenteditable body, so it survives independently
+    // of Done/Cancel on the page text.
+    [Parameter] public string PersonalNotes { get; set; } = "";
+    [Parameter] public EventCallback<string> PersonalNotesChanged { get; set; }
+
+    private static readonly (string Label, string Hex)[] PresetColors =
+    [
+        ("Black", "#000000"),
+        ("White", "#ffffff"),
+        ("Red", "#dc2626"),
+        ("Blue", "#2563eb"),
+        ("Yellow", "#eab308"),
+        ("Green", "#16a34a"),
+    ];
+
+    private static readonly (string Label, string Value)[] FontSizes =
+    [
+        ("Small", "2"),
+        ("Normal", "3"),
+        ("Large", "5"),
+        ("X-Large", "7"),
+    ];
+
+    private bool MoreOpen;
+    private bool TextColorPickerOpen;
+    private bool HighlightColorPickerOpen;
+    private bool FontSizePickerOpen;
+    private string SelectedFontSizeLabel = "Normal";
+    private string TextColor = "#18181b";
+    private string HighlightColor = "#fef08a";
+
+    private bool NotesOpen;
+    private string NotesDraft = "";
+    private double NotesPanelOffsetX;
+    private double NotesPanelOffsetY;
+    private bool NotesDragging;
+    private double _dragStartMouseX;
+    private double _dragStartMouseY;
+    private double _dragStartOffsetX;
+    private double _dragStartOffsetY;
+    private CancellationTokenSource? _notesSaveDebounce;
+
+    protected override void OnParametersSet()
+    {
+        // Keep the draft in sync with the parent's copy whenever the panel isn't actively
+        // open for editing — avoids clobbering an in-progress edit if the parent re-renders.
+        if (!NotesOpen)
+            NotesDraft = PersonalNotes;
+    }
+
     private ValueTask Exec(string command, string? value = null) =>
         JS.InvokeVoidAsync("noteEditor.exec", command, value);
+
+    private Task ToggleHeading() => JS.InvokeVoidAsync("noteEditor.toggleHeading").AsTask();
+
+    private async Task ApplyTextColor(string hex)
+    {
+        TextColor = hex;
+        TextColorPickerOpen = false;
+        await Exec("foreColor", hex);
+    }
+
+    private async Task ApplyHighlightColor(string hex)
+    {
+        HighlightColor = hex;
+        HighlightColorPickerOpen = false;
+        await Exec("hiliteColor", hex);
+    }
+
+    private async Task OnTextColorChanged(ChangeEventArgs e)
+    {
+        TextColor = e.Value?.ToString() ?? TextColor;
+        TextColorPickerOpen = false;
+        await Exec("foreColor", TextColor);
+    }
+
+    private async Task OnHighlightColorChanged(ChangeEventArgs e)
+    {
+        HighlightColor = e.Value?.ToString() ?? HighlightColor;
+        HighlightColorPickerOpen = false;
+        await Exec("hiliteColor", HighlightColor);
+    }
+
+    private static string FontSizeInitials(string label) =>
+        label == "X-Large" ? "XL" : label[..1].ToUpperInvariant();
+
+    private async Task ApplyFontSize(string label, string value)
+    {
+        SelectedFontSizeLabel = label;
+        FontSizePickerOpen = false;
+        await Exec("fontSize", value);
+    }
+
+    private async Task ToggleNotes()
+    {
+        if (NotesOpen)
+        {
+            await CloseNotes();
+        }
+        else
+        {
+            NotesOpen = true;
+            NotesDraft = PersonalNotes;
+        }
+    }
+
+    private async Task CloseNotes()
+    {
+        // Cancel the pending debounce first — otherwise it can fire after this explicit save
+        // has already synced NotesDraft/PersonalNotes and mistakenly no-op, or race with it.
+        _notesSaveDebounce?.Cancel();
+        await SaveNotesIfChanged();
+        NotesOpen = false;
+    }
+
+    // Full-viewport overlay (rendered only while NotesDragging) does the actual mouse
+    // tracking — dragging fast enough for the cursor to leave the panel/header itself would
+    // otherwise drop the drag if those elements alone held the mousemove/mouseup handlers.
+    private void StartDragNotes(MouseEventArgs e)
+    {
+        NotesDragging = true;
+        _dragStartMouseX = e.ClientX;
+        _dragStartMouseY = e.ClientY;
+        _dragStartOffsetX = NotesPanelOffsetX;
+        _dragStartOffsetY = NotesPanelOffsetY;
+    }
+
+    private void OnDragNotes(MouseEventArgs e)
+    {
+        NotesPanelOffsetX = _dragStartOffsetX + (e.ClientX - _dragStartMouseX);
+        NotesPanelOffsetY = _dragStartOffsetY + (e.ClientY - _dragStartMouseY);
+    }
+
+    private void EndDragNotes(MouseEventArgs e) => NotesDragging = false;
+
+    private void OnNotesInput(ChangeEventArgs e)
+    {
+        NotesDraft = e.Value?.ToString() ?? "";
+
+        // Debounced auto-save — the note must persist even if the user never blurs the
+        // textarea or clicks Done (e.g. they just close the tab), not only on blur.
+        _notesSaveDebounce?.Cancel();
+        var cts = new CancellationTokenSource();
+        _notesSaveDebounce = cts;
+        _ = DebouncedSaveNotesAsync(cts.Token);
+    }
+
+    private async Task DebouncedSaveNotesAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(700, token);
+            await SaveNotesIfChanged();
+        }
+        catch (TaskCanceledException)
+        {
+        }
+    }
+
+    private async Task SaveNotesIfChanged()
+    {
+        if (NotesDraft != PersonalNotes)
+            await PersonalNotesChanged.InvokeAsync(NotesDraft);
+    }
+
+    public void Dispose() => _notesSaveDebounce?.Cancel();
 }

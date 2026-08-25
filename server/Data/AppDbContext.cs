@@ -65,6 +65,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             entity.Property(p => p.DocumentKnowledgeBase).HasColumnType("mediumtext");
             entity.Property(p => p.GraphJson).HasColumnType("mediumtext");
+            entity.Property(p => p.PersonalNotes).HasColumnType("mediumtext");
 
             entity.HasOne(p => p.Author)
                 .WithMany(u => u.Posts)

@@ -4152,9 +4152,10 @@ mark.note-highlight {
 .users-table-action:hover::after {
     content: attr(data-tooltip);
     position: absolute;
-    bottom: calc(100% + 0.4rem);
-    left: 50%;
-    transform: translateX(-50%);
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-right: 0.5rem;
     padding: 0.3rem 0.6rem;
     border-radius: 0.4rem;
     background-color: #18181b;

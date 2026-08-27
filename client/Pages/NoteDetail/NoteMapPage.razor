@@ -21,14 +21,14 @@ else
         }
         else if (Graph is null || Graph.Nodes.Count == 0)
         {
-            <p class="stub-text">@Strings.Get("noMapYet")</p>
+            <p class="stub-text">@Strings.Get("noBrainMapYet")</p>
         }
         else
         {
             @if (IsAuthor)
             {
                 <div class="note-map-actions-row">
-                    <button type="button" class="btn-primary" disabled="@Regenerating" @onclick="Regenerate">@Strings.Get("regenerateMap")</button>
+                    <button type="button" class="btn-primary" disabled="@Regenerating" @onclick="Regenerate">@Strings.Get("regenerateBrainMap")</button>
                 </div>
             }
             <BrainMapGraph Nodes="Graph.Nodes" Edges="Graph.Edges" />

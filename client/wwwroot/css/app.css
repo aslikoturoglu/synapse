@@ -35,6 +35,10 @@
        blue rather than the brighter --color-repost. */
     --color-axon: #3b6ea5;
 
+    /* Ask AI "make this pink" highlight command (note-format-highlight-pink) — no other UI
+       element needs pink, so this exists solely for that. */
+    --color-highlight-pink: #ec4899;
+
     --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -3686,6 +3690,59 @@ button.post-action-toggle:disabled {
 .process-document-column .note-ai-inserted,
 .note-ai-single-page .note-ai-inserted {
     background-color: rgba(22, 163, 74, 0.12);
+}
+
+/* Ask AI "Add to Document" format commands (noteEditor.js applyFormatCommand) — baked into
+   Page.Body/Heading like note-ai-inserted above, so these are plain, permanent text styling,
+   not something scoped to the AI chat UI (unlike mark.note-highlight, which is an authoring
+   marker and stays invisible outside the Process/Ask AI views — these are content the user
+   deliberately chose, so they show everywhere the note is read). */
+.note-format-subtitle {
+    color: var(--color-text-subtitle);
+    font-weight: 500;
+}
+
+/* More prominent than subtitle above — dark title color, bold, noticeably bigger — but still
+   an inline treatment, not a real block-level heading (see NoteFormatCommand's doc comment). */
+.note-format-heading {
+    color: var(--color-text-title);
+    font-weight: 700;
+    font-size: 1.4em;
+}
+
+.note-format-red {
+    color: var(--color-error);
+}
+
+.note-format-bold {
+    font-weight: 700;
+}
+
+/* Highlight (background) commands are a separate family from text-color commands above —
+   "kırmızı yap" recolors the text itself, "pembe/mavi/yeşil highlight yap" paints a
+   highlighter-style background behind it. Same padding/radius/alpha language as
+   mark.note-highlight for a consistent highlighter look. */
+.note-format-highlight-pink,
+.note-format-highlight-blue,
+.note-format-highlight-green {
+    padding: 0.05rem 0.15rem;
+    border-radius: 0.2rem;
+}
+
+.note-format-highlight-pink {
+    background-color: rgba(236, 72, 153, 0.35); /* --color-highlight-pink */
+}
+
+.note-format-highlight-blue {
+    background-color: rgba(37, 99, 235, 0.35); /* --color-repost */
+}
+
+.note-format-highlight-green {
+    background-color: rgba(22, 163, 74, 0.35); /* --color-success */
+}
+
+.note-format-large {
+    font-size: 1.15em;
 }
 
 /* Brain Map history view */

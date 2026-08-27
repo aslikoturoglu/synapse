@@ -4,14 +4,14 @@
 <div class="brain-map-row">
 <div class="brain-map-diagram-scroll">
 <div class="brain-map-diagram" style="width: @(DiagramWidth)px; height: @(DiagramHeight)px;">
-    <span class="brain-map-center" style="left: @(CenterX)px; top: @(CenterY)px;">@Strings.Get("brainMap")</span>
+    <span class="brain-map-center" style="left: @(CenterX)px; top: @(CenterY)px;">@Strings.Get("keywordsCenterLabel")</span>
 
     @foreach (var node in PositionedKeywords)
     {
         <div class="brain-map-node @NodeCssClass(node.Keyword, node.Index)" style="left: @(node.X)px; top: @(node.Y)px; --bubble-color: @BubbleColor(node.Keyword);" @key="node.Keyword">
             @if (ShowHistory && node.Keyword.Status == KeywordStatus.AiDeleted)
             {
-                <span class="brain-map-tag brain-map-tag-deleted">@Strings.Get("brainMapDeletedTag")</span>
+                <span class="brain-map-tag brain-map-tag-deleted">@Strings.Get("keywordsDeletedTag")</span>
                 <span class="brain-map-label brain-map-label-deleted">@node.Keyword.Text</span>
                 @if (CanEdit)
                 {
@@ -20,7 +20,7 @@
             }
             else if (ShowHistory && node.Keyword.Status == KeywordStatus.UserAdded)
             {
-                <span class="brain-map-tag brain-map-tag-added">@Strings.Get("brainMapAddedTag")</span>
+                <span class="brain-map-tag brain-map-tag-added">@Strings.Get("keywordsAddedTag")</span>
                 <span class="brain-map-label-row">
                     <span class="brain-map-label brain-map-label-added">@node.Keyword.Text</span>
                     @if (CanEdit)

@@ -100,6 +100,36 @@
             Page.Body = await JS.InvokeAsync<string>("noteEditor.applyDocumentEdit", BodyElement, highlightId.ToString(), html, replace);
     }
 
+    // One or more formatting instructions ("make this red and bold") from the Ask AI chat:
+    // applied together, directly to the highlighted span in a single pass, not via the agent's
+    // answer text — see NoteFormatCommand. Combined into one space-separated class list rather
+    // than one JS call per command: the first call would replace the <mark> with a plain
+    // <span> (see noteEditor.js), so a second call wouldn't find it anymore. CSS classes are
+    // resolved here (not in JS) so noteEditor.js stays a generic "wrap the mark in a span with
+    // these classes" primitive.
+    public async Task ApplyFormatCommandsAsync(Guid highlightId, IReadOnlyList<NoteFormatCommand> commands, bool targetsHeading)
+    {
+        var cssClass = string.Join(' ', commands.Select(CssClassFor));
+
+        if (targetsHeading)
+            Page.Heading = await JS.InvokeAsync<string>("noteEditor.applyFormatCommand", HeadingElement, highlightId.ToString(), cssClass);
+        else
+            Page.Body = await JS.InvokeAsync<string>("noteEditor.applyFormatCommand", BodyElement, highlightId.ToString(), cssClass);
+    }
+
+    private static string CssClassFor(NoteFormatCommand command) => command switch
+    {
+        NoteFormatCommand.Subtitle => "note-format-subtitle",
+        NoteFormatCommand.Heading => "note-format-heading",
+        NoteFormatCommand.TextRed => "note-format-red",
+        NoteFormatCommand.HighlightPink => "note-format-highlight-pink",
+        NoteFormatCommand.HighlightBlue => "note-format-highlight-blue",
+        NoteFormatCommand.HighlightGreen => "note-format-highlight-green",
+        NoteFormatCommand.Bold => "note-format-bold",
+        NoteFormatCommand.Enlarge => "note-format-large",
+        _ => throw new ArgumentOutOfRangeException(nameof(command)),
+    };
+
     // Dismissing a bubble: keeps the text but strips the <mark> wrapper (and thus the
     // highlight styling) out of the persisted page content for good.
     public async Task RemoveHighlightAsync(Guid highlightId, bool targetsHeading)

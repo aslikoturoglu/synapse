@@ -22,9 +22,12 @@ window.noteEditor = {
         return sel.toString();
     },
     // Wraps the current selection in a <mark data-highlight-id> so it stays visible once
-    // the page's HTML is persisted back into NotePage.Body. Only works for selections that
-    // stay inside a single text node (surroundContents' limitation) — fine for highlighting
-    // a phrase, not a selection spanning multiple paragraphs.
+    // the page's HTML is persisted back into NotePage.Body. Uses extractContents (which
+    // splits/duplicates whatever partial elements the selection boundary falls inside) rather
+    // than surroundContents, which throws as soon as a selection crosses into or out of an
+    // inline element (e.g. selecting "Related Brain Map Keywords: MSE..." where only "Related
+    // Brain Map Keywords:" is <strong>) — that used to fail silently, leaving no mark for
+    // "Add to Document" to ever find.
     wrapSelectionAsHighlight: function (element, highlightId) {
         const sel = window.getSelection();
         if (!element || !sel || sel.rangeCount === 0 || sel.isCollapsed) return element ? element.innerHTML : "";
@@ -35,11 +38,18 @@ window.noteEditor = {
         mark.className = "note-highlight";
         mark.dataset.highlightId = highlightId;
         try {
-            range.surroundContents(mark);
+            mark.appendChild(range.extractContents());
+            range.insertNode(mark);
         } catch {
             return element.innerHTML;
         }
         sel.removeAllRanges();
+
+        // extractContents can leave an empty inline element behind exactly where the selection
+        // split it (e.g. a <strong> whose entire text just moved into the mark) — harmless to
+        // render, but prune it so the persisted HTML doesn't accumulate empty tags over time.
+        element.querySelectorAll("strong:empty, em:empty, b:empty, i:empty").forEach(el => el.remove());
+
         return element.innerHTML;
     },
     scrollToHighlight: function (element, highlightId) {
@@ -77,6 +87,22 @@ window.noteEditor = {
         } else {
             mark.after(inserted);
         }
+        return element.innerHTML;
+    },
+    // "Add to Document" for a formatting instruction (e.g. "make this a subtitle", "make this
+    // red"): swaps the highlighted <mark> for a <span> carrying the given CSS class, instead of
+    // inserting AI-authored text like applyDocumentEdit above — the agent can only acknowledge
+    // this kind of request, not actually perform it. cssClass is resolved by the C# caller, not
+    // here, so this stays a generic primitive as more commands are added.
+    applyFormatCommand: function (element, highlightId, cssClass) {
+        if (!element) return "";
+        const mark = element.querySelector('[data-highlight-id="' + highlightId + '"]');
+        if (!mark) return element.innerHTML;
+
+        const span = document.createElement("span");
+        span.className = cssClass;
+        span.append(...mark.childNodes);
+        mark.replaceWith(span);
         return element.innerHTML;
     },
     // Ask AI mode: selecting a word/phrase (drag-select, or double-click which selects the

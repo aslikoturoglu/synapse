@@ -2,6 +2,42 @@ namespace Client.Pages.Home;
 
 public enum KeywordStatus { AiKept, AiDeleted, UserAdded }
 
+// A formatting instruction ("make this a subtitle", "make this red", "make this pink
+// highlight") detected in an Ask AI chat message. The agent can't actually change document
+// formatting itself — it only acknowledges the request in the chat (see
+// interactive-chat-agent-synapse's instructions) — so "Add to Document" applies these
+// directly via noteEditor.js instead of inserting the agent's answer text. None means the
+// specific command couldn't be matched from the question text — see AiFormatAcknowledgment,
+// which is what actually decides whether the message was a formatting instruction at all.
+//
+// TextRed recolors the text itself; the Highlight* values paint a highlighter-style background
+// behind it instead — two different CSS properties, so two different families rather than one
+// generic "color" command. Heading and Subtitle are both text treatments, not real document
+// structure (see NotePagesViewer's FormatCommandKeywords) — Heading is the more prominent one.
+public enum NoteFormatCommand
+{
+    None, Subtitle, Heading, TextRed, HighlightPink, HighlightBlue, HighlightGreen, Bold, Enlarge
+}
+
+// interactive-chat-agent-synapse prefixes every formatting-instruction acknowledgment with this
+// marker (see its FORMATTING INSTRUCTIONS system prompt section) so the app can tell "this is a
+// formatting command, don't insert my reply as document content" apart from a real answer —
+// far more reliable than re-guessing intent from the user's own wording on the client (which
+// used to run unconditionally and could misfire on a genuine question that just happened to
+// mention a color, e.g. "kırmızı çizgi ne anlama geliyor?"). Every place an answer comes back
+// from the agent (NotesStore, Axon's AssistantWidget) strips it immediately so it never leaks
+// into a rendered chat bubble.
+public static class AiFormatAcknowledgment
+{
+    private const string Prefix = "[FORMAT] ";
+
+    public static string Strip(string answer, out bool isFormatInstruction)
+    {
+        isFormatInstruction = answer.StartsWith(Prefix, StringComparison.Ordinal);
+        return isFormatInstruction ? answer[Prefix.Length..] : answer;
+    }
+}
+
 public class BrainMapKeyword
 {
     // 0 for keywords that only exist in the creation wizard's Draft so far — assigned a real
@@ -43,6 +79,12 @@ public class AiChatMessage
     // view call out document-changing messages distinctly from plain Q&A (NotesStore.
     // MarkAddedToDocumentAsync).
     public bool AddedToDocument { get; set; }
+
+    // Set alongside Answer, from AiFormatAcknowledgment.Strip — whether this reply was a
+    // formatting-instruction acknowledgment rather than a real answer. NotePagesViewer.
+    // AddToDocument reads this instead of re-detecting a format command from Question so a
+    // real question is never misread as one just for mentioning a color/style word in passing.
+    public bool IsFormatInstruction { get; set; }
 }
 
 // A piece of text the user selected in the generated note to ask the AI about.

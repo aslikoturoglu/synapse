@@ -245,6 +245,37 @@ else
     private static readonly string[] EditKeywords =
         ["kısalt", "değiştir", "düzelt", "shorten", "rewrite", "fix", "edit", "replace", "correct"];
 
+    // Which specific command(s) a formatting instruction maps to — only consulted once
+    // AiChatMessage.IsFormatInstruction (set from the agent's own [FORMAT] marker) says the
+    // message really was one; see AddToDocument below. Grouped so a message can combine
+    // commands from *different* groups (e.g. "kırmızı ve kalın yap" → TextRed + Bold, two
+    // different CSS properties applied to the same span) while still only ever picking one
+    // command *within* a group (e.g. never both Subtitle and Heading, or both pink and blue
+    // highlight, for one message) — within a group, order matters and the first match wins:
+    // "subtitle" must come before "heading" since "alt başlık" contains "başlık" as a
+    // substring, and "kırmızı"/"red" is listed last in its own group (a group of one) since
+    // it's common enough as a plain descriptive word (e.g. "bu kırmızı yazıyı pembe highlight
+    // yap", describing the text's current color while asking for something else) that other
+    // groups should get first refusal.
+    //
+    // No group matching at all leaves the document untouched in AddToDocument — the agent
+    // recognized a formatting instruction but this table doesn't have a specific handler for
+    // it yet, so it's better to do nothing than guess.
+    private static readonly (string[] Keywords, NoteFormatCommand Command)[][] FormatCommandGroups =
+    [
+        [(["subtitle", "alt başlık", "altbaşlık"], NoteFormatCommand.Subtitle), (["head", "başlık", "heading"], NoteFormatCommand.Heading)],
+        [(["pink", "pembe"], NoteFormatCommand.HighlightPink), (["blue", "mavi"], NoteFormatCommand.HighlightBlue), (["green", "yeşil"], NoteFormatCommand.HighlightGreen)],
+        [(["kalın", "bold"], NoteFormatCommand.Bold)],
+        [(["büyüt", "büyült", "enlarge", "bigger", "larger"], NoteFormatCommand.Enlarge)],
+        [(["red", "kırmızı"], NoteFormatCommand.TextRed)],
+    ];
+
+    private static List<NoteFormatCommand> DetectFormatCommands(string question) =>
+        FormatCommandGroups
+            .Select(group => group.FirstOrDefault(fc => fc.Keywords.Any(k => question.Contains(k, StringComparison.OrdinalIgnoreCase))).Command)
+            .Where(command => command != NoteFormatCommand.None)
+            .ToList();
+
     private NotePage LeftPage => Pages[CurrentLeftPage - 1];
     private NotePage? RightPage => CurrentLeftPage < Pages.Count ? Pages[CurrentLeftPage] : null;
 
@@ -345,8 +376,21 @@ else
             return;
 
         var lastMessage = highlight.Messages[^1];
-        var isEditRequest = EditKeywords.Any(k => lastMessage.Question.Contains(k, StringComparison.OrdinalIgnoreCase));
-        await SinglePageView.ApplyDocumentEditAsync(highlight.Id, lastMessage.Answer, isEditRequest, highlight.TargetsHeading);
+        if (lastMessage.IsFormatInstruction)
+        {
+            // The agent confirms this was a formatting instruction, but only apply it if this
+            // table actually has at least one matching command — otherwise leave the document
+            // untouched. Never fall through to inserting lastMessage.Answer here: it's an
+            // acknowledgment ("Tamam — 'Add to Document'a tıklayınca..."), not real content.
+            var formatCommands = DetectFormatCommands(lastMessage.Question);
+            if (formatCommands.Count > 0)
+                await SinglePageView.ApplyFormatCommandsAsync(highlight.Id, formatCommands, highlight.TargetsHeading);
+        }
+        else
+        {
+            var isEditRequest = EditKeywords.Any(k => lastMessage.Question.Contains(k, StringComparison.OrdinalIgnoreCase));
+            await SinglePageView.ApplyDocumentEditAsync(highlight.Id, lastMessage.Answer, isEditRequest, highlight.TargetsHeading);
+        }
 
         if (highlight.TargetsHeading)
             await OnPageHeadingChanged.InvokeAsync(LeftPage);
@@ -381,7 +425,9 @@ else
         if (response is null)
             return;
 
-        message.Answer = response.Answer;
+        // No document to act on here (no highlight, no Add to Document), so the format flag
+        // itself is irrelevant — only strip the marker so it never shows up in the bubble.
+        message.Answer = AiFormatAcknowledgment.Strip(response.Answer, out _);
         _generalChatThreadId = response.ThreadId;
     }
 

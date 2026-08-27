@@ -1,3 +1,4 @@
+@using Client.Pages.Home
 @using Client.Services
 @inject AssistantApiClient AssistantApi
 
@@ -90,6 +91,9 @@
         }
 
         ThreadId = result.ThreadId;
-        Messages.Add((result.Answer, false));
+        // Axon shares interactive-chat-agent-synapse with the note chat, so it could in theory
+        // get a formatting-instruction acknowledgment back too — strip the marker so it never
+        // shows up literally; there's no document here for it to act on either way.
+        Messages.Add((AiFormatAcknowledgment.Strip(result.Answer, out _), false));
     }
 }

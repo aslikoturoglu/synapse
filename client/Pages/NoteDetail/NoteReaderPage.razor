@@ -49,14 +49,14 @@ else
         <div class="note-reader-actions-row">
             @if (IsAuthor || Post.ShareBrainMap)
             {
-                <button type="button" class="btn-primary note-reader-nav-btn" @onclick='() => Navigation.NavigateTo($"/notes/{Post.Id}/brain-map")'>@Strings.Get("brainMapButton")</button>
+                <button type="button" class="btn-primary note-reader-nav-btn" @onclick='() => Navigation.NavigateTo($"/notes/{Post.Id}/brain-map")'>@Strings.Get("keywordsButton")</button>
             }
             @if (IsAuthor || Post.ShareProcess)
             {
                 <button type="button" class="btn-primary note-reader-nav-btn" @onclick='() => Navigation.NavigateTo($"/notes/{Post.Id}/process")'>@Strings.Get("process")</button>
             }
             @* Map has no share toggle — always open to any viewer of a shared post. *@
-            <button type="button" class="btn-primary note-reader-nav-btn" @onclick='() => Navigation.NavigateTo($"/notes/{Post.Id}/map")'>@Strings.Get("mapButton")</button>
+            <button type="button" class="btn-primary note-reader-nav-btn" @onclick='() => Navigation.NavigateTo($"/notes/{Post.Id}/map")'>@Strings.Get("brainMapButton")</button>
         </div>
     </NoteDetailLayout>
 }

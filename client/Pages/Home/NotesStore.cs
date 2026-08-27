@@ -376,7 +376,8 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi, Connection
             return false;
 
         pendingMessage.Id = realMessage.Id;
-        pendingMessage.Answer = realMessage.Answer;
+        pendingMessage.Answer = AiFormatAcknowledgment.Strip(realMessage.Answer, out var isFormat);
+        pendingMessage.IsFormatInstruction = isFormat;
         return true;
     }
 
@@ -390,7 +391,8 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi, Connection
             return false;
 
         message.Id = dto.Id;
-        message.Answer = dto.Answer;
+        message.Answer = AiFormatAcknowledgment.Strip(dto.Answer, out var isFormat);
+        message.IsFormatInstruction = isFormat;
         return true;
     }
 

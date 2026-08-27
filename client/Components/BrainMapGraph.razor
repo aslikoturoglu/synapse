@@ -5,15 +5,17 @@
    BrainMapDiagram: an <svg> draws only the connecting lines, node/edge labels are plain HTML
    positioned on top of it — kept as pure Blazor + SVG, no JS graph library, per the project's
    .NET-only rule. Ring radii grow with how many nodes sit on that ring so labels get enough
-   arc length to not collide; zoom is a CSS transform driven by the corner buttons or the wheel
-   (Blazor's own @onwheel — no JS needed for that either).
+   arc length to not collide; zoom is a CSS transform driven only by the corner buttons — the
+   viewport is a plain overflow:auto box (see .brain-map-viewport), so the mouse wheel/trackpad
+   scrolls and pans it natively instead of zooming, which is what it did before this used to
+   hijack @onwheel to drive Zoom directly.
 
    Starts collapsed to just the most-frequent nodes (not "all root-type nodes" — some documents'
    maps come back with dozens of root-level topics, so type alone doesn't bound the node count)
    and reveals a node's direct neighbors on click, building the map outward instead of dumping
    everything on screen at once. The corner toggle bypasses this entirely and shows the full map. *@
 
-<div class="brain-map-viewport" @onwheel="HandleWheel" @onwheel:preventDefault="true">
+<div class="brain-map-viewport">
     <div class="brain-map-canvas" style="width: @(ScaledWidth)px; height: @(ScaledHeight)px;">
         <div class="brain-map-graph" style="width: @(DiagramWidth)px; height: @(DiagramHeight)px; transform: scale(@ZoomCss);">
             <svg class="brain-map-graph-lines" width="@DiagramWidth" height="@DiagramHeight">
@@ -265,9 +267,4 @@
     private void ZoomIn() => Zoom = Math.Clamp(Math.Round(Zoom + ZoomStep, 2), MinZoom, MaxZoom);
 
     private void ZoomOut() => Zoom = Math.Clamp(Math.Round(Zoom - ZoomStep, 2), MinZoom, MaxZoom);
-
-    // Fires for both mouse wheel and touchpad scroll/pinch — a plain wheel gesture is the only
-    // one a mouse can make, so it drives zoom here rather than page panning.
-    private void HandleWheel(WheelEventArgs e) =>
-        Zoom = Math.Clamp(Math.Round(Zoom + (e.DeltaY > 0 ? -ZoomStep : ZoomStep), 2), MinZoom, MaxZoom);
 }

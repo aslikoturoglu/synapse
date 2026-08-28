@@ -290,6 +290,22 @@ public class PostsController(PostService postService) : ControllerBase
     [HttpPost("{id:int}/repost")]
     public Task<ActionResult> ToggleRepost(int id) => ToggleReactionAsync(postService.ToggleRepostAsync, id);
 
+    [HttpPost("{id:int}/send")]
+    public async Task<IActionResult> SendByEmail(int id, SendNoteEmailRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.To) || !request.To.Contains('@'))
+            return BadRequest(new { error = "A valid recipient e-mail is required." });
+
+        var result = await postService.SendNoteByEmailAsync(User.GetUserId(), id, request.To.Trim(), request.Message?.Trim());
+        return result switch
+        {
+            PostOpResult.Success => NoContent(),
+            PostOpResult.NotFound => NotFound(),
+            PostOpResult.Forbidden => Forbid(),
+            _ => BadRequest(),
+        };
+    }
+
     [HttpPost("{id:int}/comments")]
     public async Task<ActionResult<PostCommentDto>> AddComment(int id, AddCommentRequest request)
     {

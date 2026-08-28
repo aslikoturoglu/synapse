@@ -136,9 +136,18 @@
   "profile": "Profile",
   "myPosts": "My Posts",
   "myFavorites": "My Favorites",
+  "myReposts": "My Reposts",
   "myNotes": "My Notes",
   "noPostsYet": "No posts yet.",
   "noFavoritesYet": "You haven't favorited any posts yet.",
+  "noRepostsYet": "You haven't reposted anything yet.",
+
+  "sendNoteHeading": "Send this note",
+  "sendNoteRecipientLabel": "Recipient's e-mail",
+  "sendNoteRecipientPlaceholder": "friend@example.com",
+  "sendNoteMessageLabel": "Add a note (optional)",
+  "sendNoteDefaultMessage": "I thought this note might interest you.",
+  "sendNoteInvalidEmail": "Enter a valid e-mail address.",
 
   "postsTab": "Posts",
   "repostsTab": "Reposts",

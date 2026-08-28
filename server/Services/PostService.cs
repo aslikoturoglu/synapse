@@ -498,6 +498,39 @@ public class PostService(AppDbContext db, NoteChatAiService chatAiService, NoteM
         return (post.Title, BuildPdf(post.Title, post.Pages.OrderBy(p => p.Number).ToList()));
     }
 
+    // Emails the generated note (as a PDF, same BuildPdf as the download endpoint) to an
+    // arbitrary recipient the sender types in — replyTo is the sender's own address so a reply
+    // reaches them even though delivery itself goes out through the app's mail account. Same
+    // visibility rule as GenerateNotePdfAsync/GetDetailAsync.
+    public async Task<PostOpResult> SendNoteByEmailAsync(int userId, int postId, string recipientEmail, string? note)
+    {
+        var sender = await db.Users.FindAsync(userId);
+        var post = await db.Posts.Include(p => p.Pages).FirstOrDefaultAsync(p => p.Id == postId);
+        if (post is null || sender is null)
+            return PostOpResult.NotFound;
+        if (!post.IsShared && post.AuthorId != userId)
+            return PostOpResult.Forbidden;
+
+        var senderName = $"{sender.Name} {sender.Surname}";
+        var pdfBytes = BuildPdf(post.Title, post.Pages.OrderBy(p => p.Number).ToList());
+
+        await email.SendAsync(recipientEmail,
+            $"{senderName} shared a note with you: {post.Title}",
+            EmailService.Paragraphs(
+                $"<strong>{EmailService.Encode(senderName)}</strong> thought you might be interested in this note from Synapse.",
+                !string.IsNullOrWhiteSpace(note) ? EmailService.Encode(note) : null,
+                $"<strong>Title:</strong> {EmailService.Encode(post.Title)}",
+                !string.IsNullOrWhiteSpace(post.Description) ? $"<strong>Description:</strong> {EmailService.Encode(post.Description)}" : null,
+                $"<strong>Prepared by:</strong> {EmailService.Encode(senderName)}"),
+            replyTo: sender.Email,
+            attachment: new EmailAttachment($"{post.Title}.pdf", pdfBytes));
+
+        post.Sends++;
+        await db.SaveChangesAsync();
+
+        return PostOpResult.Success;
+    }
+
     // One continuous flowing document — heading then body, page after page — mirroring the
     // print stylesheet's layout (see .note-print-pages in app.css), not the on-screen page-card
     // look. Body text is plain (same HTML-stripping FallbackDocumentFromPagesAsync already

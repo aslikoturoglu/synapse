@@ -1,0 +1,87 @@
+@using Client.Pages.Home
+@using Client.Pages.Signup
+@using Client.Services
+@inject NotesStore Store
+@inject UiStrings Strings
+@inject ToastService Toast
+
+<Modal IsOpen="IsOpen" IsOpenChanged="@(open => IsOpenChanged.InvokeAsync(open))" ShowAcceptButton="false">
+    <h3 class="modal-form-heading">@Strings.Get("sendNoteHeading")</h3>
+    <p class="stub-text">@Post.Title</p>
+
+    <div class="form-group">
+        <label class="form-label">@Strings.Get("sendNoteRecipientLabel")</label>
+        <input type="email" class="form-input" placeholder="@Strings.Get("sendNoteRecipientPlaceholder")" @bind="RecipientEmail" @bind:event="oninput" />
+        @if (ShowEmailError)
+        {
+            <p class="field-error">@Strings.Get("sendNoteInvalidEmail")</p>
+        }
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">@Strings.Get("sendNoteMessageLabel")</label>
+        <textarea class="form-input send-note-message" @bind="Message" @bind:event="oninput"></textarea>
+    </div>
+
+    <div class="modal-confirm-actions">
+        <button type="button" class="btn-secondary" @onclick="Cancel">@Strings.Get("cancel")</button>
+        <button type="button" class="btn-primary" disabled="@Sending" @onclick="Submit">@Strings.Get("send")</button>
+    </div>
+</Modal>
+
+@code {
+    [Parameter, EditorRequired] public Post Post { get; set; } = null!;
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+
+    private string RecipientEmail = "";
+    private string Message = "";
+    private bool ShowEmailError;
+    private bool Sending;
+    private bool _loadedForCurrentOpen;
+
+    // Seeds a fresh recipient/message pair right as the modal opens (the instance stays mounted
+    // across opens on PostCard/NoteDetailLayout) and resets the guard on close so the next open
+    // re-seeds instead of keeping the previous recipient around.
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && !_loadedForCurrentOpen)
+        {
+            RecipientEmail = "";
+            Message = Strings.Get("sendNoteDefaultMessage");
+            ShowEmailError = false;
+            _loadedForCurrentOpen = true;
+        }
+        else if (!IsOpen)
+        {
+            _loadedForCurrentOpen = false;
+        }
+    }
+
+    private async Task Cancel() => await IsOpenChanged.InvokeAsync(false);
+
+    private async Task Submit()
+    {
+        var to = RecipientEmail.Trim();
+        if (!SignupValidation.IsValidEmailFormat(to))
+        {
+            ShowEmailError = true;
+            return;
+        }
+
+        ShowEmailError = false;
+
+        await Toast.RunAsync(
+            async () =>
+            {
+                var sent = await Store.SendNoteByEmailAsync(Post, to, Message.Trim());
+                if (!sent)
+                    throw new InvalidOperationException("Send failed.");
+
+                await IsOpenChanged.InvokeAsync(false);
+            },
+            setLoading: value => Sending = value,
+            successMessage: Strings.Get("emailSentToast"),
+            errorMessage: Strings.Get("requestFailedToast"));
+    }
+}

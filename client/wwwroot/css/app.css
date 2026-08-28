@@ -3334,6 +3334,11 @@ button.post-action-toggle:disabled {
     font-size: 1rem;
 }
 
+.send-note-message {
+    min-height: 4.5rem;
+    resize: vertical;
+}
+
 .note-detail-feed {
     gap: 1.5rem;
 }

@@ -185,6 +185,12 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi, Connection
 
     public List<Post> GetFavorites() => Posts.Where(p => p.FavoritedByMe).ToList();
 
+    // RepostedByMe, like FavoritedByMe/LikedByMe, only ever reflects the signed-in caller's own
+    // reaction, and every post the caller could have reposted is necessarily shared (hence
+    // already loaded into Posts via the feed) — so this needs no separate server round trip,
+    // unlike GetRepostsByAuthorIdAsync below (which is for an author other than the caller).
+    public List<Post> GetReposts() => Posts.Where(p => p.RepostedByMe).ToList();
+
     public List<Post> GetPostsByAuthor(string authorName) => Posts.Where(p => p.AuthorName == authorName).ToList();
 
     // LikedByMe/FavoritedByMe only reflect the signed-in caller's own reactions — the backend
@@ -512,6 +518,15 @@ public class NotesStore(AuthState authState, PostsApiClient postsApi, Connection
         p.RepostedByMe = r.Active;
         p.RepostCount = r.Count;
     });
+
+    public async Task<bool> SendNoteByEmailAsync(Post post, string to, string? message)
+    {
+        var sent = await postsApi.SendByEmailAsync(post.Id, to, message);
+        if (sent)
+            post.Sends++;
+
+        return sent;
+    }
 
     // Following is per-author, not per-post — every post by that author currently loaded
     // needs the same IsFollowing state, not just the card the button was clicked on.

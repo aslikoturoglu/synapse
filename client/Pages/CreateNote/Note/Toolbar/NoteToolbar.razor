@@ -20,7 +20,7 @@
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
         </button>
 
-        <button type="button" class="note-toolbar-icon" data-tooltip="@Strings.Get("sendByEmail")" aria-label="@Strings.Get("sendByEmail")">
+        <button type="button" class="note-toolbar-icon" data-tooltip="@Strings.Get("sendByEmail")" aria-label="@Strings.Get("sendByEmail")" @onclick="() => OnSendEmail.InvokeAsync()">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
         </button>
 
@@ -168,7 +168,7 @@
     [Parameter] public bool EditMode { get; set; }
     [Parameter] public bool Posted { get; set; }
     // Ask AI, manual edit, and share are the author's own tools — a viewer looking at someone
-    // else's shared note only gets to download, look at topics, and (once implemented) email it.
+    // else's shared note only gets to download, look at topics, and email it.
     [Parameter] public bool IsAuthor { get; set; } = true;
     [Parameter] public EventCallback OnToggleEdit { get; set; }
     [Parameter] public EventCallback OnDone { get; set; }
@@ -176,6 +176,7 @@
     [Parameter] public EventCallback OnShare { get; set; }
     [Parameter] public EventCallback OnAskAi { get; set; }
     [Parameter] public EventCallback OnDownload { get; set; }
+    [Parameter] public EventCallback OnSendEmail { get; set; }
 
     // The author's own free-form scratchpad — lives on the Post itself (NotesStore.
     // UpdatePersonalNotesAsync), not the contenteditable body, so it survives independently

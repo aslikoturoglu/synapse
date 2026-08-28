@@ -109,6 +109,9 @@ public class PostsApiClient(HttpClient http)
 
     public Task<ReactionResponse?> ToggleRepostAsync(int postId) => PostForReactionAsync($"api/posts/{postId}/repost");
 
+    public async Task<bool> SendByEmailAsync(int postId, string to, string? message) =>
+        (await http.PostAsJsonAsync($"api/posts/{postId}/send", new SendNoteEmailRequest { To = to, Message = message })).IsSuccessStatusCode;
+
     public async Task<PostCommentDto?> AddCommentAsync(int postId, string text)
     {
         var response = await http.PostAsJsonAsync($"api/posts/{postId}/comments", new AddCommentRequest { Text = text });

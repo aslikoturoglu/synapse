@@ -1,0 +1,17 @@
+@using Client.Pages.Home
+@inject NotesStore Store
+@inject UiStrings Strings
+
+@{ var reposts = Store.GetReposts(); }
+
+@if (reposts.Count == 0)
+{
+    <p class="stub-text">@Strings.Get("noRepostsYet")</p>
+}
+else
+{
+    @foreach (var post in reposts)
+    {
+        <PostCard Post="post" OnDeleted="StateHasChanged" />
+    }
+}

@@ -40,7 +40,7 @@
         }
     </div>
 
-    <NoteToolbar EditMode="EditMode" Posted="Posted" IsAuthor="IsAuthor" OnToggleEdit="() => EditMode = true" OnDone="SaveAndExitEditMode" OnShowToc="() => TocOpen = true" OnAskAi="HandleAskAiClick" OnShare="OnShare" OnDownload="OpenPdfPreview" PersonalNotes="PersonalNotes" PersonalNotesChanged="OnPersonalNotesChanged" />
+    <NoteToolbar EditMode="EditMode" Posted="Posted" IsAuthor="IsAuthor" OnToggleEdit="() => EditMode = true" OnDone="SaveAndExitEditMode" OnShowToc="() => TocOpen = true" OnAskAi="HandleAskAiClick" OnShare="OnShare" OnDownload="OpenPdfPreview" OnSendEmail="OnSendEmail" PersonalNotes="PersonalNotes" PersonalNotesChanged="OnPersonalNotesChanged" />
 
     <NoteTableOfContents IsOpen="TocOpen" IsOpenChanged="@(open => TocOpen = open)" Pages="Pages" OnSelectPage="GoToPage" />
 }
@@ -191,6 +191,7 @@ else
     [Parameter] public EventCallback OnDocumentChanged { get; set; }
     [Parameter] public bool Posted { get; set; }
     [Parameter] public EventCallback OnShare { get; set; }
+    [Parameter] public EventCallback OnSendEmail { get; set; }
     // Defaults true: the create-note wizard (NoteStep.razor) never renders this for anyone but
     // the author. NoteReaderPage.razor is the one caller that passes false, for a viewer who
     // isn't the note's author — Ask AI, manual edit, and share are meaningless (and the server

@@ -21,7 +21,7 @@ else if (ShowAllPages)
             <span>@Strings.Get("back")</span>
         </button>
         <NotePagesViewer Pages="Post.Pages" Title="@Post.Title" PostId="Post.Id" Highlights="Post.Highlights" Posted="Post.IsShared" IsAuthor="IsAuthor"
-                         OnShare="() => ShareModalOpen = true" OnDocumentChanged="HandleDocumentChanged"
+                         OnShare="() => ShareModalOpen = true" OnSendEmail="() => SendModalOpen = true" OnDocumentChanged="HandleDocumentChanged"
                          OnPageBodyChanged="HandlePageBodyChanged" OnPageHeadingChanged="HandlePageHeadingChanged"
                          OnHighlightCreated="HandleHighlightCreated" OnHighlightMessageAdded="HandleHighlightMessageAdded"
                          OnHighlightAddedToDocument="HandleHighlightAddedToDocument"
@@ -64,6 +64,7 @@ else
 @if (Post is not null)
 {
     <ShareSettingsModal Post="Post" IsOpen="ShareModalOpen" IsOpenChanged="@(open => ShareModalOpen = open)" />
+    <SendNoteModal Post="Post" IsOpen="SendModalOpen" IsOpenChanged="@(open => SendModalOpen = open)" />
 }
 
 @code {
@@ -79,6 +80,7 @@ else
     private Post? Post;
     private bool ShowAllPages;
     private bool ShareModalOpen;
+    private bool SendModalOpen;
     private int? LoadedPostId;
 
     private bool IsAuthor => Post?.AuthorId == AuthState.CurrentUser?.Id;

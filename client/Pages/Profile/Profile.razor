@@ -29,6 +29,7 @@
                 {
                     <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.MyPosts ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.MyPosts">@Strings.Get("myPosts")</button>
                     <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.MyFavorites ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.MyFavorites">@Strings.Get("myFavorites")</button>
+                    <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.MyReposts ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.MyReposts">@Strings.Get("myReposts")</button>
                     <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.MyNotes ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.MyNotes">@Strings.Get("myNotes")</button>
                 }
                 <button type="button" class="profile-nav-item @(ActiveTab == ProfileTab.Settings ? "profile-nav-item-active" : "")" @onclick="() => ActiveTab = ProfileTab.Settings">@Strings.Get("settings")</button>
@@ -163,6 +164,10 @@
             else if (ActiveTab == ProfileTab.MyFavorites)
             {
                 <FavoritesContent />
+            }
+            else if (ActiveTab == ProfileTab.MyReposts)
+            {
+                <RepostsContent />
             }
             else if (ActiveTab == ProfileTab.MyNotes)
             {
@@ -500,7 +505,7 @@
 </Modal>
 
 @code {
-    private enum ProfileTab { Profile, MyPosts, MyFavorites, MyNotes, Settings }
+    private enum ProfileTab { Profile, MyPosts, MyFavorites, MyReposts, MyNotes, Settings }
     private enum OtherProfileTab { Posts, Reposts, Notes, Favorites, Connections, Comments, Likes }
 
     [Parameter] public string? AuthorName { get; set; }

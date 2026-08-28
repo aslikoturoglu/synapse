@@ -203,3 +203,9 @@ public class ReactionResponse
     public bool Active { get; set; }
     public int Count { get; set; }
 }
+
+public class SendNoteEmailRequest
+{
+    public required string To { get; set; }
+    public string? Message { get; set; }
+}
